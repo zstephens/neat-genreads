@@ -21,7 +21,7 @@ import random
 import re
 import time
 import bisect
-#import cPickle as pickle
+import cPickle as pickle
 import numpy as np
 #import matplotlib.pyplot as mpl
 import argparse
@@ -57,15 +57,17 @@ parser.add_argument('-M', type=float, required=False, metavar='<float>', default
 parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
 parser.add_argument('-v', type=str,   required=False, metavar='<str>',   default=None,  help="input VCF file")
 
-parser.add_argument('--paired', nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='paired-end fragment length and std')
-parser.add_argument('--cancer',                      required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
-parser.add_argument('-cm',               type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
-parser.add_argument('-cp',               type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
-parser.add_argument('--job',    nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='jobs IDs for generating reads in parallel')
-parser.add_argument('--bam',                         required=False, action='store_true',       default=False, help='output golden BAM file')
-parser.add_argument('--vcf',                         required=False, action='store_true',       default=False, help='output golden VCF file')
-parser.add_argument('--rng',             type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value')
-parser.add_argument('--gz',                          required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
+parser.add_argument('--paired-art', nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='paired-end fragment length and std')
+parser.add_argument('--paired-emp', nargs=1, type=str,   required=False, metavar='<str>',           default=None,  help='empirical fragment length distribution')
+parser.add_argument('--cancer',                          required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
+parser.add_argument('-cm',                   type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
+parser.add_argument('-cp',                   type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
+parser.add_argument('--gc-model',   nargs=1, type=str,   required=False, metavar='<str>',           default=None,  help='empirical GC coverage bias distribution')
+parser.add_argument('--job',        nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='jobs IDs for generating reads in parallel')
+parser.add_argument('--bam',                             required=False, action='store_true',       default=False, help='output golden BAM file')
+parser.add_argument('--vcf',                             required=False, action='store_true',       default=False, help='output golden VCF file')
+parser.add_argument('--rng',                 type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value')
+parser.add_argument('--gz',                              required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
 args = parser.parse_args()
 
 # required args
@@ -76,10 +78,19 @@ args = parser.parse_args()
 # important flags
 (CANCER, SAVE_BAM, SAVE_VCF, GZIPPED_OUT) = (args.cancer, args.bam, args.vcf, args.gz)
 
-(FRAGMENT_SIZE, FRAGMENT_STD) = args.paired
-PAIRED_END = True
-if FRAGMENT_SIZE == 0:
-	PAIRED_END = False
+(FRAGMENT_SIZE, FRAGMENT_STD) = args.paired_art
+FRAGLEN_MODEL = args.paired_emp
+
+# if user specified mean/std, use artificial fragment length distribution, otherwise use
+# the empirical model specified. If neither, then we're doing single-end reads.
+PAIRED_END = False
+PAIRED_END_ARTIFICIAL = False
+if FRAGMENT_SIZE > 0 and FRAGMENT_STD > 0:
+	PAIRED_END = True
+	PAIRED_END_ARTIFICIAL = True
+elif FRAGLEN_MODEL != None:
+	PAIRED_END = True
+	PAIRED_END_ARTIFICIAL = False
 
 (MYJOB, NJOBS) = args.job
 if MYJOB == 0:
@@ -108,14 +119,16 @@ requiredField(OUT_PREFIX,'ERROR: no output prefix provided')
 ************************************************"""
 
 
+#	mutation models
+#
 MUT_MODEL = parseInputMutationModel(MUT_MODEL,1)
-
 if CANCER:
 	CANCER_MODEL = parseInputMutationModel(CANCER_MODEL,2)
-
 if MUT_RATE < 0.:
 	MUT_RATE = None
 
+#	sequencing error model
+#
 if SE_RATE < 0.:
 	SE_RATE = None
 if SE_MODEL == None:
@@ -124,6 +137,14 @@ if SE_MODEL == None:
 else:
 	print '\nFeature not added yet, sorry!\n'
 	exit(1)
+
+#	fragment length distribution
+#
+if PAIRED_END and not(PAIRED_END_ARTIFICIAL):
+	print 'Using empirical fragment length distribution.'
+	[FRAGLEN_VALS, FRAGLEN_PROB] = pickle.load(open(FRAGLEN_MODEL,'rb'))
+	# should probably add some validation and sanity-checking code here...
+	FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB,FRAGLEN_VALS)
 
 
 """************************************************
@@ -144,7 +165,8 @@ SMALL_WINDOW        = 20
 
 
 # fragment length distribution: normal distribution that goes out to +- 6 standard deviations
-if PAIRED_END:
+if PAIRED_END and PAIRED_END_ARTIFICIAL:
+	print 'Using artificial fragment length distribution.'
 	if FRAGMENT_STD == 0:
 		FRAGLEN_DISTRIBUTION = DiscreteDistribution([1],[FRAGMENT_SIZE],degenerateVal=FRAGMENT_SIZE)
 	else:
