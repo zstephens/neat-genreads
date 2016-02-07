@@ -2,6 +2,10 @@ import fileinput
 import cPickle as pickle
 import numpy as np
 
+FILTER_MAPQUAL  = 10	# only consider reads that are mapped with at least this mapping quality
+FILTER_MINREADS = 100	# only consider fragment lengths that have at least this many read pairs supporting it
+FILTER_MEDDEV_M = 10	# only consider fragment lengths this many median deviations above the median
+
 def quick_median(countDict):
 	midPoint = sum(countDict.values())/2
 	mySum    = 0
@@ -22,8 +26,9 @@ def median_deviation_from_median(countDict):
 		deviations[d] = countDict[k]
 	return quick_median(deviations)
 
-all_tlens = {}
 
+
+all_tlens = {}
 PRINT_EVERY = 100000
 BREAK_AFTER = 1000000
 i = 0
@@ -31,11 +36,12 @@ for line in fileinput.input():
 	splt = line.strip().split('\t')
 	samFlag = int(splt[1])
 	myRef   = splt[2]
+	mapQual = int(splt[4])
 	mateRef = splt[6]
 	myTlen  = abs(int(splt[8]))
 
-	if samFlag&1 and samFlag&64:					# if read is paired, and is first in pair...
-		if mateRef == '=' or mateRef == myRef:		# and mate is mapped to same reference
+	if samFlag&1 and samFlag&64 and mapQual > FILTER_MAPQUAL:	# if read is paired, and is first in pair, and is confidently mapped...
+		if mateRef == '=' or mateRef == myRef:					# and mate is mapped to same reference
 			if myTlen not in all_tlens:
 				all_tlens[myTlen] = 0
 			all_tlens[myTlen] += 1
@@ -49,6 +55,12 @@ for line in fileinput.input():
 				break
 
 
+med = quick_median(all_tlens)
+mdm = median_deviation_from_median(all_tlens)
 
 for k in sorted(all_tlens.keys()):
-	print k, all_tlens[k]
+	if k > 0 and k < med + FILTER_MEDDEV_M * mdm:
+		if all_tlens[k] >= FILTER_MINREADS:
+			print k, all_tlens[k]
+
+
