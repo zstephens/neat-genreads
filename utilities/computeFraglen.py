@@ -14,9 +14,18 @@ def quick_median(countDict):
 		myInd += 1
 	return myInd
 
+def median_deviation_from_median(countDict):
+	myMedian = quick_median(countDict)
+	deviations = {}
+	for k in sorted(countDict.keys()):
+		d = abs(k-myMedian)
+		deviations[d] = countDict[k]
+	return quick_median(deviations)
+
 all_tlens = {}
 
 PRINT_EVERY = 100000
+BREAK_AFTER = 1000000
 i = 0
 for line in fileinput.input():
 	splt = line.strip().split('\t')
@@ -32,9 +41,14 @@ for line in fileinput.input():
 			all_tlens[myTlen] += 1
 			i += 1
 			if i%PRINT_EVERY == 0:
-				print '---',i, quick_median(all_tlens)
+				print '---',i, quick_median(all_tlens), median_deviation_from_median(all_tlens)
 				#for k in sorted(all_tlens.keys()):
 				#	print k, all_tlens[k]
+
+			if i > BREAK_AFTER:
+				break
+
+
 
 for k in sorted(all_tlens.keys()):
 	print k, all_tlens[k]
