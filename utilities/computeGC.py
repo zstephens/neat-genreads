@@ -1,11 +1,17 @@
 import time
 import sys
+import argparse
 import numpy as np
+import cPickle as pickle
 
-REF_FILE = '/home/n-z/zstephe2/plant_refs/zzz_cleaned/hg19_clean.fa'
-REF_FILE = sys.argv[1]
-IN_GCB   = '/home/n-z/zstephe2/OICR/Pr_P_PE_635_WG_150224.bam.genomecov'
-IN_GCB   = sys.argv[2]
+parser = argparse.ArgumentParser(description='computeGC.py')
+parser.add_argument('-i', type=str, required=True, metavar='<str>', help="input.genomecov")
+parser.add_argument('-r', type=str, required=True, metavar='<str>', help="reference.fa")
+parser.add_argument('-w', type=int, required=True, metavar='<int>', help="sliding window length")
+parser.add_argument('-o', type=str, required=True, metavar='<str>', help="output.p")
+args = parser.parse_args()
+
+(IN_GCB, REF_FILE, WINDOW_SIZE, OUT_P) = (args.i, args.r, args.w, args.o)
 
 WINDOW_SIZE = 50
 WINDOW_SIZE = int(sys.argv[3])
@@ -75,15 +81,23 @@ allMean    = 0.0
 for k in sorted(GC_BINS.keys()):
 	if len(GC_BINS[k]) == 0:
 		print '{0:0.2%}'.format(k/float(WINDOW_SIZE)), 0.0, 0
+		GC_BINS[k] = 0
 	else:
 		myMean = np.mean(GC_BINS[k])
 		myLen  = len(GC_BINS[k])
 		print '{0:0.2%}'.format(k/float(WINDOW_SIZE)), myMean, myLen
 		allMean += myMean * myLen
 		runningTot += myLen
+		GC_BINS[k] = myMean
 
 avgCov = allMean/float(runningTot)
 print 'AVERAGE COVERAGE =',avgCov
+
+for k in sorted(GC_BINS.keys()):
+	GC_BINS[k] /= avgCov
+
+print 'saving model...'
+pickle.dump(GC_BINS,open(OUT_P,'wb'))
 
 print time.time()-tt,'(sec)'
 
