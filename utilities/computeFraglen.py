@@ -51,16 +51,25 @@ for line in fileinput.input():
 				#for k in sorted(all_tlens.keys()):
 				#	print k, all_tlens[k]
 
-			if i > BREAK_AFTER:
-				break
+			#if i > BREAK_AFTER:
+			#	break
 
 
 med = quick_median(all_tlens)
 mdm = median_deviation_from_median(all_tlens)
 
+outVals  = []
+outProbs = []
 for k in sorted(all_tlens.keys()):
 	if k > 0 and k < med + FILTER_MEDDEV_M * mdm:
 		if all_tlens[k] >= FILTER_MINREADS:
 			print k, all_tlens[k]
+			outVals.append(k)
+			outProbs.append(all_tlens[k])
+countSum = float(sum(outProbs))
+outProbs = [n/countSum for n in outProbs]
+
+print '\nsaving model...'
+pickle.dump([outVals, outProbs],open('fraglen.p','wb'))
 
 
