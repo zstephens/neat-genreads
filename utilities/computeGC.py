@@ -93,11 +93,13 @@ for k in sorted(GC_BINS.keys()):
 avgCov = allMean/float(runningTot)
 print 'AVERAGE COVERAGE =',avgCov
 
+y_out = []
 for k in sorted(GC_BINS.keys()):
 	GC_BINS[k] /= avgCov
+	y_out.append(GC_BINS[k])
 
 print 'saving model...'
-pickle.dump(GC_BINS,open(OUT_P,'wb'))
+pickle.dump([range(WINDOW_SIZE+1),y_out],open(OUT_P,'wb'))
 
 print time.time()-tt,'(sec)'
 

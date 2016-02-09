@@ -3,6 +3,14 @@ import random
 import bisect
 import numpy as np
 
+def mean_ind_of_weighted_list(l):
+	myMid = sum(l)/2.0
+	mySum = 0.0
+	for i in xrange(len(l)):
+		mySum += l[i]
+		if mySum >= myMid:
+			return i
+
 class DiscreteDistribution:
 	def __init__(self, weights, values, degenerateVal=None, method='bisect'):
 

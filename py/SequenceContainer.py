@@ -19,7 +19,7 @@ NUC_IND = {'A':0, 'C':1, 'G':2, 'T':3}
 #	Container for reference sequences, applies mutations
 #
 class SequenceContainer:
-	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None):
+	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None):
 
 		self.x         = xOffset
 		self.ploidy    = ploidy
@@ -33,6 +33,10 @@ class SequenceContainer:
 		self.adj       = [None for n in xrange(self.ploidy)]
 		self.blackList = [np.zeros(self.seqLen,dtype='b') for n in xrange(self.ploidy)]
 		
+		(self.windowSize, coverage_vals) = coverageDat
+		self.win_per_read = int(self.readLen/float(self.windowSize)+0.5)
+		self.which_bucket = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
+
 		self.winBuffer = windowOverlap
 		for p in xrange(self.ploidy):
 			self.blackList[p][-self.winBuffer] = True
@@ -278,12 +282,40 @@ class SequenceContainer:
 		# choose a random position within the ploid, and generate quality scores / sequencing errors
 		readsToSample = []
 		if fragLen == None:
-			rPos = random.randint(0,len(self.sequences[myPloid])-self.readLen-1)
+			#rPos = random.randint(0,len(self.sequences[myPloid])-self.readLen-1)	# uniform random
+
+			# decide which subsection of the sequence to sample from using coverage probabilities
+			coords_bad = True
+			while coords_bad:
+				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
+				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
+				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
+				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[1]]
+				if coords_to_select_from[1] < len(self.sequences[myPloid])-self.readLen:
+					coords_bad = False
+			rPos = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
+
+			# sample read position and call function to compute quality scores / sequencing errors
 			rDat = self.sequences[myPloid][rPos:rPos+self.readLen]
 			(myQual, myErrors) = sequencingModel.getSequencingErrors(rDat)
 			readsToSample.append((rPos,myQual,myErrors,rDat))
 		else:
-			rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)
+			#rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)		# uniform random
+
+			# decide which subsection of the sequence to sample from using coverage probabilities
+			coords_bad = True
+			while coords_bad:
+				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
+				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
+				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
+				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[1]]
+				rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
+				# for PE-reads, flip a coin to decide if R1 or R2 will be the "covering" read
+				if random.randint(1,2) == 1 and rPos1 > fragLen - self.readLen:
+					rPos1 -= fragLen - self.readLen
+				if rPos1 < len(self.sequences[myPloid])-fragLen:
+					coords_bad = False
+
 			rPos2 = rPos1 + fragLen - self.readLen
 			rDat1 = self.sequences[myPloid][rPos1:rPos1+self.readLen]
 			rDat2 = self.sequences[myPloid][rPos2:rPos2+self.readLen]
@@ -386,7 +418,8 @@ class SequenceContainer:
 
 			if anyIndelErr:
 				myCigar = CigarString(listIn=expandedCigar+extraCigarVal).getString()
-			rOut.append((r[0],myCigar,str(r[3]),str(r[1])))
+
+			rOut.append([r[0]-self.adj[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
 
 		# rOut[i] = (pos, cigar, read_string, qual_string)
 		return rOut
@@ -573,7 +606,7 @@ def parseInputMutationModel(prefix=None, whichDefault=1):
 
 DEFAULT_1_OVERALL_MUT_RATE   = 0.001
 DEFAULT_1_HOMOZYGOUS_FREQ    = 0.333
-DEFAULT_1_INDEL_FRACTION     = 0.005
+DEFAULT_1_INDEL_FRACTION     = 0.1
 DEFAULT_1_INS_VS_DEL         = 0.6
 
 DEFAULT_1_INS_LENGTH_VALUES  = [1,2,3,4,5,6,7,8,9,10]

@@ -1,3 +1,18 @@
+# computeGC.py
+
+Takes .genomecov files produced by BEDtools genomeCov (with -d option).
+
+
+# computeFraglen.py
+
+Takes SAM file via stdin:
+
+./samtools view toy.bam | python computeFraglen.py
+
+and creates fraglen.p model in working directory.
+
+
+
 # NeatDataStructures
 This is the repository for code which uses human genomic data 
 (specifically, genomic variants pooled from many individuals) to create data structures for the NEAT genomic read simulator.

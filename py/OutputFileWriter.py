@@ -104,7 +104,7 @@ class OutputFileWriter:
 			for n in BAM_header[0]:
 				l_name = len(n[0])+1
 				self.bam_file.write(pack('<i',l_name))
-				self.bam_file.write(n[0])
+				self.bam_file.write(n[0]+'\0')
 				self.bam_file.write(pack('<i',n[3]))
 
 	def writeFASTQRecord(self,readName,read1,qual1,read2=None,qual2=None):
@@ -145,6 +145,9 @@ class OutputFileWriter:
 		for i in xrange(encodedLen):
 			encodedSeq += pack('<B',(SEQ_PACKED[seq[2*i]]<<4) + SEQ_PACKED[seq[2*i+1]])
 
+		# apparently samtools automatically adds 33 to the quality score string...
+		encodedQual = ''.join([chr(ord(n)-33) for n in qual])
+
 		#blockSize = 4 +		# refID 		int32
 		#            4 +		# pos			int32
 		#            4 +		# bin_mq_nl		uint32
@@ -169,10 +172,10 @@ class OutputFileWriter:
 		self.bam_file.write(pack('<i',next_refID))
 		self.bam_file.write(pack('<i',next_pos))
 		self.bam_file.write(pack('<i',my_tlen))
-		self.bam_file.write(readName+"\0")
+		self.bam_file.write(readName+'\0')
 		self.bam_file.write(encodedCig)
 		self.bam_file.write(encodedSeq)
-		self.bam_file.write(qual)
+		self.bam_file.write(encodedQual)
 
 
 	def closeFiles(self):

@@ -34,7 +34,7 @@ from inputChecking		import requiredField, checkFileOpen, checkDir
 from refFunc			import indexRef, readRef, ALLOWED_NUCL
 from vcfFunc			import parseVCF
 from OutputFileWriter	import OutputFileWriter
-from probability		import DiscreteDistribution
+from probability		import DiscreteDistribution, mean_ind_of_weighted_list
 from SequenceContainer	import SequenceContainer, ReadContainer, parseInputMutationModel
 
 
@@ -57,17 +57,17 @@ parser.add_argument('-M', type=float, required=False, metavar='<float>', default
 parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
 parser.add_argument('-v', type=str,   required=False, metavar='<str>',   default=None,  help="input VCF file")
 
-parser.add_argument('--paired-art', nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='paired-end fragment length and std')
-parser.add_argument('--paired-emp', nargs=1, type=str,   required=False, metavar='<str>',           default=None,  help='empirical fragment length distribution')
-parser.add_argument('--cancer',                          required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
-parser.add_argument('-cm',                   type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
-parser.add_argument('-cp',                   type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
-parser.add_argument('--gc-model',   nargs=1, type=str,   required=False, metavar='<str>',           default=None,  help='empirical GC coverage bias distribution')
-parser.add_argument('--job',        nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='jobs IDs for generating reads in parallel')
-parser.add_argument('--bam',                             required=False, action='store_true',       default=False, help='output golden BAM file')
-parser.add_argument('--vcf',                             required=False, action='store_true',       default=False, help='output golden VCF file')
-parser.add_argument('--rng',                 type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value')
-parser.add_argument('--gz',                              required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
+parser.add_argument('--pe',       nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='paired-end fragment length mean and std')
+parser.add_argument('--pe-model',          type=str,   required=False, metavar='<str>',           default=None,  help='empirical fragment length distribution')
+parser.add_argument('--cancer',                        required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
+parser.add_argument('-cm',                 type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
+parser.add_argument('-cp',                 type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
+parser.add_argument('--gc-model',          type=str,   required=False, metavar='<str>',           default=None,  help='empirical GC coverage bias distribution')
+parser.add_argument('--job',      nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='jobs IDs for generating reads in parallel')
+parser.add_argument('--bam',                           required=False, action='store_true',       default=False, help='output golden BAM file')
+parser.add_argument('--vcf',                           required=False, action='store_true',       default=False, help='output golden VCF file')
+parser.add_argument('--rng',               type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value')
+parser.add_argument('--gz',                            required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
 args = parser.parse_args()
 
 # required args
@@ -78,8 +78,9 @@ args = parser.parse_args()
 # important flags
 (CANCER, SAVE_BAM, SAVE_VCF, GZIPPED_OUT) = (args.cancer, args.bam, args.vcf, args.gz)
 
-(FRAGMENT_SIZE, FRAGMENT_STD) = args.paired_art
-FRAGLEN_MODEL = args.paired_emp
+(FRAGMENT_SIZE, FRAGMENT_STD) = args.pe
+FRAGLEN_MODEL = args.pe_model
+GC_BIAS_MODEL = args.gc_model
 
 # if user specified mean/std, use artificial fragment length distribution, otherwise use
 # the empirical model specified. If neither, then we're doing single-end reads.
@@ -132,19 +133,38 @@ if MUT_RATE < 0.:
 if SE_RATE < 0.:
 	SE_RATE = None
 if SE_MODEL == None:
+	print 'Using default sequencing error model.'
 	SE_MODEL = SIM_PATH+'/models/errorModel_toy.p'
 	SE_CLASS = ReadContainer(READLEN,SE_MODEL,SE_RATE)
 else:
-	print '\nFeature not added yet, sorry!\n'
-	exit(1)
+	# probably need to do some sanity checking
+	SE_CLASS = ReadContainer(READLEN,SE_MODEL,SE_RATE)
+
+#	GC-bias model
+#
+if GC_BIAS_MODEL == None:
+	print 'Using default gc-bias model.'
+	GC_BIAS_MODEL = SIM_PATH+'/models/gcBias_toy.p'
+	[GC_SCALE_COUNT, GC_SCALE_VAL] = pickle.load(open(GC_BIAS_MODEL,'rb'))
+	GC_WINDOW_SIZE = GC_SCALE_COUNT[-1]
+else:
+	[GC_SCALE_COUNT, GC_SCALE_VAL] = pickle.load(open(GC_BIAS_MODEL,'rb'))
+	GC_WINDOW_SIZE = GC_SCALE_COUNT[-1]
 
 #	fragment length distribution
 #
 if PAIRED_END and not(PAIRED_END_ARTIFICIAL):
 	print 'Using empirical fragment length distribution.'
-	[FRAGLEN_VALS, FRAGLEN_PROB] = pickle.load(open(FRAGLEN_MODEL,'rb'))
+	[potential_vals, potential_prob] = pickle.load(open(FRAGLEN_MODEL,'rb'))
+	FRAGLEN_VALS = []
+	FRAGLEN_PROB = []
+	for i in xrange(len(potential_vals)):
+		if potential_vals[i] > READLEN:
+			FRAGLEN_VALS.append(potential_vals[i])
+			FRAGLEN_PROB.append(potential_prob[i])
 	# should probably add some validation and sanity-checking code here...
 	FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB,FRAGLEN_VALS)
+	FRAGMENT_SIZE = FRAGLEN_VALS[mean_ind_of_weighted_list(FRAGLEN_PROB)]
 
 
 """************************************************
@@ -153,10 +173,12 @@ if PAIRED_END and not(PAIRED_END_ARTIFICIAL):
 
 
 # target window size for read sampling. how many times bigger than read/frag length
-WINDOW_TARGET_SCALE = 10
+WINDOW_TARGET_SCALE = 50
 # sub-window size for read sampling windows. this is basically the finest resolution
 # that can be obtained for targeted region boundaries and GC% bias
 SMALL_WINDOW        = 20
+#
+OFFTARGET_SCALAR    = 0.02
 
 
 """************************************************
@@ -166,11 +188,15 @@ SMALL_WINDOW        = 20
 
 # fragment length distribution: normal distribution that goes out to +- 6 standard deviations
 if PAIRED_END and PAIRED_END_ARTIFICIAL:
-	print 'Using artificial fragment length distribution.'
+	print 'Using artificial fragment length distribution. mean='+str(FRAGMENT_SIZE)+', std='+str(FRAGMENT_STD)
 	if FRAGMENT_STD == 0:
 		FRAGLEN_DISTRIBUTION = DiscreteDistribution([1],[FRAGMENT_SIZE],degenerateVal=FRAGMENT_SIZE)
 	else:
-		FRAGLEN_VALS = range(FRAGMENT_SIZE-6*FRAGMENT_STD,FRAGMENT_SIZE+6*FRAGMENT_STD+1)
+		potential_vals = range(FRAGMENT_SIZE-6*FRAGMENT_STD,FRAGMENT_SIZE+6*FRAGMENT_STD+1)
+		FRAGLEN_VALS   = []
+		for i in xrange(len(potential_vals)):
+			if potential_vals[i] > READLEN:
+				FRAGLEN_VALS.append(potential_vals[i])
 		FRAGLEN_PROB = [np.exp(-(((n-float(FRAGMENT_SIZE))**2)/(2*(FRAGMENT_STD**2)))) for n in FRAGLEN_VALS]
 		FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB,FRAGLEN_VALS)
 
@@ -212,7 +238,7 @@ def main():
 			for line in f:
 				[myChr,pos1,pos2] = line.strip().split('\t')[:3]
 				if myChr not in inputRegions:
-					inputRegions[myChr] = []
+					inputRegions[myChr] = [-1]
 				inputRegions[myChr].extend([int(pos1),int(pos2)])
 
 	# initialize output files
@@ -227,7 +253,7 @@ def main():
 		OFW_CANCER = OutputFileWriter(OUT_PREFIX+'_tumor',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT)
 	else:
 		OFW = OutputFileWriter(OUT_PREFIX,paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT)
-
+	OUT_PREIX_NAME = OUT_PREFIX.split('/')[-1]
 
 	"""************************************************
 	****                   MAIN()
@@ -273,7 +299,7 @@ def main():
 		# determine sampling windows based on read length, large N regions, and structural mutations.
 		# in order to obtain uniform coverage, windows should overlap by:
 		#		- READLEN, if single-end reads
-		#		- FRAGMENT_SIZE, if paired-end reads
+		#		- FRAGMENT_SIZE (mean), if paired-end reads
 		# ploidy is fixed per large sampling window,
 		# coverage distributions due to GC% and targeted regions are specified within these windows
 		samplingWindows  = []
@@ -289,7 +315,9 @@ def main():
 			(pi,pf) = N_regions['non_N'][i]
 			nTargWindows = max([1,(pf-pi)/targSize])
 			bpd = int((pf-pi)/float(nTargWindows))
-			print (pi,pf), nTargWindows
+			bpd += GC_WINDOW_SIZE - bpd%GC_WINDOW_SIZE
+
+			print len(refSequence), (pi,pf), nTargWindows
 			print structuralVars
 
 			# adjust end-position of window based on inserted structural mutations
@@ -332,13 +360,28 @@ def main():
 					if vPos >= end:
 						break
 
+				# pre-compute gc-bias and targeted sequencing coverage modifiers
+				nSubWindows  = (end-start)/GC_WINDOW_SIZE
+				coverage_dat = (GC_WINDOW_SIZE,[])
+				for j in xrange(nSubWindows):
+					rInd = start + j*GC_WINDOW_SIZE
+					if INPUT_BED == None: tCov = True
+					else: tCov = not(bisect.bisect(inputRegions[myChr],rInd)%2) or not(bisect.bisect(inputRegions[myChr],rInd+GC_WINDOW_SIZE)%2)
+					if tCov: tScl = 1.0
+					else: tScl = OFFTARGET_SCALAR
+					gc_v = refSequence[rInd:rInd+GC_WINDOW_SIZE].count('G') + refSequence[rInd:rInd+GC_WINDOW_SIZE].count('C')
+					gScl = GC_SCALE_VAL[gc_v]
+					coverage_dat[1].append(1.0*tScl*gScl)
+				coverage_avg = np.mean(coverage_dat[1])
+
 				# construct sequence data that we will sample reads from
-				sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE)
+				sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
 				all_inserted_variants = sequences.random_mutations()
+				#print all_inserted_variants
 
 				if CANCER:
-					tumor_sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[CANCER_MODEL]*PLOIDS,MUT_RATE)
+					tumor_sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[CANCER_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
 					tumor_sequences.insert_mutations(varsCancerFromPrevOverlap + all_inserted_variants)
 					all_cancer_variants = tumor_sequences.random_mutations()
 
@@ -359,19 +402,22 @@ def main():
 					covWindows.append(COVERAGE)
 				meanCov = sum(covWindows)/float(len(covWindows))
 				if PAIRED_END:
-					readsToSample = int(((end-start)*meanCov)/(2*READLEN))+1
+					readsToSample = int(((end-start)*meanCov*coverage_avg)/(2*READLEN))+1
 				else:
-					readsToSample = int(((end-start)*meanCov)/(READLEN))+1
+					readsToSample = int(((end-start)*meanCov*coverage_avg)/(READLEN))+1
 
 				# sample reads from altered reference
 				for i in xrange(readsToSample):
 					if PAIRED_END:
 						myFraglen = FRAGLEN_DISTRIBUTION.sample()
 						myReadData = sequences.sample_read(SE_CLASS,myFraglen)
+						myReadData[0][0] += start	# adjust mapping position based on window start
+						myReadData[1][0] += start
 					else:
 						myReadData = sequences.sample_read(SE_CLASS)
+						myReadData[0][0] += start	# adjust mapping position based on window start
 				
-					myReadName = OUT_PREFIX+'_'+str(readNameCount)
+					myReadName = OUT_PREIX_NAME+'_'+str(readNameCount)
 					readNameCount += len(myReadData)
 
 					# write read data out to FASTQ and BAM files
@@ -409,7 +455,7 @@ def main():
 				myFilt     = 'PASS'
 				OFW.writeVCFRecord(currentRef, k[0], myID, k[1], k[2], myQual, myFilt, k[4])
 
-		break
+		#break
 
 	# close output files
 	OFW.closeFiles()
