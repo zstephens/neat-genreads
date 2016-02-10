@@ -57,7 +57,7 @@ parser.add_argument('-M', type=float, required=False, metavar='<float>', default
 parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
 parser.add_argument('-v', type=str,   required=False, metavar='<str>',   default=None,  help="input VCF file")
 
-parser.add_argument('--pe',       nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='paired-end fragment length mean and std')
+parser.add_argument('--pe',       nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(None,None), help='paired-end fragment length mean and std')
 parser.add_argument('--pe-model',          type=str,   required=False, metavar='<str>',           default=None,  help='empirical fragment length distribution')
 parser.add_argument('--cancer',                        required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
 parser.add_argument('-cm',                 type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
@@ -86,7 +86,7 @@ GC_BIAS_MODEL = args.gc_model
 # the empirical model specified. If neither, then we're doing single-end reads.
 PAIRED_END = False
 PAIRED_END_ARTIFICIAL = False
-if FRAGMENT_SIZE > 0 and FRAGMENT_STD > 0:
+if FRAGMENT_SIZE != None and FRAGMENT_STD != None:
 	PAIRED_END = True
 	PAIRED_END_ARTIFICIAL = True
 elif FRAGLEN_MODEL != None:
@@ -113,6 +113,9 @@ checkFileOpen(REFERENCE,'ERROR: could not open reference',required=True)
 checkFileOpen(INPUT_VCF,'ERROR: could not open input VCF',required=False)
 checkFileOpen(INPUT_BED,'ERROR: could not open input BED',required=False)
 requiredField(OUT_PREFIX,'ERROR: no output prefix provided')
+if (FRAGMENT_SIZE == None and FRAGMENT_STD != None) or (FRAGMENT_SIZE != None and FRAGMENT_STD == None):
+	print '\nError: --pe argument takes 2 space-separated arguments.\n'
+	exit(1)
 
 
 """************************************************
@@ -224,7 +227,8 @@ def main():
 			normalInd = sampNames.index('NORMAL')
 		else:
 			(sampNames, inputVariants) = parseVCF(INPUT_VCF)
-		inputVariants.sort()
+		for k in sorted(inputVariants.keys()):
+			inputVariants[k].sort()
 
 	#print sampNames
 	#for k in sorted(inputVariants.keys()):
@@ -317,8 +321,8 @@ def main():
 			bpd = int((pf-pi)/float(nTargWindows))
 			bpd += GC_WINDOW_SIZE - bpd%GC_WINDOW_SIZE
 
-			print len(refSequence), (pi,pf), nTargWindows
-			print structuralVars
+			#print len(refSequence), (pi,pf), nTargWindows
+			#print structuralVars
 
 			# adjust end-position of window based on inserted structural mutations
 			start = pi
@@ -350,10 +354,10 @@ def main():
 				# which inserted variants are in this window?
 				varsInWindow = []
 				updated = False
-				for j in xrange(vindFromPrev,len(inputVariants)):
-					vPos = inputVariants[j][0]
+				for j in xrange(vindFromPrev,len(validVariants)):
+					vPos = validVariants[j][0]
 					if vPos >= start and vPos < end:
-						varsInWindow.append([vPos-1]+inputVariants[j][1:])	# vcf --> array coords
+						varsInWindow.append(tuple([vPos-1]+list(validVariants[j][1:])))	# vcf --> array coords
 					if vPos >= end-overlap-1 and updated == False:
 						updated = True
 						vindFromPrev = j
@@ -376,6 +380,15 @@ def main():
 
 				# construct sequence data that we will sample reads from
 				sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
+				# adjust position of all inserted variants to match current window offset
+				#variants_to_insert = []
+				#for n in varsFromPrevOverlap:
+				#	ln = [n[0]-start] + list(n[1:])
+				#	variants_to_insert.append(tuple(ln))
+				#for n in varsInWindow:
+				#	ln = [n[0]-start] + list(n[1:])
+				#	variants_to_insert.append(tuple(ln))
+				#sequences.insert_mutations(variants_to_insert)
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
 				all_inserted_variants = sequences.random_mutations()
 				#print all_inserted_variants

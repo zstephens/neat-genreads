@@ -65,6 +65,7 @@ def parseLine(splt,colDict,colSamp):
 def parseVCF(vcfPath,tumorNormal=False):
 
 	tt = time.time()
+	print '--------------------------------'
 	sys.stdout.write('reading input VCF... ')
 	sys.stdout.flush()
 	
@@ -116,7 +117,9 @@ def parseVCF(vcfPath,tumorNormal=False):
 		varsOut[r] = [allVars[r][k] for k in sorted(allVars[r].keys())]
 	
 	print '{0:.3f} (sec)'.format(time.time()-tt)
+	print 'found',len(varsOut),'valid variants in input vcf.'
 	print nSkipped,'variants skipped (quality filtered or invalid syntax).'
+	print '--------------------------------'
 	return (sampNames, varsOut)
 
 

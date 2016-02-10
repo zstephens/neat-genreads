@@ -7,7 +7,7 @@ def requiredField(s,errString):
 		exit(1)
 
 def checkFileOpen(fn,errString,required=False):
-	if required:
+	if required or fn != None:
 		if fn == None:
 			print '\n'+errString+'\n'
 			exit(1)
