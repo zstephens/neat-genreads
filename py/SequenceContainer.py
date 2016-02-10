@@ -162,7 +162,7 @@ class SequenceContainer:
 				# try to find suitable places to insert snps
 				eventPos = -1
 				for attempt in xrange(MAX_ATTEMPTS):
-					eventPos = random.randint(self.winBuffer,self.seqLen-1)
+					eventPos = random.randint(self.winBuffer+1,self.seqLen-2)
 					for p in whichPloid:
 						if self.blackList[p][eventPos]:
 							eventPos = -1
