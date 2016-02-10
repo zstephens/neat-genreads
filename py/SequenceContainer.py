@@ -321,8 +321,8 @@ class SequenceContainer:
 			rDat2 = self.sequences[myPloid][rPos2:rPos2+self.readLen]
 			(myQual1, myErrors1) = sequencingModel.getSequencingErrors(rDat1)
 			(myQual2, myErrors2) = sequencingModel.getSequencingErrors(rDat2)
-			readsToSample.append((rPos1,myQual1,myErrors1,rDat1))
-			readsToSample.append((rPos2,myQual2,myErrors2,rDat2))
+			readsToSample.append([rPos1,myQual1,myErrors1,rDat1])
+			readsToSample.append([rPos2,myQual2,myErrors2,rDat2])
 
 		# error format:
 		# myError[i] = (type, len, pos, ref, alt)
