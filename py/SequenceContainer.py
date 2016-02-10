@@ -401,7 +401,7 @@ class SequenceContainer:
 					else:
 						if chr(r[3][ePos+adj]) == error[3]:
 							r[3] = r[3][:ePos+adj] + error[4] + r[3][ePos+adj+1:]
-							expandedCigar = expandedCigar[:ePos+adj] + 'I'*eLen + expandedCigar[ePos+adj+1:]
+							expandedCigar = expandedCigar[:ePos+adj] + ['I']*eLen + expandedCigar[ePos+adj+1:]
 						else:
 							print '\nError, ref does not match alt while attempting to insert insertion error!\n'
 							exit(1)
