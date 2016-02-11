@@ -74,20 +74,25 @@ class SequenceContainer:
 		for inpV in inputList:
 			whichPloid = []
 			wps = inpV[4][0]
-			if 'WP=' in wps:
-				whichPloid = [int(n) for n in inpV[-1][3:].split(',') if n == '1']
-				whichAlt   = [0]*len(whichPloid)
-			elif '/' in wps or '|' in wps:
-				if '/' in wps:
-					splt = wps.split('/')
-				else:
-					splt = wps.split('|')
-				whichPloid = []
-				whichAlt   = []
-				for i in xrange(len(splt)):
-					if splt[i] == '1':
-						whichPloid.append(i)
-					whichAlt.append(int(splt[i])-1)
+			if wps == None:	# if no genotype given, assume heterozygous and choose a single ploid at random
+				whichPloid.append(random.randint(0,self.ploidy-1))
+				whichAlt = [0]
+			else:
+				if 'WP=' in wps:
+					whichPloid = [int(n) for n in inpV[-1][3:].split(',') if n == '1']
+					whichAlt   = [0]*len(whichPloid)
+				elif '/' in wps or '|' in wps:
+					if '/' in wps:
+						splt = wps.split('/')
+					else:
+						splt = wps.split('|')
+					whichPloid = []
+					whichAlt   = []
+					for i in xrange(len(splt)):
+						if splt[i] == '1':
+							whichPloid.append(i)
+						whichAlt.append(int(splt[i])-1)
+						
 			for i in xrange(len(whichPloid)):
 				p = whichPloid[i]
 				myAlt = inpV[2][whichAlt[i]]
