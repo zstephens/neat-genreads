@@ -55,6 +55,8 @@ def parseLine(splt,colDict,colSamp):
 		if ':GT:' in fmt:
 			gtInd = fmt.split(':').index('GT')
 			gt_perSamp = [splt[colSamp[iii]].split(':')[gtInd-1] for iii in xrange(len(colSamp))]
+			for i in xrange(len(gt_perSamp)):
+				gt_perSamp[i] = gt_perSamp[i].replace('.','0')
 	if gt_perSamp == None:
 		gt_perSamp = [None]*max([len(colSamp),1])
 
@@ -65,7 +67,8 @@ def parseLine(splt,colDict,colSamp):
 def parseVCF(vcfPath,tumorNormal=False):
 
 	tt = time.time()
-	sys.stdout.write('reading input VCF... ')
+	print '--------------------------------'
+	sys.stdout.write('reading input VCF...\n')
 	sys.stdout.flush()
 	
 	colDict   = {}
@@ -85,6 +88,21 @@ def parseVCF(vcfPath,tumorNormal=False):
 				nSkipped += 1
 			else:
 				(aa, af, gt) = plOut
+
+				# make sure at least one allele somewhere contains the variant
+				if tumorNormal:
+					gtEval = gt[:2]
+				else:
+					gtEval = gt[:1]
+				isNonReference = False
+				for gtVal in gtEval:
+					if gtVal != None:
+						if '1' in gtVal:
+							isNonReference = True
+				if not isNonReference:
+					nSkipped += 1
+					continue
+
 				chrom = splt[0]
 				pos   = int(splt[1])
 				ref   = splt[3]
@@ -102,6 +120,12 @@ def parseVCF(vcfPath,tumorNormal=False):
 					colDict[cols[i]] = i
 				if len(colSamp):
 					sampNames = cols[-len(colSamp):]
+					if len(colSamp) == 1:
+						pass
+					elif len(colSamp) == 2 and tumorNormal:
+						print 'Detected 2 sample columns in input VCF, assuming tumor/normal.'
+					else:
+						print 'Warning: Multiple sample columns present in input VCF. By default genReads uses only the first column.'
 				else:
 					sampNames = ['Unknown']
 				if tumorNormal:
@@ -115,8 +139,9 @@ def parseVCF(vcfPath,tumorNormal=False):
 	for r in allVars.keys():
 		varsOut[r] = [allVars[r][k] for k in sorted(allVars[r].keys())]
 	
-	print '{0:.3f} (sec)'.format(time.time()-tt)
-	print nSkipped,'variants skipped (quality filtered or invalid syntax).'
+	print 'found',len(varsOut),'valid variants in input vcf.'
+	print nSkipped,'variants skipped (quality filtered, reference genotypes, or invalid syntax).'
+	print '--------------------------------'
 	return (sampNames, varsOut)
 
 

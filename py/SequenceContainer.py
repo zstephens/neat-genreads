@@ -73,13 +73,33 @@ class SequenceContainer:
 		#
 		for inpV in inputList:
 			whichPloid = []
-			if 'WP=' in inpV[-1]:
-				whichPloid = [int(n) for n in inpV[-1][3:].split(',')]
-			for p in whichPloid:
-				myVar = (inpV[0]-self.x,inpV[1],inpV[2])
-				inLen = max([len(inpV[1]),len(inpV[2])])
+			wps = inpV[4][0]
+			if wps == None:	# if no genotype given, assume heterozygous and choose a single ploid at random
+				whichPloid.append(random.randint(0,self.ploidy-1))
+				whichAlt = [0]
+			else:
+				if 'WP=' in wps:
+					whichPloid = [int(n) for n in inpV[-1][3:].split(',') if n == '1']
+					whichAlt   = [0]*len(whichPloid)
+				elif '/' in wps or '|' in wps:
+					if '/' in wps:
+						splt = wps.split('/')
+					else:
+						splt = wps.split('|')
+					whichPloid = []
+					whichAlt   = []
+					for i in xrange(len(splt)):
+						if splt[i] == '1':
+							whichPloid.append(i)
+						whichAlt.append(int(splt[i])-1)
+						
+			for i in xrange(len(whichPloid)):
+				p = whichPloid[i]
+				myAlt = inpV[2][whichAlt[i]]
+				myVar = (inpV[0]-self.x,inpV[1],myAlt)
+				inLen = max([len(inpV[1]),len(myAlt)])
 				#print myVar, chr(self.sequences[p][myVar[0]])
-				if len(inpV[1]) == 1 and len(inpV[2]) == 1:
+				if len(inpV[1]) == 1 and len(myAlt) == 1:
 					self.snpList[p].append(myVar)
 					self.blackList[p][myVar[0]] = True
 				else:
@@ -451,7 +471,7 @@ class ReadContainer:
 			self.qIndRemap = range(self.readLen)
 		else:
 			print 'Warning: Read length of error model ('+str(len(initQ))+') does not match -R value ('+str(self.readLen)+'), rescaling model...'
-			self.qIndRemap = [len(initQ)*n/readLen for n in xrange(readLen)]
+			self.qIndRemap = [max([1,len(initQ)*n/readLen]) for n in xrange(readLen)]
 
 		# adjust sequencing error frequency to match desired rate
 		if reScaledError == None:
