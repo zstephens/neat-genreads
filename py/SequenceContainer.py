@@ -351,7 +351,6 @@ class SequenceContainer:
 		#	- remove deletions that don't have enough bordering sequence content to "fill in"
 		# if error is valid, make the changes to the read data
 		rOut = []
-		adj  = 0
 		for r in readsToSample:
 			myCigar = self.allCigar[myPloid][r[0]]
 			totalD  = sum([error[1] for error in r[2] if error[0] == 'D'])
@@ -359,13 +358,25 @@ class SequenceContainer:
 			availB  = len(self.sequences[myPloid]) - r[0] - self.readLen - 1
 			expandedCigar = []
 			extraCigar    = []
+			adj           = 0
+			sse_adj       = [0 for n in xrange(self.readLen)]
 			anyIndelErr   = False
+
+			# sort by letter (D > I > S) such that we introduce all indel errors before substitution errors
+			# secondarily, sort by index
+			arrangedErrors = {'D':[],'I':[],'S':[]}
 			for error in r[2]:
-				#print error
+				arrangedErrors[error[0]].append((error[2],error))
+			sortedErrors = []
+			for k in sorted(arrangedErrors.keys()):
+				sortedErrors.extend([n[1] for n in sorted(arrangedErrors[k])])
+
+			for error in sortedErrors:
+				#print r[0], error
 				eLen = error[1]
 				ePos = error[2]
 				if error[0] == 'D' or error[0] == 'I':
-					if totalD < availB:	# if not enough bases to fill-in deletions, skip all indel erors
+					if totalD > availB:	# if not enough bases to fill-in deletions, skip all indel erors
 						continue
 					if expandedCigar == []:
 						expandedCigar = CigarString(stringIn=myCigar).getList()
@@ -373,51 +384,23 @@ class SequenceContainer:
 						fillToGo = totalD - totalI
 						extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
 						
-						#futureCigar = self.allCigar[myPloid][r[0]+totalD]
-						#letters = re.split(r"\d+",futureCigar)[1:]
-						#numbers = [int(n) for n in re.findall(r"\d+",futureCigar)]
-						#fillToGo = totalD - totalI
-						#i = len(letters)-1
-						#while fillToGo > 0:
-						#	if letters[i] == 'M' or letters[i] == 'I':
-						#		clipVal   = fillToGo
-						#		fillToGo -= numbers[i]
-						#		if fillToGo >= 0:	# add it all
-						#			extraCigar.append(str(numbers[i])+letters[i])
-						#		else:				# add clipped
-						#			extraCigar.append(str(clipVal)+letters[i])
-						#	else:
-						#		extraCigar.append(str(numbers[i])+letters[i])
-						#	i -= 1
-						#
-						#letters = re.split(r"\d+",extraCigar)[1:]
-						#numbers = re.findall(r"\d+",extraCigar)
-						#dReserve = 0
-						#extraCigarList = []
-						#for cv in extraCigar:
-						#	if letters[i] == 'D':
-						#		dReserve = numbers[i]
-						#	if letters[i] == 'M' or letters[i] == 'I':
-						#		if dReserve:
-						#			extraCigarList += ['D'*dReserve+letters[i]] + [letters[i]]*(int(numbers[i])-1)
-						#		else:
-						#			extraCigarList += [letters[i]]*int(numbers[i])
-						#		dReserve = 0
-						
 					anyIndelErr = True
+
+					# insert deletion error into read and update cigar string accordingly
 					if error[0] == 'D':
-						if eLen == 1:
-							compStr = chr(r[3][ePos+adj])
-						else:
-							compStr = str(r[3][ePos+adj:ePos+adj+eLen])
-						if compStr == error[3]:
-							r[3] = r[3][:ePos+adj+1] + r[3][ePos+adj+eLen+1:]
-							expandedCigar = expandedCigar[:ePos+adj+1] + expandedCigar[ePos+adj+eLen+1:]
+						pi = ePos+adj
+						pf = ePos+adj+eLen+1
+						if str(r[3][pi:pf]) == str(error[3]):
+							r[3] = r[3][:pi+1] + r[3][pf:]
+							expandedCigar = expandedCigar[:pi+1] + expandedCigar[pf:]
 						else:
 							print '\nError, ref does not match alt while attempting to insert deletion error!\n'
 							exit(1)
 						adj -= eLen
+						for i in xrange(ePos,len(sse_adj)):
+							sse_adj[i] -= eLen
 
+					# insert insertion error into read and update cigar string accordingly
 					else:
 						if chr(r[3][ePos+adj]) == error[3]:
 							r[3] = r[3][:ePos+adj] + error[4] + r[3][ePos+adj+1:]
@@ -426,13 +409,13 @@ class SequenceContainer:
 							print '\nError, ref does not match alt while attempting to insert insertion error!\n'
 							exit(1)
 						adj += eLen
+						for i in xrange(ePos,len(sse_adj)):
+							sse_adj[i] += eLen
 
 				else:	# substitution errors, much easier by comparison...
-					if chr(r[3][ePos]) == error[3]:
-						r[3][ePos] = error[4]
+					if chr(r[3][ePos+sse_adj[ePos]]) == error[3]:
+						r[3][ePos+sse_adj[ePos]] = error[4]
 					else:
-						print error
-						print r[3][ePos-2:ePos+2], r[3][ePos], error[3]
 						print '\nError, ref does not match alt while attempting to insert substitution error!\n'
 						exit(1)
 
@@ -511,7 +494,12 @@ class ReadContainer:
 		nDelSoFar = 0
 		# don't allow indel errors to occur on subsequent positions
 		prevIndel = -2
-		for ind in sErr[::-1]:	# for each error that we're going to insert
+		# don't allow other sequencing errors to occur on bases removed by deletion errors
+		delBlacklist = []
+
+		for ind in sErr[::-1]:	# for each error that we're going to insert...
+
+			# determine error type
 			isSub = True
 			if ind != 0 and ind != self.readLen-1-max(self.errP[3]) and ind > prevIndel+1:
 				if random.random() < self.errP[1]:
@@ -530,11 +518,18 @@ class ReadContainer:
 					newNucl = myNucl + ''.join([self.errSIN.sample() for n in xrange(indelLen)])
 					sOut.append(('I',len(newNucl)-1,ind,myNucl,newNucl))
 				elif ind < self.readLen-1-nDelSoFar:	# deletion error (prevent too many of them from stacking up)
-					myNucl  = readData[ind:ind+indelLen+1]
+					myNucl  = str(readData[ind:ind+indelLen+1])
 					newNucl = chr(readData[ind])
 					nDelSoFar += len(myNucl)-1
 					sOut.append(('D',len(myNucl)-1,ind,myNucl,newNucl))
+					for i in xrange(ind+1,ind+indelLen+1):
+						delBlacklist.append(i)
 				prevIndel = ind
+
+		# remove blacklisted errors
+		for i in xrange(len(sOut)-1,-1,-1):
+			if sOut[i][2] in delBlacklist:
+				del sOut[i]
 
 		return (qOut,sOut)
 
