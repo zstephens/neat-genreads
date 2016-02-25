@@ -328,7 +328,7 @@ class SequenceContainer:
 				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
 				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
 				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
-				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[1]]
+				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]	# both ends use index of starting position to avoid issues with reads spanning breakpoints of large events
 				rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
 				# for PE-reads, flip a coin to decide if R1 or R2 will be the "covering" read
 				if random.randint(1,2) == 1 and rPos1 > fragLen - self.readLen:
