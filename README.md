@@ -144,9 +144,6 @@ python genReads.py                  \
         --cancer
 ```
 
-## Output
-
-
 
 # Utilities	
 Several scripts are distributed with genReads that are used to generate the models used for simulation.
