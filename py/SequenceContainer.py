@@ -356,6 +356,8 @@ class SequenceContainer:
 			totalD  = sum([error[1] for error in r[2] if error[0] == 'D'])
 			totalI  = sum([error[1] for error in r[2] if error[0] == 'I'])
 			availB  = len(self.sequences[myPloid]) - r[0] - self.readLen - 1
+			# add buffer sequence to fill in positions that get deleted
+			r[3] += self.sequences[myPloid][r[0]+self.readLen:r[0]+self.readLen+totalD]
 			expandedCigar = []
 			extraCigar    = []
 			adj           = 0
@@ -382,7 +384,10 @@ class SequenceContainer:
 						expandedCigar = CigarString(stringIn=myCigar).getList()
 
 						fillToGo = totalD - totalI
-						extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
+						if fillToGo > 0:
+							extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
+						else:
+							extraCigarVal = []
 						
 					anyIndelErr = True
 
@@ -393,6 +398,7 @@ class SequenceContainer:
 						if str(r[3][pi:pf]) == str(error[3]):
 							r[3] = r[3][:pi+1] + r[3][pf:]
 							expandedCigar = expandedCigar[:pi+1] + expandedCigar[pf:]
+							expandedCigar[pi+1] = 'D'*eLen + expandedCigar[pi+1]
 						else:
 							print '\nError, ref does not match alt while attempting to insert deletion error!\n'
 							exit(1)
@@ -420,7 +426,18 @@ class SequenceContainer:
 						exit(1)
 
 			if anyIndelErr:
-				myCigar = CigarString(listIn=expandedCigar+extraCigarVal).getString()
+				#print myCigar,'-->',
+				relevantCigar = (expandedCigar+extraCigarVal)[:self.readLen]
+				myCigar = CigarString(listIn=relevantCigar).getString()
+				#print myCigar
+
+				r[3] = r[3][:self.readLen]
+				#if len(r[3]) != self.readLen:
+				#	print 'AHHHHHH_1'
+				#	exit(1)
+				#if len(expandedCigar+extraCigarVal) != self.readLen:
+				#	print 'AHHHHHH_2'
+				#	exit(1)
 
 			rOut.append([r[0]-self.adj[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
 
@@ -517,7 +534,7 @@ class ReadContainer:
 					myNucl  = chr(readData[ind])
 					newNucl = myNucl + ''.join([self.errSIN.sample() for n in xrange(indelLen)])
 					sOut.append(('I',len(newNucl)-1,ind,myNucl,newNucl))
-				elif ind < self.readLen-1-nDelSoFar:	# deletion error (prevent too many of them from stacking up)
+				elif ind < self.readLen-2-nDelSoFar:	# deletion error (prevent too many of them from stacking up)
 					myNucl  = str(readData[ind:ind+indelLen+1])
 					newNucl = chr(readData[ind])
 					nDelSoFar += len(myNucl)-1

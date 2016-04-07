@@ -106,4 +106,3 @@ if __name__ == '__main__':
 	myCigar.insertCigarElement(iPos,i_stringIn=str2)
 	print str1,'+',str2,'[inserted at position',str(iPos)+']','=',myCigar.getString()
 
-

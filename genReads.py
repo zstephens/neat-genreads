@@ -52,6 +52,7 @@ parser.add_argument('-e', type=str,   required=False, metavar='<str>',   default
 parser.add_argument('-E', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg sequencing error rate to this")
 parser.add_argument('-p', type=int,   required=False, metavar='<int>',   default=2,     help="ploidy")
 parser.add_argument('-t', type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing targeted regions")
+parser.add_argument('-to',type=float, required=False, metavar='<float>', default=0.02,  help="off-target coverage scalar")
 parser.add_argument('-m', type=str,   required=False, metavar='<str>',   default=None,  help="mutation model directory")
 parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg mutation rate to this")
 parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
@@ -75,6 +76,7 @@ args = parser.parse_args()
 # various dataset parameters
 (COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, SAMP_MODEL, INPUT_VCF) = (args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.s, args.v)
 (CANCER_MODEL, CANCER_PURITY) = (args.cm, args.cp)
+(OFFTARGET_SCALAR) = (args.to)
 # important flags
 (CANCER, SAVE_BAM, SAVE_VCF, GZIPPED_OUT) = (args.cancer, args.bam, args.vcf, args.gz)
 
@@ -180,8 +182,6 @@ WINDOW_TARGET_SCALE = 50
 # sub-window size for read sampling windows. this is basically the finest resolution
 # that can be obtained for targeted region boundaries and GC% bias
 SMALL_WINDOW        = 20
-#
-OFFTARGET_SCALAR    = 0.02
 
 
 """************************************************
