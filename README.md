@@ -29,7 +29,7 @@ Option           |  Description
 -e <str>         |  Sequencing error model.
 -E <float>       |  Average sequencing error rate. The sequencing error rate model is rescaled to make this the average value. 
 -p <int>         |  ploidy [2]
--t <str>         |  bed file containing targeted regions
+-t <str>         |  bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
 -m <str>         |  mutation model directory
 -M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value.
 -s <str>         |  input sample model
