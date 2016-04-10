@@ -318,7 +318,7 @@ class SequenceContainer:
 			# sample read position and call function to compute quality scores / sequencing errors
 			rDat = self.sequences[myPloid][rPos:rPos+self.readLen]
 			(myQual, myErrors) = sequencingModel.getSequencingErrors(rDat)
-			readsToSample.append((rPos,myQual,myErrors,rDat))
+			readsToSample.append([rPos,myQual,myErrors,rDat])
 		else:
 			#rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)		# uniform random
 
