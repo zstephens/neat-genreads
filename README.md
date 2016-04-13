@@ -168,11 +168,14 @@ This script takes in VCF files and generates variant frequency models for NEAT. 
 ### Running the Script
 The script requires 5 arguments to be entered after the full path to FindNucleotideContextOnReference.healthy.pl
 
+```
 1. Full path to Fastahack
 2. Full path to Reference Genome
 3. Full path to input VCF
 4. Full path to output file
 5. Full path to human GFF
+
+```
 
 ### Generating Trinucleotide Frequency Matrices
 16 variant frequency matrices are generated based on the trinucleotide context of each variant. The script creates a hash of hashes as it runs through the input VCF. A hash is created for each trinucleotide context, when the middle allele is removed (N_N). Each trinucleotide hash contains hashes of the original mutated from allele, which each contain keys of the mutated to alleles. As the script runs through the input VCF, each key is tallied up.
@@ -190,8 +193,13 @@ The script counts the number of insertions and deletions found in the input VCF,
 ### ANNOVAR VCFs
 ANNOVAR output VCF files can be read by the script. Frequencies of each annotation are calculated and written out to the file "annofreq.prob". Frequencies of exon variant consequences are written out to the file "exonic_consequences.prob".
 
-### Creating Variant Frequency per Region BED File from Human GFF
-TBD!!!
+### Creating Variant Frequency per Region BED File from Human GFF/GTF
+While reading through a human GTF or GFF file, coordinates of each variant from the input VCF are compared to each region found in the GTF. Regions are defined as the START and END columns of the input GTF. When a variant's location falls within a GTF region, the region key is incremented. Variant frequency is then calculated out of the length of each region. Variants per Region frequencies are then written to an output BED file with the following format:
+
+```
+START	END	Variant_Frequency
+
+```
 
 ### Computing the germline-tumor Allele Mismatch Information
 Each tumor_genotype is split and compared to the reference allele from the references genome. If the original germline allele does not match the reference genome allele, the middle allele of the trinucleotide context is replaced with the original germline allele.
