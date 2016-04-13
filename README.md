@@ -174,7 +174,6 @@ The script requires 5 arguments to be entered after the full path to FindNucleot
 3. Full path to input VCF
 4. Full path to output file
 5. Full path to human GFF
-
 ```
 
 ### Generating Trinucleotide Frequency Matrices
