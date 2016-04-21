@@ -319,6 +319,7 @@ class SequenceContainer:
 			rDat = self.sequences[myPloid][rPos:rPos+self.readLen]
 			(myQual, myErrors) = sequencingModel.getSequencingErrors(rDat)
 			readsToSample.append([rPos,myQual,myErrors,rDat])
+
 		else:
 			#rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)		# uniform random
 
@@ -340,7 +341,7 @@ class SequenceContainer:
 			rDat1 = self.sequences[myPloid][rPos1:rPos1+self.readLen]
 			rDat2 = self.sequences[myPloid][rPos2:rPos2+self.readLen]
 			(myQual1, myErrors1) = sequencingModel.getSequencingErrors(rDat1)
-			(myQual2, myErrors2) = sequencingModel.getSequencingErrors(rDat2)
+			(myQual2, myErrors2) = sequencingModel.getSequencingErrors(rDat2,isReverseStrand=True)
 			readsToSample.append([rPos1,myQual1,myErrors1,rDat1])
 			readsToSample.append([rPos2,myQual2,myErrors2,rDat2])
 
@@ -453,7 +454,17 @@ class ReadContainer:
 
 		self.readLen = readLen
 
-		[initQ,probQ,Qscores,offQ,avgError,errorParams] = pickle.load(open(errorModel,'rb'))
+		errorDat = pickle.load(open(errorModel,'rb'))
+		if len(errorDat) == 6:		# only 1 q-score model present, use same model for both strands
+			[initQ1,probQ1,Qscores,offQ,avgError,errorParams] = errorDat
+			self.PE_MODELS = False
+		elif len(errorDat) == 8:	# found a q-score model for both forward and reverse strands
+			#print 'Using paired-read quality score profiles...'
+			[initQ1,probQ1,initQ2,probQ2,Qscores,offQ,avgError,errorParams] = errorDat
+			self.PE_MODELS = True
+			if len(initQ1) != len(initQ2) or len(probQ1) != len(probQ2):
+				print '\nError: R1 and R2 quality score models are of different length.\n'
+				exit(1)
 
 		self.qErrRate = [0.]*(max(Qscores)+1)
 		for q in Qscores:
@@ -467,11 +478,11 @@ class ReadContainer:
 		self.errSIN = DiscreteDistribution(self.errP[5],NUCL)
 
 		# adjust length to match desired read length
-		if self.readLen == len(initQ):
+		if self.readLen == len(initQ1):
 			self.qIndRemap = range(self.readLen)
 		else:
-			print 'Warning: Read length of error model ('+str(len(initQ))+') does not match -R value ('+str(self.readLen)+'), rescaling model...'
-			self.qIndRemap = [max([1,len(initQ)*n/readLen]) for n in xrange(readLen)]
+			print 'Warning: Read length of error model ('+str(len(initQ1))+') does not match -R value ('+str(self.readLen)+'), rescaling model...'
+			self.qIndRemap = [max([1,len(initQ1)*n/readLen]) for n in xrange(readLen)]
 
 		# adjust sequencing error frequency to match desired rate
 		if reScaledError == None:
@@ -481,27 +492,47 @@ class ReadContainer:
 			print 'Warning: Quality scores no longer exactly representative of error porbability. Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale)
 
 		# initialize probability distributions
-		self.initDistByPos        = [DiscreteDistribution(initQ[i],Qscores) for i in xrange(len(initQ))]
-		self.probDistByPosByPrevQ = [None]
-		for i in xrange(1,len(initQ)):
-			self.probDistByPosByPrevQ.append([])
-			for j in xrange(len(initQ[0])):
-				if np.sum(probQ[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
-					self.probDistByPosByPrevQ[-1].append(DiscreteDistribution([1],[Qscores[j]],degenerateVal=Qscores[j]))
+		self.initDistByPos1        = [DiscreteDistribution(initQ1[i],Qscores) for i in xrange(len(initQ1))]
+		self.probDistByPosByPrevQ1 = [None]
+		for i in xrange(1,len(initQ1)):
+			self.probDistByPosByPrevQ1.append([])
+			for j in xrange(len(initQ1[0])):
+				if np.sum(probQ1[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
+					self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution([1],[Qscores[j]],degenerateVal=Qscores[j]))
 				else:
-					self.probDistByPosByPrevQ[-1].append(DiscreteDistribution(probQ[i][j],Qscores))
+					self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(probQ1[i][j],Qscores))
 
-	def getSequencingErrors(self, readData):
+		if self.PE_MODELS:
+			self.initDistByPos2        = [DiscreteDistribution(initQ2[i],Qscores) for i in xrange(len(initQ2))]
+			self.probDistByPosByPrevQ2 = [None]
+			for i in xrange(1,len(initQ2)):
+				self.probDistByPosByPrevQ2.append([])
+				for j in xrange(len(initQ2[0])):
+					if np.sum(probQ2[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
+						self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution([1],[Qscores[j]],degenerateVal=Qscores[j]))
+					else:
+						self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(probQ2[i][j],Qscores))
+
+	def getSequencingErrors(self, readData, isReverseStrand=False):
 
 		qOut = [0]*self.readLen
 		sErr = []
 
-		myQ  = self.initDistByPos[0].sample()
+		if self.PE_MODELS and isReverseStrand:
+			myQ = self.initDistByPos2[0].sample()
+		else:
+			myQ = self.initDistByPos1[0].sample()
+
 		if random.random() < self.qErrRate[myQ]:
 			sErr.append(0)
 		qOut[0] = myQ + self.offQ
 		for i in xrange(1,self.readLen):
-			myQ     = self.probDistByPosByPrevQ[self.qIndRemap[i]][myQ].sample()
+
+			if self.PE_MODELS and isReverseStrand:
+				myQ = self.probDistByPosByPrevQ2[self.qIndRemap[i]][myQ].sample()
+			else:
+				myQ = self.probDistByPosByPrevQ1[self.qIndRemap[i]][myQ].sample()
+
 			if random.random() < self.errorScale*self.qErrRate[myQ]:
 				sErr.append(i)
 			qOut[i] = myQ + self.offQ

@@ -30,7 +30,7 @@ import argparse
 SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 sys.path.append(SIM_PATH+'/py/')
 
-from inputChecking		import requiredField, checkFileOpen, checkDir
+from inputChecking		import requiredField, checkFileOpen, checkDir, isInRange
 from refFunc			import indexRef, readRef, ALLOWED_NUCL
 from vcfFunc			import parseVCF
 from OutputFileWriter	import OutputFileWriter
@@ -202,6 +202,22 @@ if PAIRED_END and PAIRED_END_ARTIFICIAL:
 				FRAGLEN_VALS.append(potential_vals[i])
 		FRAGLEN_PROB = [np.exp(-(((n-float(FRAGMENT_SIZE))**2)/(2*(FRAGMENT_STD**2)))) for n in FRAGLEN_VALS]
 		FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB,FRAGLEN_VALS)
+
+
+"""************************************************
+****          MORE INPUT ERROR CHECKING
+************************************************"""
+
+
+isInRange(READLEN,           10,1000000, 'Error: -R must be between 10 and 1,000,000')
+isInRange(COVERAGE,          0,1000000,  'Error: -c must be between 0 and 1,000,000')
+isInRange(PLOIDS,            1,100,      'Error: -p must be between 1 and 100')
+isInRange(OFFTARGET_SCALAR,  0,1,        'Error: -to must be between 0 and 1')
+if MUT_RATE != -1 and MUT_RATE != None:
+	isInRange(MUT_RATE,      0,0.3,      'Error: -M must be between 0 and 0.3')
+if SE_RATE != -1 and SE_RATE != None:
+	print SE_RATE
+	isInRange(SE_RATE,       0,0.3,      'Error: -E must be between 0 and 0.3')
 
 
 """************************************************
@@ -378,6 +394,9 @@ def main():
 					coverage_dat[1].append(1.0*tScl*gScl)
 				coverage_avg = np.mean(coverage_dat[1])
 
+				# pre-compute mutation rate tracks
+				# PROVIDED MUTATION RATES OVERRIDE AVERAGE VALUE
+
 				# construct sequence data that we will sample reads from
 				sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
 				# adjust position of all inserted variants to match current window offset
@@ -466,7 +485,8 @@ def main():
 				myID       = '.'
 				myQual     = '.'
 				myFilt     = 'PASS'
-				OFW.writeVCFRecord(currentRef, k[0], myID, k[1], k[2], myQual, myFilt, k[4])
+				# k[0] + 1 because we're going back to 1-based vcf coords
+				OFW.writeVCFRecord(currentRef, str(int(k[0])+1), myID, k[1], k[2], myQual, myFilt, k[4])
 
 		#break
 

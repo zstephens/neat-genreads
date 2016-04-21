@@ -85,7 +85,7 @@ python genReads.py                  \
         -o /home/me/simulated_reads \
         --bam                       \
         --vcf                       \
-        --pe 300,30
+        --pe 300 30
 ```
 
 ### Targeted region simulation
@@ -98,7 +98,7 @@ python genReads.py                  \
         -o /home/me/simulated_reads \
         --bam                       \
         --vcf                       \
-        --pe 300,30                 \
+        --pe 300 30                 \
         -t hg19_exome.bed
 ```
 
@@ -112,7 +112,7 @@ python genReads.py                  \
         -o /home/me/simulated_reads \
         --bam                       \
         --vcf                       \
-        --pe 300,30                 \
+        --pe 300 30                 \
         -v NA12878.vcf              \
         -M 0
 ```

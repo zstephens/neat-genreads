@@ -22,3 +22,8 @@ def checkDir(dir,errString):
 	if not os.path.isdir(dir):
 		print '\n'+errString+'\n'
 		exit(1)
+
+def isInRange(val,lb,ub,errString):
+	if val < lb or val > ub:
+		print '\n'+errString+'\n'
+		exit(1)

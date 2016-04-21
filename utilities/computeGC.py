@@ -26,8 +26,8 @@ for line in f:
 		refName = line.strip()[1:]
 		allRefs[refName] = []
 		print refName
-		if refName == 'chr2':
-			break
+		#if refName == 'chr2':
+		#	break
 	else:
 		allRefs[refName].append(line.strip())
 f.close()
@@ -57,8 +57,8 @@ for line in f:
 		currentRef = splt[0]
 		sPos       = int(splt[1])-1
 
-		if currentRef == 'chr2':
-			break
+		#if currentRef == 'chr2':
+		#	break
 
 	currentLine += 1
 	currentCov  += int(splt[2])
