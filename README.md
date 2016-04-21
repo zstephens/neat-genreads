@@ -49,7 +49,7 @@ Option           |  Description
 
 ## Functionality
 
-![Diagram describing the way that genReads simulates datasets](docs/flow3.png "Diagram describing the way that genReads simulates datasets")
+![Diagram describing the way that genReads simulates datasets](docs/flow_new.png "Diagram describing the way that genReads simulates datasets")
 
 NEAT genReads produces simulated sequencing datasets. It creates FASTQ files with reads sampled from a provided reference genome, using sequencing error rates and mutation rates learned from real sequencing data. The strength of genReads lies in the ability for the user to customize many sequencing parameters, produce 'golden', true positive datasets, and produce types of data that other simulators cannot (e.g. tumour/normal data).
 
