@@ -13,9 +13,6 @@ args = parser.parse_args()
 
 (IN_GCB, REF_FILE, WINDOW_SIZE, OUT_P) = (args.i, args.r, args.w, args.o)
 
-WINDOW_SIZE = 50
-WINDOW_SIZE = int(sys.argv[3])
-
 GC_BINS = {n:[] for n in range(WINDOW_SIZE+1)}
 
 print 'reading ref...'

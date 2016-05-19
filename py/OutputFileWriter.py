@@ -118,7 +118,7 @@ class OutputFileWriter:
 	def writeBAMRecord(self, refID, readName, pos_0, cigar, seq, qual, samFlag, matePos=None):
 
 		#myBin     = reg2bin(pos_0,pos_0+len(seq))
-		myBin     = 0	# or just use a dummy value, does this matter?
+		myBin     = 0	# or just use a dummy value, does this actually matter?
 
 		myMapQual = 70
 		cig_letters = re.split(r"\d+",cigar)[1:]

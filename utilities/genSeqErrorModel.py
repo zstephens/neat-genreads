@@ -1,5 +1,6 @@
 import os
 import sys
+import gzip
 import random
 import numpy as np
 import argparse
@@ -11,15 +12,16 @@ sys.path.append(SIM_PATH)
 
 from probability		import DiscreteDistribution
 
-parser = argparse.ArgumentParser(description='fastq_to_qScoreModel.py')
-parser.add_argument('-i',  type=str, required=True,  metavar='<str>',                  help="* input_read1.fq")
-parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                  help="* output.p")
-parser.add_argument('-i2', type=str, required=False, metavar='<str>', default=None,    help="input_read2.fq")
-parser.add_argument('-p',  type=str, required=False, metavar='<str>', default=None,    help="input_alignment.pileup")
-parser.add_argument('-q',  type=int, required=False, metavar='<int>', default=33,      help="quality score offset [33]")
-parser.add_argument('-Q',  type=int, required=False, metavar='<int>', default=41,      help="maximum quality score [41]")
-parser.add_argument('-n',  type=int, required=False, metavar='<int>', default=-1,      help="maximum number of reads to process [all]")
-parser.add_argument('-s',  type=int, required=False, metavar='<int>', default=1000000, help="number of simulation iterations [1000000]")
+parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
+parser.add_argument('-i',  type=str, required=True,  metavar='<str>',                      help="* input_read1.fq (.gz) / input_read1.sam")
+parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                      help="* output.p")
+parser.add_argument('-i2', type=str, required=False, metavar='<str>',     default=None,    help="input_read2.fq (.gz) / input_read2.sam")
+parser.add_argument('-p',  type=str, required=False, metavar='<str>',     default=None,    help="input_alignment.pileup")
+parser.add_argument('-q',  type=int, required=False, metavar='<int>',     default=33,      help="quality score offset [33]")
+parser.add_argument('-Q',  type=int, required=False, metavar='<int>',     default=41,      help="maximum quality score [41]")
+parser.add_argument('-n',  type=int, required=False, metavar='<int>',     default=-1,      help="maximum number of reads to process [all]")
+parser.add_argument('-s',  type=int, required=False, metavar='<int>',     default=1000000, help="number of simulation iterations [1000000]")
+parser.add_argument('--plot',        required=False, action='store_true', default=False,   help='perform some optional plotting')
 args = parser.parse_args()
 
 (INF, OUF, offQ, maxQ, MAX_READS, N_SAMP) = (args.i, args.o, args.q, args.Q, args.n, args.s)
@@ -28,28 +30,56 @@ args = parser.parse_args()
 RQ = maxQ+1
 
 INIT_SMOOTH = 0.
+PROB_SMOOTH = 0.
 PRINT_EVERY = 10000
-PLOT_STUFF  = False
+PLOT_STUFF  = args.plot
 if PLOT_STUFF:
+	print 'plotting is desired, lets import matplotlib...'
 	import matplotlib.pyplot as mpl
 
 def parseFQ(inf):
 	print 'reading '+INF+'...'
-	f = open(INF,'r')
+	if INF[-3:] == '.gz':
+		print 'detected gzip suffix...'
+		f = gzip.open(INF,'r')
+	else:
+		f = open(INF,'r')
+
+	IS_SAM = False
+	if INF[-4:] == '.sam':
+		print 'detected sam input...'
+		IS_SAM = True
 
 	rRead  = 0
 	actual_readlen = 0
 	qDict  = {}
 	while True:
-		data1 = f.readline()
-		data2 = f.readline()
-		data3 = f.readline()
-		data4 = f.readline()
-		if not all([data1,data2,data3,data4]):
-			break
+
+		if IS_SAM:
+			data4 = f.readline()
+			if not len(data4):
+				break
+			try:
+				data4 = data4.split('\t')[10]
+			except IndexError:
+				break
+			# need to add some input checking here? Yup, probably.
+		else:
+			data1 = f.readline()
+			data2 = f.readline()
+			data3 = f.readline()
+			data4 = f.readline()
+			if not all([data1,data2,data3,data4]):
+				break
 
 		if actual_readlen == 0:
+			if INF[-3:] != '.gz' and not IS_SAM:
+				totalSize = os.path.getsize(INF)
+				entrySize = sum([len(n) for n in [data1,data2,data3,data4]])
+				print 'estimated number of reads in file:',int(float(totalSize)/entrySize)
 			actual_readlen = len(data4)-1
+			print 'assuming read length is uniform...'
+			print 'detected read length (from first read found):',actual_readlen
 			priorQ = np.zeros([actual_readlen,RQ])
 			totalQ = [None] + [np.zeros([RQ,RQ]) for n in xrange(actual_readlen-1)]
 
@@ -75,17 +105,26 @@ def parseFQ(inf):
 			break
 	f.close()
 
+	# some sanity checking again...
+	QRANGE = [min(qDict.keys()),max(qDict.keys())]
+	if QRANGE[0] < 0:
+		print '\nError: Read in Q-scores below 0\n'
+		exit(1)
+	if QRANGE[1] > RQ:
+		print '\nError: Read in Q-scores above specified maximum:',QRANGE[1],'>',RQ,'\n'
+		exit(1)
+
 	print 'computing probabilities...'
 	probQ  = [None] + [[[0. for m in xrange(RQ)] for n in xrange(RQ)] for p in xrange(actual_readlen-1)]
 	for p in xrange(1,actual_readlen):
 		for i in xrange(RQ):
-			rowSum = float(np.sum(totalQ[p][i,:]))
+			rowSum = float(np.sum(totalQ[p][i,:]))+PROB_SMOOTH*RQ
 			if rowSum <= 0.:
 				continue
 			for j in xrange(RQ):
-				probQ[p][i][j] = totalQ[p][i][j]/rowSum
+				probQ[p][i][j] = (totalQ[p][i][j]+PROB_SMOOTH)/rowSum
 
-	initQ  = [[INIT_SMOOTH for m in xrange(RQ)] for n in xrange(actual_readlen)]
+	initQ  = [[0. for m in xrange(RQ)] for n in xrange(actual_readlen)]
 	for i in xrange(actual_readlen):
 		rowSum = float(np.sum(priorQ[i,:]))+INIT_SMOOTH*RQ
 		if rowSum <= 0.:
@@ -94,6 +133,8 @@ def parseFQ(inf):
 			initQ[i][j] = (priorQ[i][j]+INIT_SMOOTH)/rowSum
 
 	if PLOT_STUFF:
+		mpl.rcParams.update({'font.size': 14, 'font.weight':'bold', 'lines.linewidth': 3})
+
 		mpl.figure(1)
 		Z = np.array(initQ).T
 		X, Y = np.meshgrid( range(0,len(Z[0])+1), range(0,len(Z)+1) )
@@ -108,20 +149,52 @@ def parseFQ(inf):
 
 		mpl.show()
 
-		for p in xrange(1,actual_readlen):
-			mpl.figure(p+1)
-			Z = np.array(probQ[p])
-			X, Y = np.meshgrid( range(0,len(Z[0])+1), range(0,len(Z)+1) )
-			mpl.pcolormesh(X,Y,Z[::-1],vmin=0.,vmax=0.25)
-			mpl.axis([0,len(Z[0]),0,len(Z)])
-			mpl.yticks(range(0,len(Z)),range(len(Z)-1,-1,-1))
-			mpl.xticks(range(0,len(Z[0])),range(0,len(Z[0])))
-			mpl.xlabel('next Q')
-			mpl.ylabel('current Q')
-			mpl.title('Q-Score Transition Probabilities [pos:'+str(p)+']')
-			mpl.colorbar()
+		VMIN_LOG = [-4,0]
+		minVal   = 10**VMIN_LOG[0]
+		qLabels  = [str(n) for n in range(QRANGE[0],QRANGE[1]+1) if n%5==0]
+		print qLabels
+		qTicksx  = [int(n)+0.5 for n in qLabels]
+		qTicksy  = [(RQ-int(n))-0.5 for n in qLabels]
 
-			mpl.show()
+		for p in xrange(1,actual_readlen,10):
+			currentDat = np.array(probQ[p])
+			for i in xrange(len(currentDat)):
+				for j in xrange(len(currentDat[i])):
+					currentDat[i][j] = max(minVal,currentDat[i][j])
+
+			# matrix indices:		pcolormesh plotting:	plot labels and axes:
+			#
+			#      y				   ^					   ^
+			#	   -->				 x |					 y |
+			#  x |					    -->					    -->
+			#    v 					    y					    x
+			#
+			# to plot a MxN matrix 'Z' with rowNames and colNames we need to:
+			#
+			# pcolormesh(X,Y,Z[::-1,:])		# invert x-axis
+			# # swap x/y axis parameters and labels, remember x is still inverted:
+			# xlim([yMin,yMax])
+			# ylim([M-xMax,M-xMin])
+			# xticks()
+			#
+
+			mpl.figure(p+1)
+			Z = np.log10(currentDat)
+			X, Y = np.meshgrid( range(0,len(Z[0])+1), range(0,len(Z)+1) )
+			mpl.pcolormesh(X,Y,Z[::-1,:],vmin=VMIN_LOG[0],vmax=VMIN_LOG[1],cmap='jet')
+			mpl.xlim([QRANGE[0],QRANGE[1]+1])
+			mpl.ylim([RQ-QRANGE[1]-1,RQ-QRANGE[0]])
+			mpl.yticks(qTicksy,qLabels)
+			mpl.xticks(qTicksx,qLabels)
+			mpl.xlabel('\n' + r'$Q_{i+1}$')
+			mpl.ylabel(r'$Q_i$')
+			mpl.title('Q-Score Transition Frequencies [Read Pos:'+str(p)+']')
+			cb = mpl.colorbar()
+			cb.set_ticks([-4,-3,-2,-1,0])
+			cb.set_ticklabels([r'$10^{-4}$',r'$10^{-3}$',r'$10^{-2}$',r'$10^{-1}$',r'$10^{0}$'])
+
+		#mpl.tight_layout()
+		mpl.show()
 
 	print 'estimating average error rate via simulation...'
 	Qscores = range(RQ)

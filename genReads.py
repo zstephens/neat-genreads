@@ -55,7 +55,8 @@ parser.add_argument('-t', type=str,   required=False, metavar='<str>',   default
 parser.add_argument('-to',type=float, required=False, metavar='<float>', default=0.02,  help="off-target coverage scalar")
 parser.add_argument('-m', type=str,   required=False, metavar='<str>',   default=None,  help="mutation model directory")
 parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg mutation rate to this")
-parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
+parser.add_argument('-Mb',type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing positional mut rates")
+#parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
 parser.add_argument('-v', type=str,   required=False, metavar='<str>',   default=None,  help="input VCF file")
 
 parser.add_argument('--pe',       nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(None,None), help='paired-end fragment length mean and std')
@@ -74,7 +75,7 @@ args = parser.parse_args()
 # required args
 (REFERENCE, READLEN, OUT_PREFIX) = (args.r, args.R, args.o)
 # various dataset parameters
-(COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, SAMP_MODEL, INPUT_VCF) = (args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.s, args.v)
+(COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = (args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.Mb, args.v)
 (CANCER_MODEL, CANCER_PURITY) = (args.cm, args.cp)
 (OFFTARGET_SCALAR) = (args.to)
 # important flags
@@ -246,11 +247,6 @@ def main():
 		for k in sorted(inputVariants.keys()):
 			inputVariants[k].sort()
 
-	#print sampNames
-	#for k in sorted(inputVariants.keys()):
-	#	for n in inputVariants[k]:
-	#		print k, n
-
 	# parse input targeted regions, if present
 	inputRegions = {}
 	if INPUT_BED != None:
@@ -260,6 +256,24 @@ def main():
 				if myChr not in inputRegions:
 					inputRegions[myChr] = [-1]
 				inputRegions[myChr].extend([int(pos1),int(pos2)])
+
+	# parse input mutation rate rescaling regions, if present
+	mutRateRegions = {}
+	mutRateValues  = {}
+	if MUT_BED != None:
+		with open(MUT_BED,'r') as f:
+			for line in f:
+				[myChr,pos1,pos2,metaData] = line.strip().split('\t')[:4]
+				mutStr = re.findall(r"MUT_RATE=.*?(?=;)",metaData+';')
+				(pos1,pos2) = (int(pos1),int(pos2))
+				if len(mutStr) and (pos2-pos1) > 1:
+					# mutRate = #_mutations / length_of_region, let's bound it by a reasonable amount
+					mutRate = max([0.0,min([float(mutStr[0][9:]),0.3])])
+					if myChr not in inputRegions:
+						mutRateRegions[myChr] = [-1]
+						mutRateValues[myChr]  = [0.0]
+					mutRateRegions[myChr].extend([pos1,pos2])
+					mutRateValues.extend([mutRate*(pos2-pos1)]*2)
 
 	# initialize output files
 	bamHeader = None
@@ -302,9 +316,9 @@ def main():
 				#if bisect.bisect(N_regions['big'],span[0])%2 or bisect.bisect(N_regions['big'],span[1])%2:
 				#	continue
 				validVariants.append(n)
-		print 'found',len(validVariants),'valid variants for '+refIndex[RI][0]+' in input VCF...'
-		if nSkipped:
-			print nSkipped,'variants skipped (invalid position or alt allele)'
+			print 'found',len(validVariants),'valid variants for '+refIndex[RI][0]+' in input VCF...'
+			if nSkipped:
+				print nSkipped,'variants skipped (invalid position or alt allele)'
 
 		# add large random structural variants
 		#
