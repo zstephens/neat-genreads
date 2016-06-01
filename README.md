@@ -166,10 +166,10 @@ and creates fraglen.p model in working directory.
 Takes references genome and TSV file to generate mutation models:
 
 ```
-python computeTrinucStats.py	\
-	-r hg19.fa		\
-	-m inputVariants.tsv	\
-	-o /home/me/models.p	
+python computeTrinucStats.py        \
+        -r hg19.fa                  \
+        -m inputVariants.tsv        \
+        -o /home/me/models.p
 ```
 
 Trinucleotides are identified in the reference genome and the variant file. Frequencies of each trinucleotide transition are calculated and output as a pickle (.p) file.
