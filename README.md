@@ -164,7 +164,7 @@ and creates fraglen.p model in working directory.
 ## computeTrinucStats.py
 
 Takes references genome and TSV file to generate mutation models:
-
+...
 python computeTrinucStats.py	\
 	-r hg19.fa		\
 	-m inputVariants.tsv	\
