@@ -12,7 +12,7 @@ Takes SAM file via stdin:
 and creates fraglen.p model in working directory.
 
 
-## computeTrinucStats.py
+# computeTrinucStats.py
 
 Takes references genome and TSV file to generate mutation models:
 
