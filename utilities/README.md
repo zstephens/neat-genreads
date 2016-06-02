@@ -12,6 +12,20 @@ Takes SAM file via stdin:
 and creates fraglen.p model in working directory.
 
 
+# computeTrinucStats.py
+
+Takes references genome and TSV file to generate mutation models:
+
+```
+python computeTrinucStats.py        \
+        -r hg19.fa                  \
+        -m inputVariants.tsv        \
+        -o /home/me/models.p
+```
+
+Trinucleotides are identified in the reference genome and the variant file. Frequencies of each trinucleotide transition are calculated and output as a pickle (.p) file.
+
+
 # FindNucleotideContextOnReference.healthy.pl
 This script takes in VCF files and generates variant frequency models for NEAT. Coordinates for each variant are located within the HG19 human reference. The corresponding trinucleotide context around that location on the reference is returned into a new column.
 
