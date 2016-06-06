@@ -31,7 +31,7 @@ SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 sys.path.append(SIM_PATH+'/py/')
 
 from inputChecking		import requiredField, checkFileOpen, checkDir, isInRange
-from refFunc			import indexRef, readRef, ALLOWED_NUCL
+from refFunc			import indexRef, readRef, getAllRefRegions, partitionRefRegions, ALLOWED_NUCL
 from vcfFunc			import parseVCF
 from OutputFileWriter	import OutputFileWriter
 from probability		import DiscreteDistribution, mean_ind_of_weighted_list
@@ -66,6 +66,7 @@ parser.add_argument('-cm',                 type=str,   required=False, metavar='
 parser.add_argument('-cp',                 type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
 parser.add_argument('--gc-model',          type=str,   required=False, metavar='<str>',           default=None,  help='empirical GC coverage bias distribution')
 parser.add_argument('--job',      nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='jobs IDs for generating reads in parallel')
+parser.add_argument('--nnr',                           required=False, action='store_true',       default=False, help='save non-N ref regions (for parallel jobs)')
 parser.add_argument('--bam',                           required=False, action='store_true',       default=False, help='output golden BAM file')
 parser.add_argument('--vcf',                           required=False, action='store_true',       default=False, help='output golden VCF file')
 parser.add_argument('--rng',               type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value')
@@ -100,6 +101,7 @@ elif FRAGLEN_MODEL != None:
 if MYJOB == 0:
 	MYJOB = 1
 	NJOBS = 1
+SAVE_NON_N = args.nnr
 
 RNG_SEED = args.rng
 if RNG_SEED == -1:
@@ -179,7 +181,7 @@ if PAIRED_END and not(PAIRED_END_ARTIFICIAL):
 
 
 # target window size for read sampling. how many times bigger than read/frag length
-WINDOW_TARGET_SCALE = 50
+WINDOW_TARGET_SCALE = 100
 # sub-window size for read sampling windows. this is basically the finest resolution
 # that can be obtained for targeted region boundaries and GC% bias
 SMALL_WINDOW        = 20
@@ -217,8 +219,11 @@ isInRange(OFFTARGET_SCALAR,  0,1,        'Error: -to must be between 0 and 1')
 if MUT_RATE != -1 and MUT_RATE != None:
 	isInRange(MUT_RATE,      0,0.3,      'Error: -M must be between 0 and 0.3')
 if SE_RATE != -1 and SE_RATE != None:
-	print SE_RATE
 	isInRange(SE_RATE,       0,0.3,      'Error: -E must be between 0 and 0.3')
+if NJOBS != 1:
+	isInRange(NJOBS,         1,1000,     'Error: --job must be between 1 and 1,000')
+	isInRange(MYJOB,         1,1000,     'Error: --job must be between 1 and 1,000')
+	isInRange(MYJOB,         1,NJOBS,    'Error: job id must be less than or equal to number of jobs')
 
 
 """************************************************
@@ -293,11 +298,34 @@ def main():
 	****                   MAIN()
 	************************************************"""
 
+	#
+	#	If processing jobs in parallel, precompute the independent regions that can be process separately
+	#
+	if NJOBS > 1:
+		parallelRegionList  = getAllRefRegions(REFERENCE,refIndex,N_HANDLING,saveOutput=SAVE_NON_N)
+		(myRefs, myRegions) = partitionRefRegions(parallelRegionList,refIndex,MYJOB,NJOBS)
+		if not len(myRegions):
+			print 'This job id has no regions to process, exiting...'
+			exit(1)
+		for i in xrange(len(refIndex)-1,-1,-1):	# delete reference not used in our job
+			if not refIndex[i][0] in myRefs:
+				del refIndex[i]
 
 	for RI in xrange(len(refIndex)):
 
 		# read in reference sequence and notate blocks of Ns
 		(refSequence,N_regions) = readRef(REFERENCE,refIndex[RI],N_HANDLING)
+
+		# if we're processing jobs in parallel only take the regions relevant for the current job
+		if NJOBS > 1:
+			for i in xrange(len(N_regions['non_N'])-1,-1,-1):
+				if not (refIndex[RI][0],N_regions['non_N'][i][0],N_regions['non_N'][i][1]) in myRegions:
+					del N_regions['non_N'][i]
+
+		# count total bp we'll be spanning so we can get an idea of how far along we are (for printing progress indicators)
+		total_bp_span   = sum([n[1]-n[0] for n in N_regions['non_N']])
+		currentProgress = 0
+		currentPercent  = 0
 
 		# prune invalid input variants, e.g variants that:
 		#		- try to delete or alter any N characters
@@ -379,7 +407,15 @@ def main():
 				if next_end-next_start < bpd:
 					end = next_end
 					isLastTime = True
-				print 'PROCESSING WINDOW:',(start,end)
+
+				# print progress indicator
+				#print 'PROCESSING WINDOW:',(start,end)
+				currentProgress += end-start
+				newPercent = int((currentProgress*100)/float(total_bp_span))
+				if newPercent > currentPercent:
+					sys.stdout.write(str(newPercent)+'% ')
+					sys.stdout.flush()
+					currentPercent = newPercent
 
 				# which inserted variants are in this window?
 				varsInWindow = []
@@ -491,6 +527,8 @@ def main():
 					break
 				if end >= pf:
 					isLastTime = True
+
+		print '100%'
 
 		# write all output variants for this reference
 		if SAVE_VCF:

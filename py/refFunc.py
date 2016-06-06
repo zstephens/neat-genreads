@@ -73,11 +73,12 @@ def indexRef(refPath):
 #                                           of 'chr's
 #		- ('ignore')                    --> do not alter nucleotides in N regions
 #
-def readRef(refPath,ref_inds_i,N_handling,N_unknowns=True):
+def readRef(refPath,ref_inds_i,N_handling,N_unknowns=True,quiet=False):
 
 	tt = time.time()
-	sys.stdout.write('reading '+ref_inds_i[0]+'... ')
-	sys.stdout.flush()
+	if not quiet:
+		sys.stdout.write('reading '+ref_inds_i[0]+'... ')
+		sys.stdout.flush()
 
 	refFile = open(refPath,'r')
 	refFile.seek(ref_inds_i[1])
@@ -144,6 +145,66 @@ def readRef(refPath,ref_inds_i,N_handling,N_unknowns=True):
 		if n[0] != n[1]:
 			N_info['non_N'].append(n)
 
-	print '{0:.3f} (sec)'.format(time.time()-tt)
+	if not quiet:
+		print '{0:.3f} (sec)'.format(time.time()-tt)
 	return (myDat,N_info)
 
+#
+#	find all non-N regions in reference sequence ahead of time, for computing jobs in parallel
+#
+def getAllRefRegions(refPath,ref_inds,N_handling,saveOutput=False):
+	outRegions = {}
+	fn = refPath+'.nnr'
+	if os.path.isfile(fn) and not(saveOutput):
+		print 'found list of preidentified non-N regions...'
+		f = open(fn,'r')
+		for line in f:
+			splt = line.strip().split('\t')
+			if splt[0] not in outRegions:
+				outRegions[splt[0]] = []
+			outRegions[splt[0]].append((int(splt[1]),int(splt[2])))
+		f.close()
+		return outRegions
+	else:
+		print 'enumerating all non-N regions in reference sequence...'
+		for RI in xrange(len(ref_inds)):
+			(refSequence,N_regions) = readRef(refPath,ref_inds[RI],N_handling,quiet=True)
+			refName = ref_inds[RI][0]
+			outRegions[refName] = [n for n in N_regions['non_N']]
+		if saveOutput:
+			f = open(fn,'w')
+			for k in outRegions.keys():
+				for n in outRegions[k]:
+					f.write(k+'\t'+str(n[0])+'\t'+str(n[1])+'\n')
+			f.close()
+		return outRegions
+
+#
+#	find which of the non-N regions are going to be used for this job
+#
+def partitionRefRegions(inRegions,ref_inds,myjob,njobs):
+
+	totSize = 0
+	for RI in xrange(len(ref_inds)):
+		refName = ref_inds[RI][0]
+		for region in inRegions[refName]:
+			totSize += region[1] - region[0]
+	sizePerJob = int(totSize/float(njobs)-0.5)
+
+	regionsPerJob = [[] for n in xrange(njobs)]
+	refsPerJob    = [{} for n in xrange(njobs)]
+	currentInd    = 0
+	currentCount  = 0
+	for RI in xrange(len(ref_inds)):
+		refName = ref_inds[RI][0]
+		for region in inRegions[refName]:
+			regionsPerJob[currentInd].append((refName,region[0],region[1]))
+			refsPerJob[currentInd][refName] = True
+			currentCount += region[1] - region[0]
+			if currentCount >= sizePerJob:
+				currentCount = 0
+				currentInd   = min([currentInd+1,njobs-1])
+
+	relevantRefs = refsPerJob[myjob-1].keys()
+	relevantRegs = regionsPerJob[myjob-1]
+	return (relevantRefs,relevantRegs)
