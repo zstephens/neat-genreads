@@ -17,7 +17,7 @@ and creates fraglen.p model in working directory.
 Takes references genome and TSV file to generate mutation models:
 
 ```
-python genMutModel.py        \
+python genMutModel.py               \
         -r hg19.fa                  \
         -m inputVariants.tsv        \
         -o /home/me/models.p
