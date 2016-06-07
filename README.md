@@ -31,7 +31,7 @@ Option           |  Description
 -p <int>         |  ploidy [2]
 -t <str>         |  bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
 -m <str>         |  mutation model directory
--M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value.
+-M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3
 -s <str>         |  input sample model
 -v <str>         |  Input VCF file. Variants from this VCF will be inserted into the simulated sequence.
 --pe <int> <int> |  Paired-end fragment length mean and standard deviation. To produce paired end data, one of --pe or --pe-model must be specified.
