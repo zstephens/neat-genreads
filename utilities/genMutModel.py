@@ -315,7 +315,7 @@ def main():
 	#
 	# save variables to file
 	#
-	OUT_DICT = {'AVG_MUT_RATE':AVG_MUT_RATE
+	OUT_DICT = {'AVG_MUT_RATE':AVG_MUT_RATE,
 	            'SNP_FREQ':SNP_FREQ,
 	            'INDEL_FREQ':INDEL_FREQ,
 	            'TRINUC_MUT_PROB':TRINUC_MUT_PROB,
