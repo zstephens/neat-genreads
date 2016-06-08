@@ -35,12 +35,18 @@ SEQ_PACKED   = {'=':0, 'A':1, 'C':2, 'M':3, 'G':4, 'R':5, 'S':6, 'V':7,
 #	gzipped    = True for compressed FASTQ/VCF, False for uncompressed
 #
 class OutputFileWriter:
-	def __init__(self, outPrefix, paired=False, BAM_header=None, VCF_header=None, gzipped=False):
+	def __init__(self, outPrefix, paired=False, BAM_header=None, VCF_header=None, gzipped=False, jobTuple=(1,1)):
 		
-		fq1 = outPrefix+'_read1.fq'
-		fq2 = outPrefix+'_read2.fq'
-		bam = outPrefix+'_golden.bam'
-		vcf = outPrefix+'_golden.vcf'
+		jobSuffix = ''
+		if jobTuple[1] > 1:
+			jsl = len(str(jobTuple[1]))
+			jsb = '0'*(len(str(jobTuple[0]))-jsl)
+			jobSuffix = '.job'+jsb+str(jobTuple[0])+'of'+str(jobTuple[1])
+
+		fq1 = outPrefix+'_read1.fq'+jobSuffix
+		fq2 = outPrefix+'_read2.fq'+jobSuffix
+		bam = outPrefix+'_golden.bam'+jobSuffix
+		vcf = outPrefix+'_golden.vcf'+jobSuffix
 
 		if gzipped:
 			self.fq1_file = gzip.open(fq1+'.gz', 'wb')
@@ -64,23 +70,24 @@ class OutputFileWriter:
 			else:
 				self.vcf_file = open(vcf, 'wb')
 
-			# WRITE VCF HEADER
-			self.vcf_file.write('##fileformat=VCFv4.1\n')
-			self.vcf_file.write('##reference='+VCF_header[0]+'\n')
-			self.vcf_file.write('##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">\n')
-			self.vcf_file.write('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">\n')
-			#self.vcf_file.write('##INFO=<ID=READS,Number=1,Type=String,Description="Names of Reads Covering this Variant">\n')
-			self.vcf_file.write('##INFO=<ID=VMX,Number=1,Type=String,Description="SNP is Missense in these Read Frames">\n')
-			self.vcf_file.write('##INFO=<ID=VNX,Number=1,Type=String,Description="SNP is Nonsense in these Read Frames">\n')
-			self.vcf_file.write('##INFO=<ID=VFX,Number=1,Type=String,Description="Indel Causes Frameshift">\n')
-			self.vcf_file.write('##ALT=<ID=DEL,Description="Deletion">\n')
-			self.vcf_file.write('##ALT=<ID=DUP,Description="Duplication">\n')
-			self.vcf_file.write('##ALT=<ID=INS,Description="Insertion of novel sequence">\n')
-			self.vcf_file.write('##ALT=<ID=INV,Description="Inversion">\n')
-			self.vcf_file.write('##ALT=<ID=CNV,Description="Copy number variable region">\n')
-			self.vcf_file.write('##ALT=<ID=TRANS,Description="Translocation">\n')
-			self.vcf_file.write('##ALT=<ID=INV-TRANS,Description="Inverted translocation">\n')
-			self.vcf_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n')
+			# WRITE VCF HEADER (if parallel: only for first job)
+			if jobTuple[0] == 1:
+				self.vcf_file.write('##fileformat=VCFv4.1\n')
+				self.vcf_file.write('##reference='+VCF_header[0]+'\n')
+				self.vcf_file.write('##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">\n')
+				self.vcf_file.write('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">\n')
+				#self.vcf_file.write('##INFO=<ID=READS,Number=1,Type=String,Description="Names of Reads Covering this Variant">\n')
+				self.vcf_file.write('##INFO=<ID=VMX,Number=1,Type=String,Description="SNP is Missense in these Read Frames">\n')
+				self.vcf_file.write('##INFO=<ID=VNX,Number=1,Type=String,Description="SNP is Nonsense in these Read Frames">\n')
+				self.vcf_file.write('##INFO=<ID=VFX,Number=1,Type=String,Description="Indel Causes Frameshift">\n')
+				self.vcf_file.write('##ALT=<ID=DEL,Description="Deletion">\n')
+				self.vcf_file.write('##ALT=<ID=DUP,Description="Duplication">\n')
+				self.vcf_file.write('##ALT=<ID=INS,Description="Insertion of novel sequence">\n')
+				self.vcf_file.write('##ALT=<ID=INV,Description="Inversion">\n')
+				self.vcf_file.write('##ALT=<ID=CNV,Description="Copy number variable region">\n')
+				self.vcf_file.write('##ALT=<ID=TRANS,Description="Translocation">\n')
+				self.vcf_file.write('##ALT=<ID=INV-TRANS,Description="Inverted translocation">\n')
+				self.vcf_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n')
 
 		#
 		#	BAM OUTPUT
@@ -89,23 +96,24 @@ class OutputFileWriter:
 		if BAM_header != None:
 			self.bam_file = BgzfWriter(bam, 'w', compresslevel=BAM_COMPRESSION_LEVEL)
 
-			# WRITE BAM HEADER
-			self.bam_file.write("BAM\1")
-			header = '@HD\tVN:1.5\tSO:unsorted\n'
-			for n in BAM_header[0]:
-				header += '@SQ\tSN:'+n[0]+'\tLN:'+str(n[3])+'\n'
-			header += '@RG\tID:NEAT\n'
-			headerBytes = len(header)
-			numRefs     = len(BAM_header[0])
-			self.bam_file.write(pack('<i',headerBytes))
-			self.bam_file.write(header)
-			self.bam_file.write(pack('<i',numRefs))
+			# WRITE BAM HEADER (if parallel: only for first job)
+			if jobTuple[0] == 1:
+				self.bam_file.write("BAM\1")
+				header = '@HD\tVN:1.5\tSO:unsorted\n'
+				for n in BAM_header[0]:
+					header += '@SQ\tSN:'+n[0]+'\tLN:'+str(n[3])+'\n'
+				header += '@RG\tID:NEAT\n'
+				headerBytes = len(header)
+				numRefs     = len(BAM_header[0])
+				self.bam_file.write(pack('<i',headerBytes))
+				self.bam_file.write(header)
+				self.bam_file.write(pack('<i',numRefs))
 
-			for n in BAM_header[0]:
-				l_name = len(n[0])+1
-				self.bam_file.write(pack('<i',l_name))
-				self.bam_file.write(n[0]+'\0')
-				self.bam_file.write(pack('<i',n[3]))
+				for n in BAM_header[0]:
+					l_name = len(n[0])+1
+					self.bam_file.write(pack('<i',l_name))
+					self.bam_file.write(n[0]+'\0')
+					self.bam_file.write(pack('<i',n[3]))
 
 	def writeFASTQRecord(self,readName,read1,qual1,read2=None,qual2=None):
 		self.fq1_file.write('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
