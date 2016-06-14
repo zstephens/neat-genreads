@@ -61,9 +61,9 @@ parser.add_argument('-v', type=str,   required=False, metavar='<str>',   default
 
 parser.add_argument('--pe',       nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(None,None), help='paired-end fragment length mean and std')
 parser.add_argument('--pe-model',          type=str,   required=False, metavar='<str>',           default=None,  help='empirical fragment length distribution')
-parser.add_argument('--cancer',                        required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
-parser.add_argument('-cm',                 type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
-parser.add_argument('-cp',                 type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
+#parser.add_argument('--cancer',                        required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
+#parser.add_argument('-cm',                 type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
+#parser.add_argument('-cp',                 type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
 parser.add_argument('--gc-model',          type=str,   required=False, metavar='<str>',           default=None,  help='empirical GC coverage bias distribution')
 parser.add_argument('--job',      nargs=2, type=int,   required=False, metavar=('<int>','<int>'), default=(0,0), help='jobs IDs for generating reads in parallel')
 parser.add_argument('--nnr',                           required=False, action='store_true',       default=False, help='save non-N ref regions (for parallel jobs)')
@@ -77,10 +77,12 @@ args = parser.parse_args()
 (REFERENCE, READLEN, OUT_PREFIX) = (args.r, args.R, args.o)
 # various dataset parameters
 (COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = (args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.Mb, args.v)
-(CANCER_MODEL, CANCER_PURITY) = (args.cm, args.cp)
+# cancer params (disabled currently)
+#(CANCER, CANCER_MODEL, CANCER_PURITY) = (args.cancer, args.cm, args.cp)
+(CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
 (OFFTARGET_SCALAR) = (args.to)
 # important flags
-(CANCER, SAVE_BAM, SAVE_VCF, GZIPPED_OUT) = (args.cancer, args.bam, args.vcf, args.gz)
+(SAVE_BAM, SAVE_VCF, GZIPPED_OUT) = (args.bam, args.vcf, args.gz)
 
 (FRAGMENT_SIZE, FRAGMENT_STD) = args.pe
 FRAGLEN_MODEL = args.pe_model
@@ -239,6 +241,7 @@ def main():
 		N_HANDLING = ('random',FRAGMENT_SIZE)
 	else:
 		N_HANDLING = ('ignore',READLEN)
+	indices_by_refName = {refIndex[n][0]:n for n in xrange(len(refIndex))}
 
 	# parse input variants, if present
 	inputVariants = []
@@ -280,27 +283,15 @@ def main():
 					mutRateRegions[myChr].extend([pos1,pos2])
 					mutRateValues.extend([mutRate*(pos2-pos1)]*2)
 
-	# initialize output files
+	# initialize output files (part I)
 	bamHeader = None
 	if SAVE_BAM:
 		bamHeader = [refIndex]
 	vcfHeader = None
 	if SAVE_VCF:
 		vcfHeader = [REFERENCE]
-	if CANCER:
-		OFW = OutputFileWriter(OUT_PREFIX+'_normal',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT)
-		OFW_CANCER = OutputFileWriter(OUT_PREFIX+'_tumor',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT)
-	else:
-		OFW = OutputFileWriter(OUT_PREFIX,paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,NJOBS))
-	OUT_PREIX_NAME = OUT_PREFIX.split('/')[-1]
-
-	"""************************************************
-	****                   MAIN()
-	************************************************"""
-
-	#
-	#	If processing jobs in parallel, precompute the independent regions that can be process separately
-	#
+	
+	# If processing jobs in parallel, precompute the independent regions that can be process separately
 	if NJOBS > 1:
 		parallelRegionList  = getAllRefRegions(REFERENCE,refIndex,N_HANDLING,saveOutput=SAVE_NON_N)
 		(myRefs, myRegions) = partitionRefRegions(parallelRegionList,refIndex,MYJOB,NJOBS)
@@ -310,6 +301,22 @@ def main():
 		for i in xrange(len(refIndex)-1,-1,-1):	# delete reference not used in our job
 			if not refIndex[i][0] in myRefs:
 				del refIndex[i]
+		# if value of NJOBS is too high, let's change it to the maximum possible, to avoid output filename confusion
+		corrected_nJobs = min([NJOBS,sum([len(n) for n in parallelRegionList.values()])])
+
+	# initialize output files (part II)
+	if CANCER:
+		OFW = OutputFileWriter(OUT_PREFIX+'_normal',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT)
+		OFW_CANCER = OutputFileWriter(OUT_PREFIX+'_tumor',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs))
+	else:
+		OFW = OutputFileWriter(OUT_PREFIX,paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs))
+	OUT_PREIX_NAME = OUT_PREFIX.split('/')[-1]
+
+
+	"""************************************************
+	****        LET'S GET THIS PARTY STARTED...
+	************************************************"""
+
 
 	for RI in xrange(len(refIndex)):
 
@@ -499,19 +506,23 @@ def main():
 						myReadData = sequences.sample_read(SE_CLASS)
 						myReadData[0][0] += start	# adjust mapping position based on window start
 				
-					myReadName = OUT_PREIX_NAME+'_'+str(readNameCount)
+					if NJOBS > 1:
+						myReadName = OUT_PREIX_NAME+'_j'+str(MYJOB)+'_r'+str(readNameCount)
+					else:
+						myReadName = OUT_PREIX_NAME+'_'+str(readNameCount)
 					readNameCount += len(myReadData)
 
 					# write read data out to FASTQ and BAM files
+					myRefIndex = indices_by_refName[refIndex[RI][0]]
 					if len(myReadData) == 1:
 						OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
 						if SAVE_BAM:
-							OFW.writeBAMRecord(RI, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
+							OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
 					elif len(myReadData) == 2:
 						OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3])
 						if SAVE_BAM:
-							OFW.writeBAMRecord(RI, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
-							OFW.writeBAMRecord(RI, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])
+							OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
+							OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])
 					else:
 						print '\nError: Unexpected number of reads generated...\n'
 						exit(1)

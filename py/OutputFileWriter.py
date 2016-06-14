@@ -40,7 +40,7 @@ class OutputFileWriter:
 		jobSuffix = ''
 		if jobTuple[1] > 1:
 			jsl = len(str(jobTuple[1]))
-			jsb = '0'*(len(str(jobTuple[0]))-jsl)
+			jsb = '0'*(jsl-len(str(jobTuple[0])))
 			jobSuffix = '.job'+jsb+str(jobTuple[0])+'of'+str(jobTuple[1])
 
 		fq1 = outPrefix+'_read1.fq'+jobSuffix
@@ -97,7 +97,7 @@ class OutputFileWriter:
 			self.bam_file = BgzfWriter(bam, 'w', compresslevel=BAM_COMPRESSION_LEVEL)
 
 			# WRITE BAM HEADER (if parallel: only for first job)
-			if jobTuple[0] == 1:
+			if True or jobTuple[0] == 1:
 				self.bam_file.write("BAM\1")
 				header = '@HD\tVN:1.5\tSO:unsorted\n'
 				for n in BAM_header[0]:

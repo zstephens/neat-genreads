@@ -12,11 +12,12 @@ sys.path.append(SIM_PATH+'/py/')
 from refFunc import indexRef
 
 parser = argparse.ArgumentParser(description='genMutModel.py')
-parser.add_argument('-r', type=str, required=True, metavar='<str>', help="* ref.fa")
-parser.add_argument('-m', type=str, required=True, metavar='<str>', help="* mutations.tsv")
-parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output.p")
+parser.add_argument('-r', type=str, required=True, metavar='<str>',                    help="* ref.fa")
+parser.add_argument('-m', type=str, required=True, metavar='<str>',                    help="* mutations.tsv")
+parser.add_argument('-o', type=str, required=True, metavar='<str>',                    help="* output.p")
+parser.add_argument('--save-trinuc',required=False,action='store_true', default=False, help='save trinuc counts for ref')
 args = parser.parse_args()
-(REF, TSV, OUT_PICKLE) = (args.r, args.m, args.o)
+(REF, TSV, OUT_PICKLE, SAVE_TRINUC) = (args.r, args.m, args.o, args.save_trinuc)
 
 REF_WHITELIST =  [str(n) for n in xrange(1,30)] + ['x','y','X','Y','mt','Mt','MT']
 REF_WHITELIST += ['chr'+n for n in REF_WHITELIST]
@@ -135,17 +136,20 @@ def main():
 		########################################################################## """
 
 
-		print 'counting trinucleotides in reference...'
-		for i in xrange(len(refSequence)-2):
-			if i%1000000 == 0 and i > 0:
-				print i,'/',len(refSequence)
-				break
-			trinuc = refSequence[i:i+3]
-			if 'N' in trinuc:
-				continue
-			if trinuc not in TRINUC_REF_COUNT:
-				TRINUC_REF_COUNT[trinuc] = 0
-			TRINUC_REF_COUNT[trinuc] += 1
+		if not os.path.isfile(REF+'.trinucCounts'):
+			print 'counting trinucleotides in reference...'
+			for i in xrange(len(refSequence)-2):
+				if i%1000000 == 0 and i > 0:
+					print i,'/',len(refSequence)
+					#break
+				trinuc = refSequence[i:i+3]
+				if 'N' in trinuc:
+					continue
+				if trinuc not in TRINUC_REF_COUNT:
+					TRINUC_REF_COUNT[trinuc] = 0
+				TRINUC_REF_COUNT[trinuc] += 1
+		else:
+			print 'skipping trinuc counts because we found a file...'
 
 
 		""" ##########################################################################
@@ -246,11 +250,30 @@ def main():
 		for n in byLen:
 			bi = int((n[1]-dist_thresh)/float(qptn))*qptn
 			bf = int((n[2]+dist_thresh)/float(qptn))*qptn
-			candidate_regions.append((n[0]/float(bf-bi),bi,bf))
+			candidate_regions.append((n[0]/float(bf-bi),max([0,bi]),min([len(refSequence),bf])))
 		minVal = np.percentile([n[0] for n in candidate_regions],percentile_clust)
 		for n in candidate_regions:
 			if n[0] >= minVal:
 				HIGH_MUT_REGIONS.append((refName,n[1],n[2],n[0]))
+
+
+	#
+	# if we didn't count ref trinucs because we found file, read in ref counts from file now
+	#
+	if os.path.isfile(REF+'.trinucCounts'):
+		print 'reading pre-computed trinuc counts...'
+		f = open(REF+'.trinucCounts','r')
+		for line in f:
+			splt = line.strip().split('\t')
+			TRINUC_REF_COUNT[splt[0]] = int(splt[1])
+		f.close()
+	# otherwise, save trinuc counts to file, if desired
+	elif SAVE_TRINUC:
+		print 'saving trinuc counts to file...'
+		f = open(REF+'.trinucCounts','w')
+		for trinuc in sorted(TRINUC_REF_COUNT.keys()):
+			f.write(trinuc+'\t'+str(TRINUC_REF_COUNT[trinuc])+'\n')
+		f.close()
 
 
 	""" ##########################################################################
