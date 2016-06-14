@@ -303,6 +303,8 @@ def main():
 				del refIndex[i]
 		# if value of NJOBS is too high, let's change it to the maximum possible, to avoid output filename confusion
 		corrected_nJobs = min([NJOBS,sum([len(n) for n in parallelRegionList.values()])])
+	else:
+		corrected_nJobs = 1
 
 	# initialize output files (part II)
 	if CANCER:
