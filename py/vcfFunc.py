@@ -104,7 +104,7 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 							print 'Warning: Found variants without a GT field, assuming het...'
 							alreadyPrintedWarning = True
 						for i in xrange(len(gtEval)):
-							tmp = ['0','0']
+							tmp = ['0']*ploidy
 							tmp[random.randint(0,1)] = '1'
 							gtEval[i] = tmp[0]+'/'+tmp[1]
 					else:
