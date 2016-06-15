@@ -30,17 +30,16 @@ Option           |  Description
 -E <float>       |  Average sequencing error rate. The sequencing error rate model is rescaled to make this the average value. 
 -p <int>         |  ploidy [2]
 -t <str>         |  bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
+-to <float>      |  off-target coverage scalar [0.02]
 -m <str>         |  mutation model directory
 -M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3
 -s <str>         |  input sample model
 -v <str>         |  Input VCF file. Variants from this VCF will be inserted into the simulated sequence.
 --pe <int> <int> |  Paired-end fragment length mean and standard deviation. To produce paired end data, one of --pe or --pe-model must be specified.
 --pe-model <str> |  Empirical fragment length distribution. Can be generated using [computeFraglen.py](#computefraglenpy). To produce paired end data, one of --pe or --pe-model must be specified.
---cancer         |  Produce tumor/normal datasets. See [Simulating matched tumor/normal pairs](#simulating-matched-tumornormal-pairs)
--cm <str>        |  Cancer mutation model directory. See [Simulating matched tumor/normal pairs](#simulating-matched-tumornormal-pairs)
--cp <float>      |  Tumor sample purity. Default 0.8. See [Simulating matched tumor/normal pairs](#simulating-matched-tumornormal-pairs)
 --gc-model <str> |  Empirical GC coverage bias distribution.  Can be generated using [computeGC.py](#computegcpy)
 --job <int> <int>|  Jobs IDs for generating reads in parallel
+--nnr            |  save non-N ref regions (for parallel jobs)
 --bam            |  Output golden BAM file
 --vcf            |  Output golden VCF file
 --rng <int>      |  rng seed value 
@@ -131,18 +130,19 @@ python genReads.py                  \
 
 
 
-### Simulating matched tumor/normal pairs
-Simulate cancer sequencing data using the --cancer option.
+### Parallelizing simulation
+When possible, simulation can be done in parallel via multiple executions with different --job options. The resultant files will then need to be merged using utilities/mergeJobs.py. The following example shows splitting a simulation into 4 separate jobs (which can be run independently):
 
 ```
-python genReads.py                  \
-        -r hg19.fa                  \
-        -R 126                      \
-        -o /home/me/simulated_reads \
-        --bam                       \
-        --vcf                       \
-        --cancer
+python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 1 4
+python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 2 4
+python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 3 4
+python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 4 4
+
+python mergeJobs.py -i /home/me/simulated_reads -o /home/me/simulated_reads_merged -s /path/to/samtools
 ```
+
+In future revisions the dependence on SAMtools will be removed.
 
 
 # Utilities	

@@ -2,9 +2,11 @@ import sys
 import time
 import os
 import re
+import random
 
 INCLUDE_HOMS = False
 INCLUDE_FAIL = False
+CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND = True
 
 def parseLine(splt,colDict,colSamp):
 	
@@ -64,7 +66,7 @@ def parseLine(splt,colDict,colSamp):
 
 
 
-def parseVCF(vcfPath,tumorNormal=False):
+def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 
 	tt = time.time()
 	print '--------------------------------'
@@ -74,8 +76,10 @@ def parseVCF(vcfPath,tumorNormal=False):
 	colDict   = {}
 	colSamp   = []
 	nSkipped  = 0
+	nSkipped_becauseHash = 0
 	allVars   = {}	# [ref][pos]
 	sampNames = []
+	alreadyPrintedWarning = False
 	for line in open(vcfPath,'r'):
 
 		if line[0] != '#':
@@ -94,12 +98,26 @@ def parseVCF(vcfPath,tumorNormal=False):
 					gtEval = gt[:2]
 				else:
 					gtEval = gt[:1]
+				if None in gtEval:
+					if CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND:
+						if not alreadyPrintedWarning:
+							print 'Warning: Found variants without a GT field, assuming het...'
+							alreadyPrintedWarning = True
+						for i in xrange(len(gtEval)):
+							tmp = ['0','0']
+							tmp[random.randint(0,1)] = '1'
+							gtEval[i] = tmp[0]+'/'+tmp[1]
+					else:
+						# skip because no GT field was found
+						nSkipped += 1
+						continue
 				isNonReference = False
 				for gtVal in gtEval:
 					if gtVal != None:
 						if '1' in gtVal:
 							isNonReference = True
 				if not isNonReference:
+					# skip if no genotype actually contains this variant
 					nSkipped += 1
 					continue
 
@@ -109,7 +127,9 @@ def parseVCF(vcfPath,tumorNormal=False):
 				if chrom not in allVars:
 					allVars[chrom] = {}
 				if pos not in allVars[chrom]:
-					allVars[chrom][pos] = (pos,ref,aa,af,gt)
+					allVars[chrom][pos] = (pos,ref,aa,af,gtEval)
+				else:
+					nSkipped_becauseHash += 1
 			
 		else:
 			if line[1] != '#':
@@ -134,13 +154,13 @@ def parseVCF(vcfPath,tumorNormal=False):
 					if 'NORMAL' not in sampNames or 'TUMOR' not in sampNames:
 						print '\n\nERROR: Input VCF must have a "NORMAL" and "TUMOR" column.\n'
 
-
 	varsOut = {}
 	for r in allVars.keys():
 		varsOut[r] = [allVars[r][k] for k in sorted(allVars[r].keys())]
 	
-	print 'found',len(varsOut),'valid variants in input vcf.'
-	print nSkipped,'variants skipped (quality filtered, reference genotypes, or invalid syntax).'
+	print 'found',sum([len(n) for n in allVars.values()]),'valid variants in input vcf.'
+	print ' *',nSkipped,'variants skipped due to: (quality filtered / reference genotypes / invalid syntax)'
+	print ' *',nSkipped_becauseHash,'variants skipped due to multiple variants found per position'
 	print '--------------------------------'
 	return (sampNames, varsOut)
 

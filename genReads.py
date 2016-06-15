@@ -247,11 +247,11 @@ def main():
 	inputVariants = []
 	if INPUT_VCF != None:
 		if CANCER:
-			(sampNames, inputVariants) = parseVCF(INPUT_VCF,tumorNormal=True)
+			(sampNames, inputVariants) = parseVCF(INPUT_VCF,tumorNormal=True,ploidy=PLOIDS)
 			tumorInd  = sampNames.index('TUMOR')
 			normalInd = sampNames.index('NORMAL')
 		else:
-			(sampNames, inputVariants) = parseVCF(INPUT_VCF)
+			(sampNames, inputVariants) = parseVCF(INPUT_VCF,ploidy=PLOIDS)
 		for k in sorted(inputVariants.keys()):
 			inputVariants[k].sort()
 
