@@ -3,6 +3,26 @@ NEAT-genReads is a fine-grained read simulator. GenReads simulates real-looking 
 
 This is an in-progress v2.0 of the software. For a previous stable release please see: [genReads1](https://github.com/zstephens/genReads1)
 
+Table of Contents
+=================
+
+  * [neat-genreads](#neat-genreads)
+    * [Requirements](#requirements)
+    * [Usage](#usage)
+    * [Functionality](#functionality)
+    * [Examples](#examples)
+      * [Whole genome simulation](#whole-genome-simulation)
+      * [Targeted region simulation](#targeted-region-simulation)
+      * [Insert specific variants](#insert-specific-variants)
+      * [Single end reads](#single-end-reads)
+      * [Parallelizing simulation](#parallelizing-simulation)
+  * [Utilities](#utilities)
+    * [computeGC.py](#computegcpy)
+    * [computeFraglen.py](#computefraglenpy)
+    * [genMutModel.py](#genmutmodelpy)
+      * [Note on Sensitive Patient Data](#note-on-sensitive-patient-data)
+
+
 
 ## Requirements
 
