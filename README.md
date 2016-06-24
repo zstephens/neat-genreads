@@ -166,6 +166,7 @@ In future revisions the dependence on SAMtools will be removed.
 
 To simulate human WGS 50X, try 50 chunks or less.
 
+
 # Utilities	
 Several scripts are distributed with genReads that are used to generate the models used for simulation.
 
