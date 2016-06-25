@@ -236,7 +236,7 @@ python vcf_compare_OLD.py
         --incl-fail        Include calls that failed filters [False]   \
         --fast             No equivalent variant detection [False]
 ```
-Mappability track description: (https://github.com/zstephens/neat-repeat/tree/master/example_mappabilityTracks)
+Mappability track examples: https://github.com/zstephens/neat-repeat/tree/master/example_mappabilityTracks
 
 ### Note on Sensitive Patient Data
 ICGC's "Access Controlled Data" documention can be found at http://docs.icgc.org/access-controlled-data. To have access to controlled germline data, a DACO must be
