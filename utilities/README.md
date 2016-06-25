@@ -65,6 +65,8 @@ python vcf_compare_OLD.py
         --incl-fail        Include calls that failed filters [False]   \
         --fast             No equivalent variant detection [False]     
 ```
+Mappability track description: (https://github.com/zstephens/neat-repeat/tree/master/example_mappabilityTracks)
+
 ## Controlled Data and Germline-Reference Allele Mismatch Information
 ICGC's "Access Controlled Data" documention can be found at http://docs.icgc.org/access-controlled-data. To have access to controlled germline data, a DACO must be
 submitted. Open tier data can be obtained without a DACO, but germline alleles that do not match the reference genome are masked and replaced with the reference
