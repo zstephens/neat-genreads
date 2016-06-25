@@ -195,6 +195,23 @@ python genMutModel.py               \
 
 Trinucleotides are identified in the reference genome and the variant file. Frequencies of each trinucleotide transition are calculated and output as a pickle (.p) file.
 
+## genSeqErrorModel.py
+
+Generates sequence error model for genReads.py -e option.
+
+```
+python genSeqErrorModel.py                            \
+        -i input_read1.fq (.gz) / input_read1.sam     \
+        -o output.p                                   \
+        -i2 input_read2.fq (.gz) / input_read2.sam    \
+        -p input_alignment.pileup                     \
+        -q quality score offset [33]                  \
+        -Q maximum quality score [41]                 \
+        -n maximum number of reads to process [all]   \
+        -s number of simulation iterations [1000000]  \
+        --plot perform some optional plotting
+```
+
 ### Note on Sensitive Patient Data
 ICGC's "Access Controlled Data" documention can be found at http://docs.icgc.org/access-controlled-data. To have access to controlled germline data, a DACO must be
 submitted. Open tier data can be obtained without a DACO, but germline alleles that do not match the reference genome are masked and replaced with the reference
