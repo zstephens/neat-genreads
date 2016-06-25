@@ -41,7 +41,30 @@ python genSeqErrorModel.py                            \
         -s number of simulation iterations [1000000]  \
         --plot perform some optional plotting
 ```
+# vcf_compare_OLD.py
 
+Tool for comparing VCF files.
+
+```
+python vcf_compare_OLD.py
+        --version          show program's version number and exit      \
+        -h, --help         show this help message and exit             \
+        -r <ref.fa>        * Reference Fasta                           \
+        -g <golden.vcf>    * Golden VCF                                \
+        -w <workflow.vcf>  * Workflow VCF                              \
+        -o <prefix>        * Output Prefix                             \
+        -m <track.bed>     Mappability Track                           \
+        -M <int>           Maptrack Min Len                            \
+        -t <regions.bed>   Targetted Regions                           \
+        -T <int>           Min Region Len                              \
+        -c <int>           Coverage Filter Threshold [15]              \
+        -a <float>         Allele Freq Filter Threshold [0.3]          \
+        --vcf-out          Output Match/FN/FP variants [False]         \
+        --no-plot          No plotting [False]                         \
+        --incl-homs        Include homozygous ref calls [False]        \
+        --incl-fail        Include calls that failed filters [False]   \
+        --fast             No equivalent variant detection [False]     
+```
 ## Controlled Data and Germline-Reference Allele Mismatch Information
 ICGC's "Access Controlled Data" documention can be found at http://docs.icgc.org/access-controlled-data. To have access to controlled germline data, a DACO must be
 submitted. Open tier data can be obtained without a DACO, but germline alleles that do not match the reference genome are masked and replaced with the reference
