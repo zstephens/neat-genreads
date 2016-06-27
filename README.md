@@ -38,7 +38,7 @@ Table of Contents
 Here's the simplest invocation of genReads using default parameters. This command produces a single ended fastq file with reads of length 100, ploidy 2, coverage 10X, using the default sequencing substitution, GC% bias, and mutation rate models.
 
 ```
-python genReads.py -r ref.fa -R 100 -o simulated_data
+python genReads.py -r ref.fa -R 101 -o simulated_data
 ``` 
 
 The most commonly added options are --pe, --bam, --vcf, and -c. 
