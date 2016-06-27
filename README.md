@@ -3,10 +3,12 @@ NEAT-genReads is a fine-grained read simulator. GenReads simulates real-looking 
 
 This is an in-progress v2.0 of the software. For a previous stable release please see: [genReads1](https://github.com/zstephens/genReads1)
 
+
 Table of Contents
 =================
 
   * [neat-genreads](#neat-genreads)
+  * [Table of Contents](#table-of-contents)
     * [Requirements](#requirements)
     * [Usage](#usage)
     * [Functionality](#functionality)
@@ -20,7 +22,10 @@ Table of Contents
     * [computeGC.py](#computegcpy)
     * [computeFraglen.py](#computefraglenpy)
     * [genMutModel.py](#genmutmodelpy)
+    * [genSeqErrorModel.py](#genseqerrormodelpy)
+    * [vcf_compare_OLD.py](#vcf_compare_oldpy)
       * [Note on Sensitive Patient Data](#note-on-sensitive-patient-data)
+
 
 
 
