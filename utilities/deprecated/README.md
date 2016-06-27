@@ -1,5 +1,5 @@
-#Depricated Perl Scripts
-These scripts were updated and rewritten in python to improve ease of use and speed. Usage and a quick description of the depricated scripts can be found below. Please use computeTrinucs.py to generate mutation models.
+#Deprecated Perl Scripts
+These scripts were updated and rewritten in python to improve ease of use and speed. Usage and a quick description of the deprecated scripts can be found below. Please use genMutModel.py to generate mutation models.
 
 ##FindNucleotideContextOnReference.pl
 This script takes in VCF files and generates variant frequency models for NEAT. Coordinates for each variant are located within the HG19 human reference. The corresponding trinucleotide context around that location on the reference is returned into a new column.
