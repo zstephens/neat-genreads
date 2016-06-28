@@ -71,6 +71,7 @@ parser.add_argument('--bam',                           required=False, action='s
 parser.add_argument('--vcf',                           required=False, action='store_true',       default=False, help='output golden VCF file')
 parser.add_argument('--rng',               type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value')
 parser.add_argument('--gz',                            required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
+parser.add_argument('--no-fastq',                      required=False, action='store_true',       default=False, help='bypass fastq generation')
 args = parser.parse_args()
 
 # required args
@@ -82,7 +83,7 @@ args = parser.parse_args()
 (CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
 (OFFTARGET_SCALAR) = (args.to)
 # important flags
-(SAVE_BAM, SAVE_VCF, GZIPPED_OUT) = (args.bam, args.vcf, args.gz)
+(SAVE_BAM, SAVE_VCF, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.gz, args.no_fastq)
 
 (FRAGMENT_SIZE, FRAGMENT_STD) = args.pe
 FRAGLEN_MODEL = args.pe_model
@@ -517,11 +518,13 @@ def main():
 					# write read data out to FASTQ and BAM files
 					myRefIndex = indices_by_refName[refIndex[RI][0]]
 					if len(myReadData) == 1:
-						OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
+						if NO_FASTQ != True:
+							OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
 						if SAVE_BAM:
 							OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
 					elif len(myReadData) == 2:
-						OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3])
+						if NO_FASTQ != True:
+							OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3])
 						if SAVE_BAM:
 							OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
 							OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])

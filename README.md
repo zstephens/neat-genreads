@@ -69,6 +69,7 @@ Option           |  Description
 --vcf            |  Output golden VCF file
 --rng <int>      |  rng seed value 
 --gz             |  Gzip output FQ and VCF
+--no-fastq       |  Bypass generation of FastQ read files
 
 
 ## Functionality
