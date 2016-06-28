@@ -177,6 +177,10 @@ if PAIRED_END and not(PAIRED_END_ARTIFICIAL):
 	FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB,FRAGLEN_VALS)
 	FRAGMENT_SIZE = FRAGLEN_VALS[mean_ind_of_weighted_list(FRAGLEN_PROB)]
 
+#	Indicate not writing FASTQ reads
+#
+if NO_FASTQ:
+	print 'Bypassing FASTQ generation.'
 
 """************************************************
 ****            HARD-CODED CONSTANTS
