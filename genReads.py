@@ -515,7 +515,7 @@ def main():
 						myReadName = OUT_PREIX_NAME+'_'+str(readNameCount)
 					readNameCount += len(myReadData)
 
-					# write read data out to FASTQ and BAM files
+					# write read data out to FASTQ and BAM files, bypass FASTQ if option specified
 					myRefIndex = indices_by_refName[refIndex[RI][0]]
 					if len(myReadData) == 1:
 						if NO_FASTQ != True:
