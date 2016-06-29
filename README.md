@@ -67,7 +67,7 @@ Option           |  Description
 --nnr            |  save non-N ref regions (for parallel jobs)
 --bam            |  Output golden BAM file
 --vcf            |  Output golden VCF file
---rng <int>      |  rng seed value 
+--rng <int>      |  rng seed value; identical RNG value should produce identical runs of the program, so things like read locations, variant positions, error positions, etc, should all be the same.
 --gz             |  Gzip output FQ and VCF
 --no-fastq       |  Bypass generation of FASTQ read files
 

@@ -69,7 +69,7 @@ parser.add_argument('--job',      nargs=2, type=int,   required=False, metavar=(
 parser.add_argument('--nnr',                           required=False, action='store_true',       default=False, help='save non-N ref regions (for parallel jobs)')
 parser.add_argument('--bam',                           required=False, action='store_true',       default=False, help='output golden BAM file')
 parser.add_argument('--vcf',                           required=False, action='store_true',       default=False, help='output golden VCF file')
-parser.add_argument('--rng',               type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value')
+parser.add_argument('--rng',               type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value; identical RNG value should produce identical runs of the program, so things like read locations, variant positions, error positions, etc, should all be the same.')
 parser.add_argument('--gz',                            required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
 parser.add_argument('--no-fastq',                      required=False, action='store_true',       default=False, help='bypass fastq generation')
 args = parser.parse_args()
