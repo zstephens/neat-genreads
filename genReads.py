@@ -89,6 +89,11 @@ args = parser.parse_args()
 FRAGLEN_MODEL = args.pe_model
 GC_BIAS_MODEL = args.gc_model
 
+# if user specified no fastq, no bam, no vcf, then inform them of their wasteful ways and exit
+if NO_FASTQ == True and SAVE_BAM == False and SAVE_VCF == False:
+        print '\nError: No files will be written when --no-fastq is specified without --vcf or --bam.'
+        exit(1)
+
 # if user specified mean/std, use artificial fragment length distribution, otherwise use
 # the empirical model specified. If neither, then we're doing single-end reads.
 PAIRED_END = False
