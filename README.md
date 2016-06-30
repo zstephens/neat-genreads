@@ -47,7 +47,7 @@ The most commonly added options are --pe, --bam, --vcf, and -c.
 Option           |  Description
 ------           |:----------
 -h, --help       |  Displays usage information
--r <str>         |  Reference sequence file in fasta format. A reference index (.fai) will be created if one is not found in the directory of the reference as [reference filename].fai. Required.
+-r <str>         |  Reference sequence file in fasta format. A reference index (.fai) will be created if one is not found in the directory of the reference as [reference filename].fai. Required. The index can be created using samtools faidx.
 -R <int>         |  Read length. Required. 
 -o <str>         |  Output prefix. Use this option to specify where and what to call output files. Required
 -c <float>       |  Average coverage across the entire dataset. Default: 10
