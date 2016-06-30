@@ -489,7 +489,7 @@ class ReadContainer:
 			self.errorScale = 1.0
 		else:
 			self.errorScale = reScaledError/avgError
-			print 'Warning: Quality scores no longer exactly representative of error porbability. Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale)
+			print 'Warning: Quality scores no longer exactly representative of error probability. Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale)
 
 		# initialize probability distributions
 		self.initDistByPos1        = [DiscreteDistribution(initQ1[i],Qscores) for i in xrange(len(initQ1))]
