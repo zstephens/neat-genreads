@@ -58,7 +58,7 @@ GOLDEN_VCF   = OPTS.GVCF
 WORKFLOW_VCF = OPTS.WVCF
 OUT_PREFIX   = OPTS.OUTF
 MAPTRACK     = OPTS.MTRK
-MIN_READLEN  = int(OPTS.MTMM)
+MIN_READLEN  = OPTS.MTMM
 BEDFILE      = OPTS.TREG
 DP_THRESH    = int(OPTS.DP_THRESH)
 AF_THRESH    = float(OPTS.AF_THRESH)
@@ -76,6 +76,8 @@ else:
 
 if MIN_READLEN == None:
 	MIN_READLEN = 0
+else:
+	MIN_READLEN = int(MIN_READLEN)
 
 if REFERENCE == None:
 	print 'Error: No reference provided.'
