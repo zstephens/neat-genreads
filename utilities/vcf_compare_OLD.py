@@ -69,6 +69,10 @@ INCLUDE_HOMS = OPTS.INCL_H
 INCLUDE_FAIL = OPTS.INCL_F
 FAST         = OPTS.FAST
 
+if len(sys.argv[1:]) == 0:
+	PARSER.print_help()
+	exit(1)
+
 if OPTS.MTRL != None:
 	MINREGIONLEN = int(OPTS.MTRL)
 else:
