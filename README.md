@@ -57,9 +57,9 @@ Option           |  Description
 -t <str>         |  bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
 -to <float>      |  off-target coverage scalar [0.02]
 -m <str>         |  mutation model directory
--M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3
+-M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3. These random mutations are inserted in addition to the once specified in the -v option.
 -s <str>         |  input sample model
--v <str>         |  Input VCF file. Variants from this VCF will be inserted into the simulated sequence.
+-v <str>         |  Input VCF file. Variants from this VCF will be inserted into the simulated sequence with 100% certainty.
 --pe <int> <int> |  Paired-end fragment length mean and standard deviation. To produce paired end data, one of --pe or --pe-model must be specified.
 --pe-model <str> |  Empirical fragment length distribution. Can be generated using [computeFraglen.py](#computefraglenpy). To produce paired end data, one of --pe or --pe-model must be specified.
 --gc-model <str> |  Empirical GC coverage bias distribution.  Can be generated using [computeGC.py](#computegcpy)
@@ -177,11 +177,13 @@ Several scripts are distributed with genReads that are used to generate the mode
 
 ## computeGC.py
 
+Computes GC% coverage bias distribution from sample (bedrolls genomecov) data.
 Takes .genomecov files produced by BEDtools genomeCov (with -d option).
 
 
 ## computeFraglen.py
 
+Computes empirical fragment length distribution from sample data.
 Takes SAM file via stdin:
 
     ./samtools view toy.bam | python computeFraglen.py
@@ -204,6 +206,7 @@ Trinucleotides are identified in the reference genome and the variant file. Freq
 ## genSeqErrorModel.py
 
 Generates sequence error model for genReads.py -e option.
+This script needs revision, to improve the quality-score model eventually, and to include code to learn sequencing errors from pileup data.
 
 ```
 python genSeqErrorModel.py                            \
