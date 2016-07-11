@@ -9,7 +9,7 @@ from biopython_modified_bgzf import BgzfWriter
 BAM_COMPRESSION_LEVEL = 6
 
 # return the reverse complement of a string
-RC_DICT = {'A':'T','C':'G','G':'C','T':'A'}
+RC_DICT = {'A':'T','C':'G','G':'C','T':'A','N':'N'}
 def RC(s):
 	return ''.join(RC_DICT[n] for n in s[::-1])
 

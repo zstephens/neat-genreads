@@ -56,6 +56,7 @@ parser.add_argument('-to',type=float, required=False, metavar='<float>', default
 parser.add_argument('-m', type=str,   required=False, metavar='<str>',   default=None,  help="mutation model directory")
 parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg mutation rate to this")
 parser.add_argument('-Mb',type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing positional mut rates")
+parser.add_argument('-N', type=int,   required=False, metavar='<int>',   default=-1,    help="below this qual, replace base-calls with 'N's")
 #parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
 parser.add_argument('-v', type=str,   required=False, metavar='<str>',   default=None,  help="input VCF file")
 
@@ -85,9 +86,11 @@ args = parser.parse_args()
 # important flags
 (SAVE_BAM, SAVE_VCF, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.gz, args.no_fastq)
 
+# sequencing model parameters
 (FRAGMENT_SIZE, FRAGMENT_STD) = args.pe
 FRAGLEN_MODEL = args.pe_model
 GC_BIAS_MODEL = args.gc_model
+N_MAX_QUAL    = args.N
 
 # if user specified no fastq, no bam, no vcf, then inform them of their wasteful ways and exit
 if NO_FASTQ == True and SAVE_BAM == False and SAVE_VCF == False:
@@ -236,6 +239,8 @@ if NJOBS != 1:
 	isInRange(NJOBS,         1,1000,     'Error: --job must be between 1 and 1,000')
 	isInRange(MYJOB,         1,1000,     'Error: --job must be between 1 and 1,000')
 	isInRange(MYJOB,         1,NJOBS,    'Error: job id must be less than or equal to number of jobs')
+if N_MAX_QUAL != -1:
+	isInRange(N_MAX_QUAL,    1,40,       'Error: -N must be between 1 and 40')
 
 
 """************************************************
@@ -523,6 +528,16 @@ def main():
 					else:
 						myReadName = OUT_PREIX_NAME+'_'+str(readNameCount)
 					readNameCount += len(myReadData)
+
+					# if desired, replace all low-quality bases with Ns
+					if N_MAX_QUAL > -1:
+						for j in xrange(len(myReadData)):
+							myReadString = [n for n in myReadData[j][2]]
+							for k in xrange(len(myReadData[j][3])):
+								adjusted_qual = ord(myReadData[j][3][k])-SE_CLASS.offQ
+								if adjusted_qual <= N_MAX_QUAL:
+									myReadString[k] = 'N'
+							myReadData[j][2] = ''.join(myReadString)
 
 					# write read data out to FASTQ and BAM files, bypass FASTQ if option specified
 					myRefIndex = indices_by_refName[refIndex[RI][0]]
