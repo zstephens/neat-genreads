@@ -138,13 +138,20 @@ while (<InputPositions>) {
    # print $round_rand_test;
 
    # define length of insertions and deletions
-   # if ($mutated_from eq "-") {
-   my $insertion_length = length( $mutated_to ) - 1;
-   # }
-
-   # if ($mutated_to eq "-") {
-   my $deletion_length = length( $mutated_from ) - 1;
-   # }
+   my $insertion_length;
+   my $deletion_length;
+   if ($mutated_from eq "-") {
+      $insertion_length = length( $mutated_to );
+   }
+   else {
+      $insertion_length = length( $mutated_to ) - 1;
+   }
+   if ($mutated_to eq "-") {
+      $deletion_length = length( $mutated_from );
+   }
+   else {
+      $deletion_length = length( $mutated_from ) - 1;
+   }
 
    # context_codes are totalled
    $trinucleotide_context_data{$context_code}{$mutated_from}{$mutated_to} = $trinucleotide_context_data{$context_code}{$mutated_from}{$mutated_to} + 1; 
