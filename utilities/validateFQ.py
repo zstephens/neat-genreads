@@ -21,23 +21,27 @@ ALLOWED_QUAL = '!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHI'
 ALLOWED_NUCL = 'ACGTN'
 
 def validate4lines(l1,l2,l3,l4):
-	failed = False
+	failed = 0
 	# make sure lines contain correct delimiters
 	if l1[0] != '@' or l1[-2] != '/' or l3[0] != '+':
-		failed = True
+		failed = 1
 	# make sure seq len == qual length
 	if len(l2) != len(l4):
-		failed = True
+		failed = 2
 	# make sure seq string contains only valid characters
 	for n in l2:
 		if n not in ALLOWED_NUCL:
-			failed = True
+			failed = 3
 	# make sure qual string contains only valid characters
 	for n in l4:
 		if n not in ALLOWED_QUAL:
-			failed = True
-	if failed == True:
-		print '\nError: malformed lines:\n'
+			failed = 4
+	if failed:
+		print '\nError: malformed lines:'
+		if failed == 1: print ' ---- invalid delimiters\n'
+		elif failed == 2: print ' ---- seq len != qual len\n'
+		elif failed == 3: print ' ---- seq contains invalid characters\n'
+		elif failed == 4: print ' ---- qual contains invalid characters\n'
 		print l1+'\n'+l2+'\n'+l3+'\n'+l4+'\n'
 		exit(1)
 

@@ -21,6 +21,8 @@ args = parser.parse_args()
 
 REF_WHITELIST =  [str(n) for n in xrange(1,30)] + ['x','y','X','Y','mt','Mt','MT']
 REF_WHITELIST += ['chr'+n for n in REF_WHITELIST]
+VALID_NUCL    =  ['A','C','G','T']
+VALID_TRINUC  =  [VALID_NUCL[i]+VALID_NUCL[j]+VALID_NUCL[k] for i in xrange(len(VALID_NUCL)) for j in xrange(len(VALID_NUCL)) for k in xrange(len(VALID_NUCL))]
 
 # given a reference index, grab the sequence string of a specified reference
 def getChrFromFasta(refPath,ref_inds,chrName):
@@ -143,8 +145,8 @@ def main():
 					print i,'/',len(refSequence)
 					#break
 				trinuc = refSequence[i:i+3]
-				if 'N' in trinuc:
-					continue
+				if not trinuc in VALID_TRINUC:
+					continue	# skip if trinuc contains invalid characters
 				if trinuc not in TRINUC_REF_COUNT:
 					TRINUC_REF_COUNT[trinuc] = 0
 				TRINUC_REF_COUNT[trinuc] += 1
@@ -190,12 +192,14 @@ def main():
 			# so, no '-' characters allowed, and chrStart must be same as chrEnd
 			if '-' not in allele_normal and '-' not in allele_tumor and chrStart == chrEnd:
 				trinuc_ref = refSequence[chrStart-1:chrStart+2]
-				if 'N' in trinuc_ref:
-					continue
+				if not trinuc_ref in VALID_TRINUC:
+					continue	# skip ref trinuc with invalid characters
 				# only consider positions where ref allele in tsv matches the nucleotide in our reference
 				if allele_ref == trinuc_ref[1]:
 					trinuc_normal    = refSequence[chrStart-1] + allele_normal + refSequence[chrStart+1]
 					trinuc_tumor     = refSequence[chrStart-1] + allele_tumor + refSequence[chrStart+1]
+					if not trinuc_normal in VALID_TRINUC or not trinuc_tumor in VALID_TRINUC:
+						continue	# skip if mutation contains invalid char
 					key = (trinuc_normal,trinuc_tumor)
 					if key not in TRINUC_TRANSITION_COUNT:
 						TRINUC_TRANSITION_COUNT[key] = 0
@@ -255,7 +259,12 @@ def main():
 		for n in candidate_regions:
 			if n[0] >= minVal:
 				HIGH_MUT_REGIONS.append((refName,n[1],n[2],n[0]))
-
+		# collapse overlapping regions
+		for i in xrange(len(HIGH_MUT_REGIONS)-1,0,-1):
+			if HIGH_MUT_REGIONS[i-1][2] >= HIGH_MUT_REGIONS[i][1] and HIGH_MUT_REGIONS[i-1][0] == HIGH_MUT_REGIONS[i][0]:
+				avgMutRate = 0.5*HIGH_MUT_REGIONS[i-1][3]+0.5*HIGH_MUT_REGIONS[i][3]	# not accurate, but I'm lazy
+				HIGH_MUT_REGIONS[i-1] = (HIGH_MUT_REGIONS[i-1][0], HIGH_MUT_REGIONS[i-1][1], HIGH_MUT_REGIONS[i][2], avgMutRate)
+				del HIGH_MUT_REGIONS[i]
 
 	#
 	# if we didn't count ref trinucs because we found file, read in ref counts from file now
