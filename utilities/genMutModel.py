@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import pickle
 import argparse
 import numpy as np
@@ -11,13 +12,24 @@ sys.path.append(SIM_PATH+'/py/')
 
 from refFunc import indexRef
 
+# if parsing a dbsnp vcf, and no CAF= is found in info tag, use this as default val for population freq
+VCF_DEFAULT_POP_FREQ = 0.00001
+
 parser = argparse.ArgumentParser(description='genMutModel.py')
 parser.add_argument('-r', type=str, required=True, metavar='<str>',                    help="* ref.fa")
-parser.add_argument('-m', type=str, required=True, metavar='<str>',                    help="* mutations.tsv")
+parser.add_argument('-m', type=str, required=True, metavar='<str>',                    help="* mutations.tsv [.vcf]")
 parser.add_argument('-o', type=str, required=True, metavar='<str>',                    help="* output.p")
 parser.add_argument('--save-trinuc',required=False,action='store_true', default=False, help='save trinuc counts for ref')
 args = parser.parse_args()
 (REF, TSV, OUT_PICKLE, SAVE_TRINUC) = (args.r, args.m, args.o, args.save_trinuc)
+
+if TSV[-4:] == '.vcf':
+	IS_VCF = True
+elif TSV[-4:] == '.tsv':
+	IS_VCF = False
+else:
+	print '\nError: Unknown format for mutation input.\n'
+	exit(1)
 
 REF_WHITELIST =  [str(n) for n in xrange(1,30)] + ['x','y','X','Y','mt','Mt','MT']
 REF_WHITELIST += ['chr'+n for n in REF_WHITELIST]
@@ -164,27 +176,48 @@ def main():
 		isFirst = True
 		for line in f:
 
+			if IS_VCF and line[0] == '#':
+				continue
 			if isFirst:
-				splt = line.strip().split('\t')
-				(c1,c2,c3) = (splt.index('chromosome'),splt.index('chromosome_start'),splt.index('chromosome_end'))
-				(m1,m2,m3) = (splt.index('reference_genome_allele'),splt.index('mutated_from_allele'),splt.index('mutated_to_allele'))
-				(d_id) = (splt.index('icgc_donor_id'))
+				if IS_VCF:
+					# hard-code index values based on expected columns in vcf
+					(c1,c2,c3,m1,m2,m3) = (0,1,1,3,3,4)
+				else:
+					# determine columns of fields we're interested in
+					splt = line.strip().split('\t')
+					(c1,c2,c3) = (splt.index('chromosome'),splt.index('chromosome_start'),splt.index('chromosome_end'))
+					(m1,m2,m3) = (splt.index('reference_genome_allele'),splt.index('mutated_from_allele'),splt.index('mutated_to_allele'))
+					(d_id) = (splt.index('icgc_donor_id'))
 				isFirst = False
 				continue
 
 			splt = line.strip().split('\t')
-			# we have -1 because tsv coords are 1-based, and our reference string index is 0-based
+			# we have -1 because tsv/vcf coords are 1-based, and our reference string index is 0-based
 			[chrName,chrStart,chrEnd] = [splt[c1],int(splt[c2])-1,int(splt[c3])-1]
 			[allele_ref,allele_normal,allele_tumor] = [splt[m1].upper(),splt[m2].upper(),splt[m3].upper()]
-			[donor_id] = [splt[d_id]]
+			if IS_VCF:
+				if len(allele_ref) != len(allele_tumor):
+					# indels in tsv don't include the preserved first nucleotide, so lets trim the vcf alleles
+					[allele_ref,allele_normal,allele_tumor] = [allele_ref[1:],allele_normal[1:],allele_tumor[1:]]
+				if not allele_ref: allele_ref = '-'
+				if not allele_normal: allele_normal = '-'
+				if not allele_tumor: allele_tumor = '-'
+				# if alternate alleles are present, lets just ignore this variant. I may come back and improve this later
+				if ',' in allele_tumor:
+					continue
+				vcf_info = ';'+splt[7]+';'
+			else:
+				[donor_id] = [splt[d_id]]
+			# if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
+			if len(allele_normal) > 1 and len(allele_normal) == len(allele_tumor):
+				continue
 
-			# hacky, bad.
+			# to deal with '1' vs 'chr1' references, manually change names. this is hacky and bad.
 			if 'chr' not in chrName:
 				chrName = 'chr'+chrName
-			# hacky, bad.
 			if 'chr' not in refName:
 				refName = 'chr'+refName
-
+			# skip irrelevant variants
 			if chrName != refName:
 				continue
 
@@ -205,8 +238,17 @@ def main():
 						TRINUC_TRANSITION_COUNT[key] = 0
 					TRINUC_TRANSITION_COUNT[key] += 1
 					SNP_COUNT += 1
-					VDAT_COMMON.append((chrStart,allele_ref,allele_normal,allele_tumor))
-					TOTAL_DONORS[donor_id] = True
+
+					if IS_VCF:
+						myPopFreq = VCF_DEFAULT_POP_FREQ
+						if ';CAF=' in vcf_info:
+							cafStr = re.findall(r";CAF=.*?(?=;)",vcf_info)[0]
+							if ',' in cafStr:
+								myPopFreq = float(cafStr[5:].split(',')[1])
+						VDAT_COMMON.append((chrStart,allele_ref,allele_normal,allele_tumor,myPopFreq))
+					else:
+						VDAT_COMMON.append((chrStart,allele_ref,allele_normal,allele_tumor))
+						TOTAL_DONORS[donor_id] = True
 				else:
 					print '\nError: ref allele in variant call does not match reference.\n'
 					print trinuc, allele_ref, allele_normal, allele_tumor
@@ -222,20 +264,41 @@ def main():
 				if indel_len not in INDEL_COUNT:
 					INDEL_COUNT[indel_len] = 0
 				INDEL_COUNT[indel_len] += 1
-				VDAT_COMMON.append((chrStart,allele_ref,allele_normal,allele_tumor))
-				TOTAL_DONORS[donor_id] = True
+
+				if IS_VCF:
+					myPopFreq = VCF_DEFAULT_POP_FREQ
+					if ';CAF=' in vcf_info:
+						cafStr = re.findall(r";CAF=.*?(?=;)",vcf_info)[0]
+						if ',' in cafStr:
+							myPopFreq = float(cafStr[5:].split(',')[1])
+					VDAT_COMMON.append((chrStart,allele_ref,allele_normal,allele_tumor,myPopFreq))
+				else:
+					VDAT_COMMON.append((chrStart,allele_ref,allele_normal,allele_tumor))
+					TOTAL_DONORS[donor_id] = True
 		f.close()
+
+		# if we didn't find anything, skip ahead along to the next reference sequence
+		if not len(VDAT_COMMON):
+			print 'Found no variants for this reference, moving along...'
+			continue
 
 		#
 		# identify common mutations
 		#
 		percentile_var = 95
-		N_DONORS = len(TOTAL_DONORS)
-		VDAT_COMMON = list_2_countDict(VDAT_COMMON)
-		minVal = int(np.percentile(VDAT_COMMON.values(),percentile_var))
-		for k in sorted(VDAT_COMMON.keys()):
-			if VDAT_COMMON[k] >= minVal:
-				COMMON_VARIANTS.append((refName,k[0],k[1],k[3],VDAT_COMMON[k]/float(N_DONORS)))
+		if IS_VCF:
+			minVal = np.percentile([n[4] for n in VDAT_COMMON],percentile_var)
+			for k in sorted(VDAT_COMMON):
+				if k[4] >= minVal:
+					COMMON_VARIANTS.append((refName,k[0],k[1],k[3],k[4]))
+			VDAT_COMMON = {(n[0],n[1],n[2],n[3]):n[4] for n in VDAT_COMMON}
+		else:
+			N_DONORS = len(TOTAL_DONORS)
+			VDAT_COMMON = list_2_countDict(VDAT_COMMON)
+			minVal = int(np.percentile(VDAT_COMMON.values(),percentile_var))
+			for k in sorted(VDAT_COMMON.keys()):
+				if VDAT_COMMON[k] >= minVal:
+					COMMON_VARIANTS.append((refName,k[0],k[1],k[3],VDAT_COMMON[k]/float(N_DONORS)))
 
 		#
 		# identify areas that have contained significantly higher random mutation rates
