@@ -379,6 +379,8 @@ class SequenceContainer:
 				eLen = error[1]
 				ePos = error[2]
 				if error[0] == 'D' or error[0] == 'I':
+					anyIndelErr   = True
+					extraCigarVal = []
 					if totalD > availB:	# if not enough bases to fill-in deletions, skip all indel erors
 						continue
 					if expandedCigar == []:
@@ -387,10 +389,6 @@ class SequenceContainer:
 						fillToGo = totalD - totalI
 						if fillToGo > 0:
 							extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
-						else:
-							extraCigarVal = []
-						
-					anyIndelErr = True
 
 					# insert deletion error into read and update cigar string accordingly
 					if error[0] == 'D':
@@ -427,10 +425,11 @@ class SequenceContainer:
 						exit(1)
 
 			if anyIndelErr:
-				#print myCigar,'-->',
-				relevantCigar = (expandedCigar+extraCigarVal)[:self.readLen]
-				myCigar = CigarString(listIn=relevantCigar).getString()
-				#print myCigar
+				if len(expandedCigar):
+					#print myCigar,'-->',
+					relevantCigar = (expandedCigar+extraCigarVal)[:self.readLen]
+					myCigar = CigarString(listIn=relevantCigar).getString()
+					#print myCigar
 
 				r[3] = r[3][:self.readLen]
 				#if len(r[3]) != self.readLen:
