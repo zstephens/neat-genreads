@@ -42,7 +42,7 @@ python genSeqErrorModel.py                            \
         --plot perform some optional plotting
 ```
 
-## plotMutModel.py
+# plotMutModel.py
 
 Performs plotting and comparison of mutation models generated from genMutModel.py.
 
