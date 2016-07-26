@@ -41,6 +41,15 @@ python genSeqErrorModel.py                            \
         -s number of simulation iterations [1000000]  \
         --plot perform some optional plotting
 ```
+
+## plotMutModel.py
+
+Performs plotting and comparison of mutation models generated from genMutModel.py.
+
+```
+python plotMutModel.py model1.p [model2.p model3.p ...]
+```
+
 # vcf_compare_OLD.py
 
 Tool for comparing VCF files.
