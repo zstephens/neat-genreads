@@ -274,7 +274,6 @@ def main():
 						TOTAL_DONORS[donor_id] = True
 				else:
 					print '\nError: ref allele in variant call does not match reference.\n'
-					#print allele_ref, allele_normal, allele_tumor
 					exit(1)
 
 			# now let's look for indels...
