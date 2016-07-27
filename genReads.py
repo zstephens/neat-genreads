@@ -188,7 +188,7 @@ if PAIRED_END and not(PAIRED_END_ARTIFICIAL):
 #	Indicate not writing FASTQ reads
 #
 if NO_FASTQ:
-	print 'Bypassing FASTQ generation.'
+	print 'Bypassing FASTQ generation...'
 
 """************************************************
 ****            HARD-CODED CONSTANTS
@@ -514,6 +514,11 @@ def main():
 
 				# sample reads from altered reference
 				for i in xrange(readsToSample):
+
+					# if we're only producing VCF, no need to go through the hassle of generating reads
+					if NO_FASTQ and SAVE_VCF:
+						continue
+
 					if PAIRED_END:
 						myFraglen = FRAGLEN_DISTRIBUTION.sample()
 						myReadData = sequences.sample_read(SE_CLASS,myFraglen)

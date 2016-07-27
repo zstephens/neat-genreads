@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import bisect
 import pickle
 import argparse
 import numpy as np
@@ -16,9 +17,11 @@ from refFunc import indexRef
 VCF_DEFAULT_POP_FREQ = 0.00001
 
 parser = argparse.ArgumentParser(description='genMutModel.py')
-parser.add_argument('-r', type=str, required=True, metavar='<str>',                    help="* ref.fa")
-parser.add_argument('-m', type=str, required=True, metavar='<str>',                    help="* mutations.tsv [.vcf]")
-parser.add_argument('-o', type=str, required=True, metavar='<str>',                    help="* output.p")
+parser.add_argument('-r',  type=str, required=True,  metavar='<str>',                  help="* ref.fa")
+parser.add_argument('-m',  type=str, required=True,  metavar='<str>',                  help="* mutations.tsv [.vcf]")
+parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                  help="* output.p")
+parser.add_argument('-bi', type=str, required=False, metavar='<str>',                  help="only_use_these_regions.bed")
+parser.add_argument('-be', type=str, required=False, metavar='<str>',                  help="exclude_these_regions.bed")
 parser.add_argument('--save-trinuc',required=False,action='store_true', default=False, help='save trinuc counts for ref')
 args = parser.parse_args()
 (REF, TSV, OUT_PICKLE, SAVE_TRINUC) = (args.r, args.m, args.o, args.save_trinuc)
@@ -38,12 +41,10 @@ VALID_TRINUC  =  [VALID_NUCL[i]+VALID_NUCL[j]+VALID_NUCL[k] for i in xrange(len(
 
 # given a reference index, grab the sequence string of a specified reference
 def getChrFromFasta(refPath,ref_inds,chrName):
-
 	for i in xrange(len(ref_inds)):
 		if ref_inds[i][0] == chrName:
 			ref_inds_i = ref_inds[i]
 			break
-
 	refFile = open(refPath,'r')
 	refFile.seek(ref_inds_i[1])
 	myDat = ''.join(refFile.read(ref_inds_i[2]-ref_inds_i[1]).split('\n'))
@@ -72,35 +73,55 @@ def list_2_countDict(l):
 		cDict[n] += 1
 	return cDict
 
-# return the mean distance to the median of a cluster
-def mean_dist_from_median(c):
-	centroid = np.median([n for n in c])
-	dists    = []
-	for n in c:
-		dists.append(abs(n-centroid))
-	return np.mean(dists)
+def getBedTracks(fn):
+	f = open(fn,'r')
+	trackDict = {}
+	for line in f:
+		splt = line.strip().split('\t')
+		if splt[0] not in trackDict:
+			trackDict[splt[0]] = []
+		trackDict[splt[0]].extend([int(splt[1]),int(splt[2])])
+	f.close()
+	return trackDict
 
-# get median value from counting dictionary
-def quick_median(countDict):
-	midPoint = sum(countDict.values())/2
-	mySum    = 0
-	myInd    = 0
-	sk       = sorted(countDict.keys())
-	while mySum < midPoint:
-		mySum += countDict[sk[myInd]]
-		if mySum >= midPoint:
-			break
-		myInd += 1
-	return myInd
+def isInBed(track,ind):
+	myInd = bisect.bisect(track,ind)
+	if myInd&1:
+		return True
+	if myInd < len(track):
+		if track[myInd-1] == ind:
+			return True
+	return False
 
-# get median deviation from median of counting dictionary
-def median_deviation_from_median(countDict):
-	myMedian = quick_median(countDict)
-	deviations = {}
-	for k in sorted(countDict.keys()):
-		d = abs(k-myMedian)
-		deviations[d] = countDict[k]
-	return quick_median(deviations)
+## return the mean distance to the median of a cluster
+#def mean_dist_from_median(c):
+#	centroid = np.median([n for n in c])
+#	dists    = []
+#	for n in c:
+#		dists.append(abs(n-centroid))
+#	return np.mean(dists)
+#
+## get median value from counting dictionary
+#def quick_median(countDict):
+#	midPoint = sum(countDict.values())/2
+#	mySum    = 0
+#	myInd    = 0
+#	sk       = sorted(countDict.keys())
+#	while mySum < midPoint:
+#		mySum += countDict[sk[myInd]]
+#		if mySum >= midPoint:
+#			break
+#		myInd += 1
+#	return myInd
+#
+## get median deviation from median of counting dictionary
+#def median_deviation_from_median(countDict):
+#	myMedian = quick_median(countDict)
+#	deviations = {}
+#	for k in sorted(countDict.keys()):
+#		d = abs(k-myMedian)
+#		deviations[d] = countDict[k]
+#	return quick_median(deviations)
 
 
 #####################################
@@ -208,8 +229,10 @@ def main():
 				vcf_info = ';'+splt[7]+';'
 			else:
 				[donor_id] = [splt[d_id]]
+
 			# if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
-			if len(allele_normal) > 1 and len(allele_normal) == len(allele_tumor):
+			if ('-' not in allele_normal and '-' not in allele_tumor) and (len(allele_normal) > 1 or len(allele_tumor) > 1):
+				print 'skipping...'
 				continue
 
 			# to deal with '1' vs 'chr1' references, manually change names. this is hacky and bad.
@@ -251,7 +274,7 @@ def main():
 						TOTAL_DONORS[donor_id] = True
 				else:
 					print '\nError: ref allele in variant call does not match reference.\n'
-					print trinuc, allele_ref, allele_normal, allele_tumor
+					#print allele_ref, allele_normal, allele_tumor
 					exit(1)
 
 			# now let's look for indels...

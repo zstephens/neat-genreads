@@ -54,8 +54,8 @@ for line in f:
 		currentRef = splt[0]
 		sPos       = int(splt[1])-1
 
-		#if currentRef == 'chr2':
-		#	break
+	if currentRef not in allRefs:
+		continue
 
 	currentLine += 1
 	currentCov  += int(splt[2])
