@@ -13,31 +13,18 @@ sys.path.append(SIM_PATH+'/py/')
 
 from refFunc import indexRef
 
-# if parsing a dbsnp vcf, and no CAF= is found in info tag, use this as default val for population freq
-VCF_DEFAULT_POP_FREQ = 0.00001
-
-parser = argparse.ArgumentParser(description='genMutModel.py')
-parser.add_argument('-r',  type=str, required=True,  metavar='<str>',                  help="* ref.fa")
-parser.add_argument('-m',  type=str, required=True,  metavar='<str>',                  help="* mutations.tsv [.vcf]")
-parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                  help="* output.p")
-parser.add_argument('-bi', type=str, required=False, metavar='<str>',                  help="only_use_these_regions.bed")
-parser.add_argument('-be', type=str, required=False, metavar='<str>',                  help="exclude_these_regions.bed")
-parser.add_argument('--save-trinuc',required=False,action='store_true', default=False, help='save trinuc counts for ref')
-args = parser.parse_args()
-(REF, TSV, OUT_PICKLE, SAVE_TRINUC) = (args.r, args.m, args.o, args.save_trinuc)
-
-if TSV[-4:] == '.vcf':
-	IS_VCF = True
-elif TSV[-4:] == '.tsv':
-	IS_VCF = False
-else:
-	print '\nError: Unknown format for mutation input.\n'
-	exit(1)
-
 REF_WHITELIST =  [str(n) for n in xrange(1,30)] + ['x','y','X','Y','mt','Mt','MT']
 REF_WHITELIST += ['chr'+n for n in REF_WHITELIST]
 VALID_NUCL    =  ['A','C','G','T']
 VALID_TRINUC  =  [VALID_NUCL[i]+VALID_NUCL[j]+VALID_NUCL[k] for i in xrange(len(VALID_NUCL)) for j in xrange(len(VALID_NUCL)) for k in xrange(len(VALID_NUCL))]
+# if parsing a dbsnp vcf, and no CAF= is found in info tag, use this as default val for population freq
+VCF_DEFAULT_POP_FREQ = 0.00001
+
+
+#########################################################
+#				VARIOUS HELPER FUNCTIONS				#
+#########################################################
+
 
 # given a reference index, grab the sequence string of a specified reference
 def getChrFromFasta(refPath,ref_inds,chrName):
@@ -124,6 +111,38 @@ def isInBed(track,ind):
 #	return quick_median(deviations)
 
 
+#################################################
+#				PARSE INPUT OPTIONS				#
+#################################################
+
+
+parser = argparse.ArgumentParser(description='genMutModel.py')
+parser.add_argument('-r',  type=str, required=True,  metavar='<str>',                  help="* ref.fa")
+parser.add_argument('-m',  type=str, required=True,  metavar='<str>',                  help="* mutations.tsv [.vcf]")
+parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                  help="* output.p")
+parser.add_argument('-bi', type=str, required=False, metavar='<str>',   default=None,  help="only_use_these_regions.bed")
+parser.add_argument('-be', type=str, required=False, metavar='<str>',   default=None,  help="exclude_these_regions.bed")
+parser.add_argument('--save-trinuc',required=False,action='store_true', default=False, help='save trinuc counts for ref')
+args = parser.parse_args()
+(REF, TSV, OUT_PICKLE, SAVE_TRINUC) = (args.r, args.m, args.o, args.save_trinuc)
+
+MYBED = None
+if args.bi != None:
+	print 'only considering variants in specified bed regions...'
+	MYBED = (getBedTracks(args.bi),True)
+elif args.be != None:
+	print 'only considering variants outside of specified bed regions...'
+	MYBED = (getBedTracks(args.be),False)
+
+if TSV[-4:] == '.vcf':
+	IS_VCF = True
+elif TSV[-4:] == '.tsv':
+	IS_VCF = False
+else:
+	print '\nError: Unknown format for mutation input.\n'
+	exit(1)
+
+
 #####################################
 #				main()				#
 #####################################
@@ -140,6 +159,8 @@ def main():
 	TRINUC_TRANSITION_COUNT = {}
 	# total count of SNPs
 	SNP_COUNT = 0
+	# overall SNP transition probabilities
+	SNP_TRANSITION_COUNT = {}
 	# total count of indels, indexed by length
 	INDEL_COUNT = {}
 	# tabulate how much non-N reference sequence we've eaten through
@@ -232,7 +253,7 @@ def main():
 
 			# if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
 			if ('-' not in allele_normal and '-' not in allele_tumor) and (len(allele_normal) > 1 or len(allele_tumor) > 1):
-				print 'skipping...'
+				print 'skipping a complex variant...'
 				continue
 
 			# to deal with '1' vs 'chr1' references, manually change names. this is hacky and bad.
@@ -243,6 +264,18 @@ def main():
 			# skip irrelevant variants
 			if chrName != refName:
 				continue
+
+			# if variant is outside the regions we're interested in (if specified), skip it...
+			if MYBED != None:
+				refKey = refName
+				if not refKey in MYBED[0] and refKey[3:] in MYBED[0]:	# account for 1 vs chr1, again...
+					refKey = refKey[3:]
+				if refKey not in MYBED[0]:
+					inBed = False
+				else:
+					inBed = isInBed(MYBED[0][refKey],chrStart)
+				if inBed != MYBED[1]:
+					continue
 
 			# we want only snps
 			# so, no '-' characters allowed, and chrStart must be same as chrEnd
@@ -261,6 +294,10 @@ def main():
 						TRINUC_TRANSITION_COUNT[key] = 0
 					TRINUC_TRANSITION_COUNT[key] += 1
 					SNP_COUNT += 1
+					key2 = (allele_normal,allele_tumor)
+					if key2 not in SNP_TRANSITION_COUNT:
+						SNP_TRANSITION_COUNT[key2] = 0
+					SNP_TRANSITION_COUNT[key2] += 1
 
 					if IS_VCF:
 						myPopFreq = VCF_DEFAULT_POP_FREQ
@@ -385,6 +422,8 @@ def main():
 	TRINUC_MUT_PROB = {}
 	# frequency that a trinuc mutates into another trinuc, given that it mutated
 	TRINUC_TRANS_PROBS = {}
+	# frequency of snp transitions, given a snp occurs.
+	SNP_TRANS_FREQ = {}
 
 	for trinuc in sorted(TRINUC_REF_COUNT.keys()):
 		myCount = 0
@@ -395,6 +434,13 @@ def main():
 		for k in sorted(TRINUC_TRANSITION_COUNT.keys()):
 			if k[0] == trinuc:
 				TRINUC_TRANS_PROBS[k] = TRINUC_TRANSITION_COUNT[k] / float(myCount)
+
+	for n1 in VALID_NUCL:
+		rollingTot = sum([SNP_TRANSITION_COUNT[(n1,n2)] for n2 in VALID_NUCL if (n1,n2) in SNP_TRANSITION_COUNT])
+		for n2 in VALID_NUCL:
+			key2 = (n1,n2)
+			if key2 in SNP_TRANSITION_COUNT:
+				SNP_TRANS_FREQ[key2] = SNP_TRANSITION_COUNT[key2] / float(rollingTot)
 
 	# compute average snp and indel frequencies
 	totalVar       = SNP_COUNT + sum(INDEL_COUNT.values())
@@ -418,11 +464,14 @@ def main():
 		else:
 			print 'p(del length = '+str(abs(k))+' | indel occurs) =',INDEL_FREQ[k]
 
-	for n in COMMON_VARIANTS:
-		print n
+	for k in sorted(SNP_TRANS_FREQ.keys()):
+		print 'p('+k[0]+' --> '+k[1]+' | SNP occurs) =',SNP_TRANS_FREQ[k]
 
-	for n in HIGH_MUT_REGIONS:
-		print n
+	#for n in COMMON_VARIANTS:
+	#	print n
+
+	#for n in HIGH_MUT_REGIONS:
+	#	print n
 
 	print 'p(snp)   =',SNP_FREQ
 	print 'p(indel) =',AVG_INDEL_FREQ
@@ -434,6 +483,7 @@ def main():
 	#
 	OUT_DICT = {'AVG_MUT_RATE':AVG_MUT_RATE,
 	            'SNP_FREQ':SNP_FREQ,
+	            'SNP_TRANS_FREQ':SNP_TRANS_FREQ,
 	            'INDEL_FREQ':INDEL_FREQ,
 	            'TRINUC_MUT_PROB':TRINUC_MUT_PROB,
 	            'TRINUC_TRANS_PROBS':TRINUC_TRANS_PROBS,
