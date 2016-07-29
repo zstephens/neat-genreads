@@ -22,6 +22,7 @@ Table of Contents
     * [computeGC.py](#computegcpy)
     * [computeFraglen.py](#computefraglenpy)
     * [genMutModel.py](#genmutmodelpy)
+    * [plotMutModel.py](#plotmutmodelpy)
     * [genSeqErrorModel.py](#genseqerrormodelpy)
     * [vcf_compare_OLD.py](#vcf_compare_oldpy)
       * [Note on Sensitive Patient Data](#note-on-sensitive-patient-data)
