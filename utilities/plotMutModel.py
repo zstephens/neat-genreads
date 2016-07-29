@@ -1,7 +1,7 @@
 #
 #	a quick script for comparing mutation models
 #
-#	python plotMutModel.py model1.p [model2.p model3.p ...]
+#	python plotMutModel.py /path/to/outputPrefix model1.p [model2.p model3.p ...]
 #
 
 import sys
@@ -50,7 +50,8 @@ def getBedOverlap(track,ind_s,ind_e):
 #				ocount += 1
 #	return ocount
 
-INP = sys.argv[1:]
+OUP = sys.argv[1]
+INP = sys.argv[2:]
 N_FILES = len(INP)
 
 mpl.rcParams.update({'font.size': 13, 'font.weight':'bold', 'lines.linewidth': 3})
@@ -106,7 +107,8 @@ mpl.grid()
 mpl.xlabel('Indel size (bp)')
 mpl.title('Indel frequency by size (- deletion, + insertion)')
 mpl.legend(legText)
-mpl.show()
+#mpl.show()
+mpl.savefig(OUP+'_plot1_mutRates.pdf')
 
 #################################################
 #
@@ -136,13 +138,15 @@ for fn in INP:
 mpl.grid()
 mpl.title('p(trinucleotide mutates)')
 mpl.legend(legText)
-mpl.show()
+#mpl.show()
+mpl.savefig(OUP+'_plot2_trinucPriors.pdf')
 
 #################################################
 #
 #	TRINUC TRANS PROB
 #
 #################################################
+plotNum = 3
 for fn in INP:
 	mpl.figure(2,figsize=(12,10))
 	DATA_DICT = pickle.load( open( fn, "rb" ) )
@@ -173,7 +177,9 @@ for fn in INP:
 		mpl.text(1.6, 1.8, HARDCODED_LABEL[pi], color='white')
 	mpl.tight_layout()
 	mpl.figtext(0.052,0.985,fn)
-	mpl.show()
+	#mpl.show()
+	mpl.savefig(OUP+'_plot'+str(plotNum)+'_trinucTrans.pdf')
+	plotNum += 1
 
 #################################################
 #
