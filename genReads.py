@@ -53,7 +53,7 @@ parser.add_argument('-E', type=float, required=False, metavar='<float>', default
 parser.add_argument('-p', type=int,   required=False, metavar='<int>',   default=2,     help="ploidy")
 parser.add_argument('-t', type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing targeted regions")
 parser.add_argument('-to',type=float, required=False, metavar='<float>', default=0.02,  help="off-target coverage scalar")
-parser.add_argument('-m', type=str,   required=False, metavar='<str>',   default=None,  help="mutation model directory")
+parser.add_argument('-m', type=str,   required=False, metavar='<str>',   default=None,  help="mutation model pickle file")
 parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg mutation rate to this")
 parser.add_argument('-Mb',type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing positional mut rates")
 parser.add_argument('-N', type=int,   required=False, metavar='<int>',   default=-1,    help="below this qual, replace base-calls with 'N's")

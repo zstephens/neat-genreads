@@ -587,8 +587,59 @@ class ReadContainer:
 ************************************************"""
 
 
+# parse mutation model pickle file
+def parseInputMutationModel(model=None, whichDefault=1):
+	if whichDefault == 1:
+		outModel = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
+	elif whichDefault == 2:
+		outModel = [copy.deepcopy(n) for n in DEFAULT_MODEL_2]
+	else:
+		print '\nError: Unknown default mutation model specified\n'
+		exit(1)
+
+	if model != None:
+		pickle_dict = pickle.load(open(model,"rb"))
+		outModel[0] = pickle_dict['AVG_MUT_RATE']
+		outModel[2] = 1. - pickle_dict['SNP_FREQ']
+
+		insList     = pickle_dict['INDEL_FREQ']
+		if len(insList):
+			insCount = sum([insList[k] for k in insList.keys() if k >= 1])
+			delCount = sum([insList[k] for k in insList.keys() if k <= -1])
+			insVals  = [k for k in sorted(insList.keys()) if k >= 1]
+			insWght  = [insList[k]/float(insCount) for k in insVals]
+			delVals  = [k for k in sorted([abs(k) for k in insList.keys() if k <= -1])]
+			delWght  = [insList[-k]/float(delCount) for k in delVals]
+		else:	# degenerate case where no indel stats are provided
+			insCount = 1
+			delCount = 1
+			insVals  = [1]
+			insWght  = [1.0]
+			delVals  = [1]
+			delWght  = [1.0]
+		outModel[3] = insCount/float(insCount + delCount)
+		outModel[4] = insVals
+		outModel[5] = insWght
+		outModel[6] = delVals
+		outModel[7] = delWght
+
+		trinuc_trans_prob = pickle_dict['TRINUC_TRANS_PROBS']
+		for k in sorted(trinuc_trans_prob.keys()):
+			myInd   = TRI_IND[k[0][0]+k[0][2]]
+			(k1,k2) = (NUC_IND[k[0][1]],NUC_IND[k[1][1]])
+			outModel[8][myInd][k1][k2] = trinuc_trans_prob[k]
+		for i in xrange(len(outModel[8])):
+			for j in xrange(len(outModel[8][i])):
+				for l in xrange(len(outModel[8][i][j])):
+					outModel[8][i][j][l] /= float(sum(outModel[8][i][j]))
+
+	return outModel
+
+
 # parse mutation model files, returns default model if no model directory is specified
-def parseInputMutationModel(prefix=None, whichDefault=1):
+#
+# OLD FUNCTION THAT PROCESSED OUTDATED TEXTFILE MUTATION MODELS
+def parseInputMutationModel_deprecated(prefix=None, whichDefault=1):
 	if whichDefault == 1:
 		outModel = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
 	elif whichDefault == 2:

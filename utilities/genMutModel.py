@@ -192,20 +192,39 @@ def main():
 		########################################################################## """
 
 
-		if not os.path.isfile(REF+'.trinucCounts'):
-			print 'counting trinucleotides in reference...'
-			for i in xrange(len(refSequence)-2):
-				if i%1000000 == 0 and i > 0:
-					print i,'/',len(refSequence)
-					#break
-				trinuc = refSequence[i:i+3]
-				if not trinuc in VALID_TRINUC:
-					continue	# skip if trinuc contains invalid characters
-				if trinuc not in TRINUC_REF_COUNT:
-					TRINUC_REF_COUNT[trinuc] = 0
-				TRINUC_REF_COUNT[trinuc] += 1
+		if MYBED != None:
+			print "since you're using a bed input, we have to recount ref trinucs..."
+			if refName in MYBED[0]:
+				refKey = refName
+			elif ('chr' in refName) and (refName not in MYBED[0]) and (refName[3:] in MYBED[0]):
+				refKey = refName[3:]
+			elif ('chr' not in refName) and (refName not in MYBED[0]) and ('chr'+refName in MYBED[0]):
+				refKey = 'chr'+refName
+			if refKey in MYBED[0]:
+				for i in xrange(len(refSequence)-2):
+					if i%1000000 == 0 and i > 0:
+						print i,'/',len(refSequence)
+					trinuc = refSequence[i:i+3]
+					if (isInBed(MYBED[0][refKey],i) != MYBED[1]) or (not trinuc in VALID_TRINUC):
+						continue	# skip if trinuc contains invalid characters, or not in specified bed region
+					if trinuc not in TRINUC_REF_COUNT:
+						TRINUC_REF_COUNT[trinuc] = 0
+					TRINUC_REF_COUNT[trinuc] += 1
 		else:
-			print 'skipping trinuc counts because we found a file...'
+			if not os.path.isfile(REF+'.trinucCounts'):
+				print 'counting trinucleotides in reference...'
+				for i in xrange(len(refSequence)-2):
+					if i%1000000 == 0 and i > 0:
+						print i,'/',len(refSequence)
+						#break
+					trinuc = refSequence[i:i+3]
+					if not trinuc in VALID_TRINUC:
+						continue	# skip if trinuc contains invalid characters
+					if trinuc not in TRINUC_REF_COUNT:
+						TRINUC_REF_COUNT[trinuc] = 0
+					TRINUC_REF_COUNT[trinuc] += 1
+			else:
+				print 'skipping trinuc counts because we found a file...'
 
 
 		""" ##########################################################################
