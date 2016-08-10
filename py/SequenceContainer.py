@@ -151,6 +151,8 @@ class SequenceContainer:
 				skipEvent = False
 				if eventPos+len(myIndel[1]) >= self.seqLen-self.winBuffer-1:
 					skipEvent = True
+				if skipEvent:
+					continue
 				for p in whichPloid:
 					for k in xrange(eventPos,eventPos+inLen+1):
 						if self.blackList[p][k]:
