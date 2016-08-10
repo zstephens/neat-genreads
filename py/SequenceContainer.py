@@ -140,6 +140,8 @@ class SequenceContainer:
 					myIndel = (eventPos,refNucl,refNucl+inSeq)
 				else:								# deletion
 					inLen   = myModel[5].sample()
+					if eventPos+inLen+1 >= len(self.sequences[i]):	# skip if deletion too close to boundary
+						continue
 					if inLen == 1:
 						inSeq = chr(self.sequences[i][eventPos+1])
 					else:
