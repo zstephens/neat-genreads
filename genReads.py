@@ -406,7 +406,6 @@ def main():
 			#print len(refSequence), (pi,pf), nTargWindows
 			#print structuralVars
 
-			# adjust end-position of window based on inserted structural mutations
 			start = pi
 			end   = min([start+bpd,pf])
 			print 'RAWR:', (pi,pf), bpd
@@ -417,12 +416,14 @@ def main():
 			isLastTime = False
 			while True:
 				print (start,end)
+				# adjust end-position of window based on inserted structural mutations
 				relevantVars = []
 				if len(structuralVars) and currentVariantInd < len(structuralVars):
 					prevVarInd = currentVariantInd
 					while structuralVars[currentVariantInd][0] <= end:
 						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
 						if delta <= 0:
+							print 'DELTA:', delta
 							end -= (delta-1)
 						currentVariantInd += 1
 						if currentVariantInd == len(structuralVars):
