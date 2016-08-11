@@ -409,12 +409,14 @@ def main():
 			# adjust end-position of window based on inserted structural mutations
 			start = pi
 			end   = min([start+bpd,pf])
+			print 'RAWR:', (pi,pf), bpd
 			currentVariantInd = 0
 			varsFromPrevOverlap = []
 			varsCancerFromPrevOverlap = []
 			vindFromPrev = 0
 			isLastTime = False
 			while True:
+				print (start,end)
 				relevantVars = []
 				if len(structuralVars) and currentVariantInd < len(structuralVars):
 					prevVarInd = currentVariantInd
