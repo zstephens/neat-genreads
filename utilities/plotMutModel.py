@@ -127,7 +127,7 @@ for fn in INP:
 	x  = range(colorInd-1,len(TRINUC_MUT_PROB)*N_FILES,N_FILES)
 	xt = sorted(TRINUC_MUT_PROB.keys())
 	y  = [TRINUC_MUT_PROB[k] for k in xt]
-	markerline, stemlines, baseline = mpl.stem(x,y,color=myCol)
+	markerline, stemlines, baseline = mpl.stem(x,y,'-.')
 	mpl.setp(markerline, 'markerfacecolor', myCol)
 	mpl.setp(markerline, 'markeredgecolor', myCol)
 	mpl.setp(baseline, 'color', myCol, 'linewidth', 0)
