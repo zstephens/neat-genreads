@@ -148,7 +148,8 @@ class OutputFileWriter:
 			encodedCig += pack('<I',(cig_numbers[i]<<4) + CIGAR_PACKED[cig_letters[i]])
 		encodedSeq = ''
 		encodedLen = (len(seq)+1)/2
-		if len(seq)&1:
+		seqLen     = len(seq)
+		if seqLen&1:
 			seq += '='
 		for i in xrange(encodedLen):
 			encodedSeq += pack('<B',(SEQ_PACKED[seq[2*i]]<<4) + SEQ_PACKED[seq[2*i+1]])
@@ -169,14 +170,15 @@ class OutputFileWriter:
 		#            encodedLen +
 		#            len(seq)
 
-		blockSize = 32 + len(readName)+1 + 4*cig_ops + encodedLen + len(seq)
+		#blockSize = 32 + len(readName)+1 + 4*cig_ops + encodedLen + len(seq)
+		blockSize = 32 + len(readName)+1 + len(encodedCig) + len(encodedSeq) + len(encodedQual)
 
 		self.bam_file.write(pack('<i',blockSize))
 		self.bam_file.write(pack('<i',refID))
 		self.bam_file.write(pack('<i',pos_0))
 		self.bam_file.write(pack('<I',(myBin<<16) + (myMapQual<<8) + len(readName)+1))
 		self.bam_file.write(pack('<I',(samFlag<<16) + cig_ops))
-		self.bam_file.write(pack('<i',len(seq)))
+		self.bam_file.write(pack('<i',seqLen))
 		self.bam_file.write(pack('<i',next_refID))
 		self.bam_file.write(pack('<i',next_pos))
 		self.bam_file.write(pack('<i',my_tlen))

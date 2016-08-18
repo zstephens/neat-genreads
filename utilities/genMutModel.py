@@ -193,7 +193,7 @@ def main():
 
 
 		if MYBED != None:
-			print "since you're using a bed input, we have to recount ref trinucs..."
+			print "since you're using a bed input, we have to count ref trinucs even if you specified a trinuc count file..."
 			if refName in MYBED[0]:
 				refKey = refName
 			elif ('chr' in refName) and (refName not in MYBED[0]) and (refName[3:] in MYBED[0]):
@@ -419,11 +419,14 @@ def main():
 		f.close()
 	# otherwise, save trinuc counts to file, if desired
 	elif SAVE_TRINUC:
-		print 'saving trinuc counts to file...'
-		f = open(REF+'.trinucCounts','w')
-		for trinuc in sorted(TRINUC_REF_COUNT.keys()):
-			f.write(trinuc+'\t'+str(TRINUC_REF_COUNT[trinuc])+'\n')
-		f.close()
+		if MYBED != None:
+			print 'unable to save trinuc counts to file because using input bed region...'
+		else:
+			print 'saving trinuc counts to file...'
+			f = open(REF+'.trinucCounts','w')
+			for trinuc in sorted(TRINUC_REF_COUNT.keys()):
+				f.write(trinuc+'\t'+str(TRINUC_REF_COUNT[trinuc])+'\n')
+			f.close()
 
 
 	""" ##########################################################################
