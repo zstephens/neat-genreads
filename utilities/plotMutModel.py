@@ -12,6 +12,9 @@ import matplotlib.pyplot as mpl
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
+#mpl.rc('text',usetex=True)
+#mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
+
 def getColor(i,N,colormap='jet'):
 	cm = mpl.get_cmap(colormap) 
 	cNorm  = colors.Normalize(vmin=0, vmax=N+1)
@@ -74,7 +77,7 @@ for fn in INP:
 mpl.xlim([-1,N_FILES+1])
 mpl.grid()
 mpl.xticks([],[])
-mpl.title('Overall mutation rate (1/bp)')
+#mpl.title('Overall mutation rate (1/bp)')
 
 mpl.subplot(2,2,2)
 colorInd = 0
@@ -89,11 +92,11 @@ mpl.axis([-1,N_FILES+1,0,1.2])
 mpl.grid()
 mpl.xticks([],[])
 mpl.yticks([0,.2,.4,.6,.8,1.],[0,0.2,0.4,0.6,0.8,1.0])
-mpl.title('SNP freq [  ] & indel freq [//]')
+#mpl.title('SNP freq [  ] & indel freq [//]')
 
 mpl.subplot(2,1,2)
 colorInd = 0
-legText  = []
+legText  = ['Coding Sequence', 'Non-coding Sequence']
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
@@ -102,10 +105,10 @@ for fn in INP:
 	x = sorted(INDEL_FREQ.keys())
 	y = [INDEL_FREQ[n] for n in x]
 	mpl.plot(x,y,color=myCol)
-	legText.append(fn)
+	#legText.append(fn)
 mpl.grid()
-mpl.xlabel('Indel size (bp)')
-mpl.title('Indel frequency by size (- deletion, + insertion)')
+mpl.xlabel('Indel size (bp)', fontweight='bold')
+#mpl.title('Indel frequency by size (- deletion, + insertion)')
 mpl.legend(legText)
 #mpl.show()
 mpl.savefig(OUP+'_plot1_mutRates.pdf')
@@ -117,7 +120,7 @@ mpl.savefig(OUP+'_plot1_mutRates.pdf')
 #################################################
 mpl.figure(1,figsize=(14,6))
 colorInd = 0
-legText  = []
+legText  = ['Coding Sequence','Non-coding Sequence']
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
@@ -134,9 +137,9 @@ for fn in INP:
 	mpl.setp(stemlines, 'color', myCol, 'linewidth', 3)
 	if colorInd == 1:
 		mpl.xticks(x,xt,rotation=90)
-	legText.append(fn)
+	#legText.append(fn)
 mpl.grid()
-mpl.title('p(trinucleotide mutates)')
+#mpl.title('p(trinucleotide mutates)')
 mpl.legend(legText)
 #mpl.show()
 mpl.savefig(OUP+'_plot2_trinucPriors.pdf')
@@ -173,10 +176,10 @@ for fn in INP:
 		mpl.pcolormesh(X,Y,Z2[::-1,:])
 		mpl.axis([0,4,0,4])
 		mpl.xticks([0.5,1.5,2.5,3.5],['A','C','G','T'])
-		mpl.yticks([0.5,1.5,2.5,3.5],[r'T$\rightarrow$',r'G$\rightarrow$',r'C$\rightarrow$',r'A$\rightarrow$'])
+		mpl.yticks([0.5,1.5,2.5,3.5],['T','G','C','A'])
 		mpl.text(1.6, 1.8, HARDCODED_LABEL[pi], color='white')
 	mpl.tight_layout()
-	mpl.figtext(0.052,0.985,fn)
+	#mpl.figtext(0.052,0.985,'Trinucleotide Transition Heatmap')
 	#mpl.show()
 	mpl.savefig(OUP+'_plot'+str(plotNum)+'_trinucTrans.pdf')
 	plotNum += 1
