@@ -71,6 +71,13 @@ def getBedTracks(fn):
 	f.close()
 	return trackDict
 
+def getTrackLen(trackDict):
+	totSum = 0
+	for k in trackDict.keys():
+		for i in xrange(0,len(trackDict[k]),2):
+			totSum += trackDict[k][i+1] - trackDict[k][i] + 1
+	return totSum
+
 def isInBed(track,ind):
 	myInd = bisect.bisect(track,ind)
 	if myInd&1:
@@ -153,8 +160,10 @@ def main():
 	ref_inds = indexRef(REF)
 	refList  = [n[0] for n in ref_inds]
 
-	# how many times do we observe each trinucleotide in the reference?
+	# how many times do we observe each trinucleotide in the reference (and input bed region, if present)?
 	TRINUC_REF_COUNT = {}
+	TRINUC_BED_COUNT = {}
+	printBedWarning  = True
 	# [(trinuc_a, trinuc_b)] = # of times we observed a mutation from trinuc_a into trinuc_b
 	TRINUC_TRANSITION_COUNT = {}
 	# total count of SNPs
@@ -193,7 +202,9 @@ def main():
 
 
 		if MYBED != None:
-			print "since you're using a bed input, we have to count ref trinucs even if you specified a trinuc count file..."
+			if printBedWarning:
+				print "since you're using a bed input, we have to count trinucs in bed region even if you specified a trinuc count file for the reference..."
+				printBedWarning = False
 			if refName in MYBED[0]:
 				refKey = refName
 			elif ('chr' in refName) and (refName not in MYBED[0]) and (refName[3:] in MYBED[0]):
@@ -201,30 +212,30 @@ def main():
 			elif ('chr' not in refName) and (refName not in MYBED[0]) and ('chr'+refName in MYBED[0]):
 				refKey = 'chr'+refName
 			if refKey in MYBED[0]:
-				for i in xrange(len(refSequence)-2):
-					if i%1000000 == 0 and i > 0:
-						print i,'/',len(refSequence)
-					trinuc = refSequence[i:i+3]
-					if (isInBed(MYBED[0][refKey],i) != MYBED[1]) or (not trinuc in VALID_TRINUC):
-						continue	# skip if trinuc contains invalid characters, or not in specified bed region
-					if trinuc not in TRINUC_REF_COUNT:
-						TRINUC_REF_COUNT[trinuc] = 0
-					TRINUC_REF_COUNT[trinuc] += 1
+				subRegions = [(MYBED[0][refKey][n],MYBED[0][refKey][n+1]) for n in xrange(0,len(MYBED[0][refKey]),2)]
+				for sr in subRegions:
+					for i in xrange(sr[0],sr[1]+1-2):
+						trinuc = refSequence[i:i+3]
+						if not trinuc in VALID_TRINUC:
+							continue	# skip if trinuc contains invalid characters, or not in specified bed region
+						if trinuc not in TRINUC_BED_COUNT:
+							TRINUC_BED_COUNT[trinuc] = 0
+						TRINUC_BED_COUNT[trinuc] += 1
+
+		if not os.path.isfile(REF+'.trinucCounts'):
+			print 'counting trinucleotides in reference...'
+			for i in xrange(len(refSequence)-2):
+				if i%1000000 == 0 and i > 0:
+					print i,'/',len(refSequence)
+					#break
+				trinuc = refSequence[i:i+3]
+				if not trinuc in VALID_TRINUC:
+					continue	# skip if trinuc contains invalid characters
+				if trinuc not in TRINUC_REF_COUNT:
+					TRINUC_REF_COUNT[trinuc] = 0
+				TRINUC_REF_COUNT[trinuc] += 1
 		else:
-			if not os.path.isfile(REF+'.trinucCounts'):
-				print 'counting trinucleotides in reference...'
-				for i in xrange(len(refSequence)-2):
-					if i%1000000 == 0 and i > 0:
-						print i,'/',len(refSequence)
-						#break
-					trinuc = refSequence[i:i+3]
-					if not trinuc in VALID_TRINUC:
-						continue	# skip if trinuc contains invalid characters
-					if trinuc not in TRINUC_REF_COUNT:
-						TRINUC_REF_COUNT[trinuc] = 0
-					TRINUC_REF_COUNT[trinuc] += 1
-			else:
-				print 'skipping trinuc counts because we found a file...'
+			print 'skipping trinuc counts (for whole reference) because we found a file...'
 
 
 		""" ##########################################################################
@@ -428,6 +439,17 @@ def main():
 				f.write(trinuc+'\t'+str(TRINUC_REF_COUNT[trinuc])+'\n')
 			f.close()
 
+	#
+	# if using an input bed region, make necessary adjustments to trinuc ref counts based on the bed region trinuc counts
+	#
+	if MYBED != None:
+		if MYBED[1] == True:	# we are restricting our attention to bed regions, so ONLY use bed region trinuc counts
+			TRINUC_REF_COUNT = TRINUC_BED_COUNT
+		else:					# we are only looking outside bed regions, so subtract bed region trinucs from entire reference trinucs
+			for k in TRINUC_REF_COUNT.keys():
+				if k in TRINUC_BED_COUNT:
+					TRINUC_REF_COUNT[k] -= TRINUC_BED_COUNT[k]
+
 
 	""" ##########################################################################
 	###							COMPUTE PROBABILITIES						   ###
@@ -469,7 +491,13 @@ def main():
 	SNP_FREQ       = SNP_COUNT/float(totalVar)
 	AVG_INDEL_FREQ = 1.-SNP_FREQ
 	INDEL_FREQ     = {k:(INDEL_COUNT[k]/float(totalVar))/AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
-	AVG_MUT_RATE   = totalVar/float(TOTAL_REFLEN)
+	if MYBED != None:
+		if MYBED[1] == True:
+			AVG_MUT_RATE = totalVar/float(getTrackLen(MYBED[0]))
+		else:
+			AVG_MUT_RATE = totalVar/float(TOTAL_REFLEN - getTrackLen(MYBED[0]))
+	else:
+		AVG_MUT_RATE = totalVar/float(TOTAL_REFLEN)
 
 	#
 	#	print some stuff
