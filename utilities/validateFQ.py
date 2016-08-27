@@ -17,7 +17,7 @@ def get4lines(fn):
 		exit(1)
 	return (l1,l2,l3,l4)
 
-ALLOWED_QUAL = '!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHI'
+ALLOWED_QUAL = '!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJ'
 ALLOWED_NUCL = 'ACGTN'
 
 def validate4lines(l1,l2,l3,l4):
