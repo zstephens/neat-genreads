@@ -19,7 +19,7 @@ NUC_IND = {'A':0, 'C':1, 'G':2, 'T':3}
 #	Container for reference sequences, applies mutations
 #
 class SequenceContainer:
-	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None):
+	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None, prevModel=None, onlyVCF=False):
 
 		self.x         = xOffset
 		self.ploidy    = ploidy
@@ -33,9 +33,11 @@ class SequenceContainer:
 		self.adj       = [None for n in xrange(self.ploidy)]
 		self.blackList = [np.zeros(self.seqLen,dtype='b') for n in xrange(self.ploidy)]
 		
-		(self.windowSize, coverage_vals) = coverageDat
-		self.win_per_read = int(self.readLen/float(self.windowSize)+0.5)
-		self.which_bucket = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
+		self.onlyVCF = onlyVCF
+		if not self.onlyVCF:
+			(self.windowSize, coverage_vals) = coverageDat
+			self.win_per_read = int(self.readLen/float(self.windowSize)+0.5)
+			self.which_bucket = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
 
 		self.winBuffer = windowOverlap
 		for p in xrange(self.ploidy):
@@ -58,14 +60,17 @@ class SequenceContainer:
 			self.mutScalar = float(mutRate)/sum([n[0] for n in self.modelData])
 
 		# init mutation models
-		self.models = []
-		for n in self.modelData:
-			self.models.append([self.mutScalar*n[0],n[1],n[2],n[3],DiscreteDistribution(n[5],n[4]),DiscreteDistribution(n[7],n[6]),[]])
-			for m in n[8]:
-				self.models[-1][6].append([DiscreteDistribution(m[0],NUCL),
-					                       DiscreteDistribution(m[1],NUCL),
-					                       DiscreteDistribution(m[2],NUCL),
-					                       DiscreteDistribution(m[3],NUCL)])
+		if prevModel == None:
+			self.models = []
+			for n in self.modelData:
+				self.models.append([self.mutScalar*n[0],n[1],n[2],n[3],DiscreteDistribution(n[5],n[4]),DiscreteDistribution(n[7],n[6]),[]])
+				for m in n[8]:
+					self.models[-1][6].append([DiscreteDistribution(m[0],NUCL),
+						                       DiscreteDistribution(m[1],NUCL),
+						                       DiscreteDistribution(m[2],NUCL),
+						                       DiscreteDistribution(m[3],NUCL)])
+		else:
+			self.models = prevModel
 
 	def insert_mutations(self, inputList):
 		#
@@ -248,30 +253,26 @@ class SequenceContainer:
 					indSoFar += 1
 				self.adj[i][j] = valSoFar
 
-			# precompute cigar strings
+			# precompute cigar strings (we can skip this is going for only vcf output)
+			if not self.onlyVCF:
+				tempSymbolString = ['M']
+				prevVal = self.adj[i][0]
+				j = 1
+				while j < len(self.adj[i]):
+					diff = self.adj[i][j] - prevVal
+					prevVal = self.adj[i][j]
+					if diff > 0:	# insertion
+						tempSymbolString.extend(['I']*abs(diff))
+						j += abs(diff)
+					elif diff < 0:	# deletion
+						tempSymbolString.append('D'*abs(diff)+'M')
+						j += 1
+					else:
+						tempSymbolString.append('M')
+						j += 1
 
-			tempSymbolString = ['M']
-			prevVal = self.adj[i][0]
-			j = 1
-			while j < len(self.adj[i]):
-				diff = self.adj[i][j] - prevVal
-				prevVal = self.adj[i][j]
-				if diff > 0:	# insertion
-					tempSymbolString.extend(['I']*abs(diff))
-					j += abs(diff)
-				elif diff < 0:	# deletion
-					tempSymbolString.append('D'*abs(diff)+'M')
-					j += 1
-				else:
-					tempSymbolString.append('M')
-					j += 1
-
-			#print len(self.sequences[i]), len(tempSymbolString)
-			#for j in xrange(len(tempSymbolString)):
-			#	print j, tempSymbolString[j]
-
-			for j in xrange(len(tempSymbolString)-self.readLen):
-				self.allCigar[i].append(CigarString(listIn=tempSymbolString[j:j+self.readLen]).getString())
+				for j in xrange(len(tempSymbolString)-self.readLen):
+					self.allCigar[i].append(CigarString(listIn=tempSymbolString[j:j+self.readLen]).getString())
 
 
 		# tally up variants implemented
@@ -723,7 +724,7 @@ def parseInputMutationModel_deprecated(prefix=None, whichDefault=1):
 
 DEFAULT_1_OVERALL_MUT_RATE   = 0.001
 DEFAULT_1_HOMOZYGOUS_FREQ    = 0.010
-DEFAULT_1_INDEL_FRACTION     = 0.005
+DEFAULT_1_INDEL_FRACTION     = 0.05
 DEFAULT_1_INS_VS_DEL         = 0.6
 
 DEFAULT_1_INS_LENGTH_VALUES  = [1,2,3,4,5,6,7,8,9,10]

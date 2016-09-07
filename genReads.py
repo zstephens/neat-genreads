@@ -86,6 +86,10 @@ args = parser.parse_args()
 # important flags
 (SAVE_BAM, SAVE_VCF, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.gz, args.no_fastq)
 
+ONLY_VCF = (NO_FASTQ and SAVE_VCF and not(SAVE_BAM))
+if ONLY_VCF:
+	print 'Only producing VCF output, that should speed things up a bit...'
+
 # sequencing model parameters
 (FRAGMENT_SIZE, FRAGMENT_STD) = args.pe
 FRAGLEN_MODEL = args.pe_model
@@ -200,6 +204,8 @@ WINDOW_TARGET_SCALE = 100
 # sub-window size for read sampling windows. this is basically the finest resolution
 # that can be obtained for targeted region boundaries and GC% bias
 SMALL_WINDOW        = 20
+# is the mutation model constant throughout the simulation? If so we can save a lot of time
+CONSTANT_MUT_MODEL  = True
 
 
 """************************************************
@@ -327,7 +333,7 @@ def main():
 		OFW_CANCER = OutputFileWriter(OUT_PREFIX+'_tumor',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs))
 	else:
 		OFW = OutputFileWriter(OUT_PREFIX,paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs))
-	OUT_PREIX_NAME = OUT_PREFIX.split('/')[-1]
+	OUT_PREFIX_NAME = OUT_PREFIX.split('/')[-1]
 
 
 	"""************************************************
@@ -391,6 +397,7 @@ def main():
 		samplingWindows  = []
 		readNameCount    = 1
 		ALL_VARIANTS_OUT = {}
+		prevMutModel     = None
 		if PAIRED_END:
 			targSize = WINDOW_TARGET_SCALE*FRAGMENT_SIZE
 			overlap  = FRAGMENT_SIZE
@@ -408,14 +415,14 @@ def main():
 
 			start = pi
 			end   = min([start+bpd,pf])
-			print 'RAWR:', (pi,pf), bpd
+			####print 'RAWR:', (pi,pf), bpd
 			currentVariantInd = 0
 			varsFromPrevOverlap = []
 			varsCancerFromPrevOverlap = []
 			vindFromPrev = 0
 			isLastTime = False
 			while True:
-				print (start,end)
+				####print (start,end)
 				# adjust end-position of window based on inserted structural mutations
 				relevantVars = []
 				if len(structuralVars) and currentVariantInd < len(structuralVars):
@@ -423,7 +430,7 @@ def main():
 					while structuralVars[currentVariantInd][0] <= end:
 						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
 						if delta <= 0:
-							print 'DELTA:', delta
+							####print 'DELTA:', delta
 							end -= (delta-1)
 						currentVariantInd += 1
 						if currentVariantInd == len(structuralVars):
@@ -457,25 +464,35 @@ def main():
 					if vPos >= end:
 						break
 
-				# pre-compute gc-bias and targeted sequencing coverage modifiers
-				nSubWindows  = (end-start)/GC_WINDOW_SIZE
-				coverage_dat = (GC_WINDOW_SIZE,[])
-				for j in xrange(nSubWindows):
-					rInd = start + j*GC_WINDOW_SIZE
-					if INPUT_BED == None: tCov = True
-					else: tCov = not(bisect.bisect(inputRegions[myChr],rInd)%2) or not(bisect.bisect(inputRegions[myChr],rInd+GC_WINDOW_SIZE)%2)
-					if tCov: tScl = 1.0
-					else: tScl = OFFTARGET_SCALAR
-					gc_v = refSequence[rInd:rInd+GC_WINDOW_SIZE].count('G') + refSequence[rInd:rInd+GC_WINDOW_SIZE].count('C')
-					gScl = GC_SCALE_VAL[gc_v]
-					coverage_dat[1].append(1.0*tScl*gScl)
-				coverage_avg = np.mean(coverage_dat[1])
+				# if computing only VCF, we can skip this...
+				if ONLY_VCF:
+					coverage_dat = None
+					coverage_avg = None
+				else:
+					# pre-compute gc-bias and targeted sequencing coverage modifiers
+					nSubWindows  = (end-start)/GC_WINDOW_SIZE
+					coverage_dat = (GC_WINDOW_SIZE,[])
+					for j in xrange(nSubWindows):
+						rInd = start + j*GC_WINDOW_SIZE
+						if INPUT_BED == None: tCov = True
+						else: tCov = not(bisect.bisect(inputRegions[myChr],rInd)%2) or not(bisect.bisect(inputRegions[myChr],rInd+GC_WINDOW_SIZE)%2)
+						if tCov: tScl = 1.0
+						else: tScl = OFFTARGET_SCALAR
+						gc_v = refSequence[rInd:rInd+GC_WINDOW_SIZE].count('G') + refSequence[rInd:rInd+GC_WINDOW_SIZE].count('C')
+						gScl = GC_SCALE_VAL[gc_v]
+						coverage_dat[1].append(1.0*tScl*gScl)
+					coverage_avg = np.mean(coverage_dat[1])
 
 				# pre-compute mutation rate tracks
 				# PROVIDED MUTATION RATES OVERRIDE AVERAGE VALUE
 
 				# construct sequence data that we will sample reads from
-				sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
+				if CONSTANT_MUT_MODEL and prevMutModel != None:
+					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat,prevModel=prevMutModel,onlyVCF=ONLY_VCF)
+				else:
+					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat,onlyVCF=ONLY_VCF)
+					prevMutModel = sequences.models
+
 				# adjust position of all inserted variants to match current window offset
 				#variants_to_insert = []
 				#for n in varsFromPrevOverlap:
@@ -504,65 +521,65 @@ def main():
 					for n in all_cancer_variants:
 						if n[0] >= end-overlap-1:
 							varsCancerFromPrevOverlap.append(n)
-				
-				# for each sampling window, construct sub-windows with coverage information
-				covWindows = [COVERAGE for n in xrange((end-start)/SMALL_WINDOW)]
-				if (end-start)%SMALL_WINDOW:
-					covWindows.append(COVERAGE)
-				meanCov = sum(covWindows)/float(len(covWindows))
-				if PAIRED_END:
-					readsToSample = int(((end-start)*meanCov*coverage_avg)/(2*READLEN))+1
+
+				# if we're only producing VCF, no need to go through the hassle of generating reads
+				if ONLY_VCF:
+					pass
 				else:
-					readsToSample = int(((end-start)*meanCov*coverage_avg)/(READLEN))+1
-
-				# sample reads from altered reference
-				for i in xrange(readsToSample):
-
-					# if we're only producing VCF, no need to go through the hassle of generating reads
-					if NO_FASTQ and SAVE_VCF:
-						continue
-
+					# for each sampling window, construct sub-windows with coverage information
+					covWindows = [COVERAGE for n in xrange((end-start)/SMALL_WINDOW)]
+					if (end-start)%SMALL_WINDOW:
+						covWindows.append(COVERAGE)
+					meanCov = sum(covWindows)/float(len(covWindows))
 					if PAIRED_END:
-						myFraglen = FRAGLEN_DISTRIBUTION.sample()
-						myReadData = sequences.sample_read(SE_CLASS,myFraglen)
-						myReadData[0][0] += start	# adjust mapping position based on window start
-						myReadData[1][0] += start
+						readsToSample = int(((end-start)*meanCov*coverage_avg)/(2*READLEN))+1
 					else:
-						myReadData = sequences.sample_read(SE_CLASS)
-						myReadData[0][0] += start	# adjust mapping position based on window start
-				
-					if NJOBS > 1:
-						myReadName = OUT_PREIX_NAME+'_j'+str(MYJOB)+'_r'+str(readNameCount)
-					else:
-						myReadName = OUT_PREIX_NAME+'_'+str(readNameCount)
-					readNameCount += len(myReadData)
+						readsToSample = int(((end-start)*meanCov*coverage_avg)/(READLEN))+1
 
-					# if desired, replace all low-quality bases with Ns
-					if N_MAX_QUAL > -1:
-						for j in xrange(len(myReadData)):
-							myReadString = [n for n in myReadData[j][2]]
-							for k in xrange(len(myReadData[j][3])):
-								adjusted_qual = ord(myReadData[j][3][k])-SE_CLASS.offQ
-								if adjusted_qual <= N_MAX_QUAL:
-									myReadString[k] = 'N'
-							myReadData[j][2] = ''.join(myReadString)
+					# sample reads from altered reference
+					for i in xrange(readsToSample):
 
-					# write read data out to FASTQ and BAM files, bypass FASTQ if option specified
-					myRefIndex = indices_by_refName[refIndex[RI][0]]
-					if len(myReadData) == 1:
-						if NO_FASTQ != True:
-							OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
-						if SAVE_BAM:
-							OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
-					elif len(myReadData) == 2:
-						if NO_FASTQ != True:
-							OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3])
-						if SAVE_BAM:
-							OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
-							OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])
-					else:
-						print '\nError: Unexpected number of reads generated...\n'
-						exit(1)
+						if PAIRED_END:
+							myFraglen = FRAGLEN_DISTRIBUTION.sample()
+							myReadData = sequences.sample_read(SE_CLASS,myFraglen)
+							myReadData[0][0] += start	# adjust mapping position based on window start
+							myReadData[1][0] += start
+						else:
+							myReadData = sequences.sample_read(SE_CLASS)
+							myReadData[0][0] += start	# adjust mapping position based on window start
+					
+						if NJOBS > 1:
+							myReadName = OUT_PREFIX_NAME+'_j'+str(MYJOB)+'_r'+str(readNameCount)
+						else:
+							myReadName = OUT_PREFIX_NAME+'_'+str(readNameCount)
+						readNameCount += len(myReadData)
+
+						# if desired, replace all low-quality bases with Ns
+						if N_MAX_QUAL > -1:
+							for j in xrange(len(myReadData)):
+								myReadString = [n for n in myReadData[j][2]]
+								for k in xrange(len(myReadData[j][3])):
+									adjusted_qual = ord(myReadData[j][3][k])-SE_CLASS.offQ
+									if adjusted_qual <= N_MAX_QUAL:
+										myReadString[k] = 'N'
+								myReadData[j][2] = ''.join(myReadString)
+
+						# write read data out to FASTQ and BAM files, bypass FASTQ if option specified
+						myRefIndex = indices_by_refName[refIndex[RI][0]]
+						if len(myReadData) == 1:
+							if NO_FASTQ != True:
+								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
+							if SAVE_BAM:
+								OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
+						elif len(myReadData) == 2:
+							if NO_FASTQ != True:
+								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3])
+							if SAVE_BAM:
+								OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
+								OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])
+						else:
+							print '\nError: Unexpected number of reads generated...\n'
+							exit(1)
 
 				# tally up all the variants that got successfully introduced
 				for n in all_inserted_variants:
