@@ -486,10 +486,6 @@ def main():
 				# pre-compute mutation rate tracks
 				# PROVIDED MUTATION RATES OVERRIDE AVERAGE VALUE
 
-				# SOME REALLY SLOPPY HOT-FIX. NEED TO FIGURE OUT WHY WE GOT TO THIS POINT
-				if end-start < bpd-1:
-					continue
-
 				# construct sequence data that we will sample reads from
 				if CONSTANT_MUT_MODEL and prevMutModel != None:
 					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat,prevModel=prevMutModel,onlyVCF=ONLY_VCF)
