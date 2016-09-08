@@ -341,6 +341,8 @@ def main():
 	************************************************"""
 
 
+	readNameCount = 1	# keep track of the number of reads we've sampled, for read-names
+
 	for RI in xrange(len(refIndex)):
 
 		# read in reference sequence and notate blocks of Ns
@@ -395,7 +397,6 @@ def main():
 		# ploidy is fixed per large sampling window,
 		# coverage distributions due to GC% and targeted regions are specified within these windows
 		samplingWindows  = []
-		readNameCount    = 1
 		ALL_VARIANTS_OUT = {}
 		prevMutModel     = None
 		if PAIRED_END:
@@ -413,9 +414,14 @@ def main():
 			#print len(refSequence), (pi,pf), nTargWindows
 			#print structuralVars
 
+			# if for some reason our region is too small to process, skip it! (sorry)
+			if nTargWindows == 1 and (pf-pi) < targSize:
+				#print 'Does this ever happen?'
+				continue
+
 			start = pi
 			end   = min([start+bpd,pf])
-			####print 'RAWR:', (pi,pf), bpd
+			#print '------------------RAWR:', (pi,pf), bpd
 			currentVariantInd = 0
 			varsFromPrevOverlap = []
 			varsCancerFromPrevOverlap = []
@@ -549,9 +555,9 @@ def main():
 							myReadData[0][0] += start	# adjust mapping position based on window start
 					
 						if NJOBS > 1:
-							myReadName = OUT_PREFIX_NAME+'_j'+str(MYJOB)+'_r'+str(readNameCount)
+							myReadName = OUT_PREFIX_NAME+'-j'+str(MYJOB)+'-'+refIndex[RI][0]+'-r'+str(readNameCount)
 						else:
-							myReadName = OUT_PREFIX_NAME+'_'+str(readNameCount)
+							myReadName = OUT_PREFIX_NAME+'-'+refIndex[RI][0]+'-'+str(readNameCount)
 						readNameCount += len(myReadData)
 
 						# if desired, replace all low-quality bases with Ns
