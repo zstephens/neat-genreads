@@ -47,7 +47,10 @@ python genSeqErrorModel.py                            \
 Performs plotting and comparison of mutation models generated from genMutModel.py.
 
 ```
-python plotMutModel.py model1.p [model2.p model3.p ...]
+python plotMutModel.py                                    \
+        -i model1.p [model2.p] [model3.p]...              \
+        -l legend_label1,legend_label2,legend_label3...   \
+        -o path/to/pdf_plot_prefix
 ```
 
 # vcf_compare_OLD.py
