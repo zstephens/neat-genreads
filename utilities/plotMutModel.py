@@ -11,9 +11,18 @@ import numpy as np
 import matplotlib.pyplot as mpl
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
+import argparse
 
 #mpl.rc('text',usetex=True)
 #mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
+
+parser = argparse.ArgumentParser(description='Plot and compare mutation models from genMutModel.py')
+parser.add_argument('-i',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* mutation_model_1.p [mutation_model_2.p] [mutation_model_3] ...")
+parser.add_argument('-l',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* legend labels: model1_name [model2_name] [model3_name] ...")
+parser.add_argument('-o',  type=str,   required=True,   metavar='<str>',                             help="* output pdf prefix")
+args = parser.parse_args()
+
+
 
 def getColor(i,N,colormap='jet'):
 	cm = mpl.get_cmap(colormap) 
@@ -53,8 +62,10 @@ def getBedOverlap(track,ind_s,ind_e):
 #				ocount += 1
 #	return ocount
 
-OUP = sys.argv[1]
-INP = sys.argv[2:]
+OUP  = args.o
+LAB  = args.l
+INP  = args.i
+
 N_FILES = len(INP)
 
 mpl.rcParams.update({'font.size': 13, 'font.weight':'bold', 'lines.linewidth': 3})
@@ -96,7 +107,7 @@ mpl.yticks([0,.2,.4,.6,.8,1.],[0,0.2,0.4,0.6,0.8,1.0])
 
 mpl.subplot(2,1,2)
 colorInd = 0
-legText  = ['NA12878', 'Simulated NA12878']
+#legText  = [LAB]
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
@@ -109,7 +120,7 @@ for fn in INP:
 mpl.grid()
 mpl.xlabel('Indel size (bp)', fontweight='bold')
 #mpl.title('Indel frequency by size (- deletion, + insertion)')
-mpl.legend(legText)
+mpl.legend(LAB)
 #mpl.show()
 mpl.savefig(OUP+'_plot1_mutRates.pdf')
 
@@ -120,7 +131,7 @@ mpl.savefig(OUP+'_plot1_mutRates.pdf')
 #################################################
 mpl.figure(1,figsize=(14,6))
 colorInd = 0
-legText  = ['NA12878','Simulated NA12878']
+#legText  = [LAB]
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
@@ -140,7 +151,7 @@ for fn in INP:
 	#legText.append(fn)
 mpl.grid()
 #mpl.title('p(trinucleotide mutates)')
-mpl.legend(legText)
+mpl.legend(LAB)
 #mpl.show()
 mpl.savefig(OUP+'_plot2_trinucPriors.pdf')
 
@@ -167,7 +178,7 @@ for fn in INP:
 	HARDCODED_LABEL = ['A_A','A_C','A_G','A_T',
 	                   'C_A','C_C','C_G','C_T',
 	                   'G_A','G_C','G_G','G_T',
-	                   'T_A','T_C','T_G','T_T',]
+	                   'T_A','T_C','T_G','T_T']
 
 	for pi in xrange(16):
 		mpl.subplot(4,4,pi)
