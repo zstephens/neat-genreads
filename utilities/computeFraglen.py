@@ -8,6 +8,7 @@
 #
 #
 
+import sys
 import fileinput
 import cPickle as pickle
 import numpy as np
@@ -36,7 +37,9 @@ def median_deviation_from_median(countDict):
 		deviations[d] = countDict[k]
 	return quick_median(deviations)
 
-
+if len(sys.argv) != 1:
+	print "Usage: samtools view normal.bam | python computeFraglen.py"
+	exit(1)
 
 all_tlens = {}
 PRINT_EVERY = 100000
