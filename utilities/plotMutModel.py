@@ -162,7 +162,7 @@ mpl.savefig(OUP+'_plot2_trinucPriors.pdf')
 #################################################
 plotNum = 3
 for fn in INP:
-	mpl.figure(2,figsize=(12,10))
+	mpl.figure(plotNum,figsize=(12,10))
 	DATA_DICT = pickle.load( open( fn, "rb" ) )
 	TRINUC_TRANS_PROBS = DATA_DICT['TRINUC_TRANS_PROBS']
 
