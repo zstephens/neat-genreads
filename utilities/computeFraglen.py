@@ -1,3 +1,13 @@
+#
+#
+#      Compute Fragment Length Model for genReads.py
+#                  computeFraglen.py
+#
+#
+#      Usage: samtools view normal.bam | python computeFraglen.py
+#
+#
+
 import fileinput
 import cPickle as pickle
 import numpy as np

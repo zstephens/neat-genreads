@@ -2,6 +2,20 @@
 
 Takes .genomecov files produced by BEDtools genomeCov (with -d option).
 
+```
+bedtools genomecov 
+	-d                          \
+	-ibam normal.bam            \
+        -g reference.fa             
+```
+
+```
+python computeGC.py                 \
+        -r reference.fa             \
+        -i genomecovfile            \
+        -w [sliding window length]  \
+        -o /path/to/model.p
+```
 
 # computeFraglen.py
 

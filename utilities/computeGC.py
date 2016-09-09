@@ -1,3 +1,16 @@
+#
+#
+#            computeGC.py
+#            Compute GC and coverage model for genReads.py
+#
+#            Takes output file from bedtools genomecov to generate GC/coverage model
+#
+#            Usage: bedtools genomecov -d -ibam normal.bam -g reference.fa 
+#                   python computeGC.py -r reference.fa -i genomecovfile -W [sliding window length] -o path/to/output_name.p
+#
+#
+
+
 import time
 import sys
 import argparse
