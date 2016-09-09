@@ -96,7 +96,7 @@ mpl.yticks([0,.2,.4,.6,.8,1.],[0,0.2,0.4,0.6,0.8,1.0])
 
 mpl.subplot(2,1,2)
 colorInd = 0
-legText  = ['Coding Sequence', 'Non-coding Sequence']
+legText  = ['NA12878', 'Simulated NA12878']
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
@@ -120,7 +120,7 @@ mpl.savefig(OUP+'_plot1_mutRates.pdf')
 #################################################
 mpl.figure(1,figsize=(14,6))
 colorInd = 0
-legText  = ['Coding Sequence','Non-coding Sequence']
+legText  = ['NA12878','Simulated NA12878']
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
