@@ -64,6 +64,7 @@ def getBedOverlap(track,ind_s,ind_e):
 
 OUP  = args.o
 LAB  = args.l
+LAB  = LAB.split(',')
 INP  = args.i
 
 N_FILES = len(INP)
@@ -107,7 +108,7 @@ mpl.yticks([0,.2,.4,.6,.8,1.],[0,0.2,0.4,0.6,0.8,1.0])
 
 mpl.subplot(2,1,2)
 colorInd = 0
-#legText  = [LAB]
+legText  = LAB
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
@@ -131,7 +132,7 @@ mpl.savefig(OUP+'_plot1_mutRates.pdf')
 #################################################
 mpl.figure(1,figsize=(14,6))
 colorInd = 0
-#legText  = [LAB]
+legText  = LAB
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
