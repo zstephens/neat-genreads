@@ -415,7 +415,7 @@ def main():
 			#print structuralVars
 
 			# if for some reason our region is too small to process, skip it! (sorry)
-			if nTargWindows == 1 and (pf-pi) < targSize:
+			if nTargWindows == 1 and (pf-pi) < overlap-1:
 				#print 'Does this ever happen?'
 				continue
 

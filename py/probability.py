@@ -52,6 +52,9 @@ class DiscreteDistribution:
 			self.cumP = np.cumsum(self.weights).tolist()[:-1]
 			self.cumP.insert(0,0.)
 
+	def __str__(self):
+		return str(self.weights)+' '+str(self.values)+' '+self.method
+
 	def sample(self):
 
 		if self.degenerate != None:
@@ -70,4 +73,17 @@ class DiscreteDistribution:
 			elif self.method == 'bisect':
 				r = random.random()
 				return self.values[bisect.bisect(self.cumP,r)-1]
+
+
+# takes k_range, lambda, [0,1,2,..], returns a DiscreteDistribution object with the corresponding to a poisson distribution
+MIN_WEIGHT = 1e-12
+def poisson_list(k_range,l):
+	logFactorial_list = [0.0]
+	for k in k_range[1:]:
+		logFactorial_list.append(np.log(float(k))+logFactorial_list[k-1])
+	w_range = [np.exp(k*np.log(l) - l - logFactorial_list[k]) for k in k_range]
+	w_range = [n for n in w_range if n >= MIN_WEIGHT]
+	if len(w_range) <= 1:
+		return DiscreteDistribution([1],[0],degenerateVal=0)
+	return DiscreteDistribution(w_range,k_range[:len(w_range)])
 

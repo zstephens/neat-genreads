@@ -5,10 +5,11 @@ import os
 import cPickle as pickle
 import numpy as np
 
-from probability import DiscreteDistribution
+from probability import DiscreteDistribution, poisson_list
 from cigar import CigarString
 
-MAX_ATTEMPTS = 100
+MAX_ATTEMPTS = 100	# max attempts to insert a mutation into a valid position
+MAX_MUTFRAC  = 0.3	# the maximum percentage of a window that can contain mutations
 
 NUCL    = ['A','C','G','T']
 TRI_IND = {'AA':0,  'AC':1,  'AG':2,   'AT':3,  'CA':4,  'CC':5,  'CG':6,  'CT':7,
@@ -45,19 +46,23 @@ class SequenceContainer:
 			self.blackList[p][-self.winBuffer-1] = True
 
 		if mutationModels == []:
-			ml = [DEFAULT_MODEL_1]*self.ploidy
+			ml = [copy.deepcopy(DEFAULT_MODEL_1) for n in xrange(self.ploidy)]
 			self.modelData = ml[:self.ploidy]
 		else:
 			if len(mutationModels) != self.ploidy:
 				print '\nError: Number of mutation models recieved is not equal to specified ploidy\n'
 				exit(1)
-			self.modelData = mutationModels
+			self.modelData = copy.deepcopy(mutationModels)
 
 		# do we need to rescale mutation frequencies?
+		mutRateSum = sum([n[0] for n in self.modelData])
 		if mutRate == None:
 			self.mutScalar = 1.0
 		else:
-			self.mutScalar = float(mutRate)/sum([n[0] for n in self.modelData])
+			self.mutScalar = float(mutRate)/(mutRateSum/float(len(self.modelData)))
+
+		self.ploidMutFrac  = [float(n[0])/mutRateSum for n in self.modelData]
+		self.ploidMutPrior = DiscreteDistribution(self.ploidMutFrac,range(self.ploidy))
 
 		# init mutation models
 		if prevModel == None:
@@ -72,6 +77,16 @@ class SequenceContainer:
 		else:
 			self.models = prevModel
 
+		# sample the number of variants that will be inserted into each ploid
+		ind_l_list = [self.seqLen*self.models[i][0]*self.models[i][2]*self.ploidMutFrac[i] for i in xrange(len(self.models))]
+		snp_l_list = [self.seqLen*self.models[i][0]*(1.-self.models[i][2])*self.ploidMutFrac[i] for i in xrange(len(self.models))]
+		k_range    = range(int(self.seqLen*MAX_MUTFRAC))
+		ind_pois = [poisson_list(k_range,ind_l_list[n]) for n in xrange(len(self.models))]
+		snp_pois = [poisson_list(k_range,snp_l_list[n]) for n in xrange(len(self.models))]
+		self.indelsToAdd = [n.sample() for n in ind_pois]
+		self.snpsToAdd   = [n.sample() for n in snp_pois]
+
+
 	def insert_mutations(self, inputList):
 		#
 		#	TODO!!!!!! user-input variants, determine which ploid to put it on, etc..
@@ -79,8 +94,8 @@ class SequenceContainer:
 		for inpV in inputList:
 			whichPloid = []
 			wps = inpV[4][0]
-			if wps == None:	# if no genotype given, assume heterozygous and choose a single ploid at random
-				whichPloid.append(random.randint(0,self.ploidy-1))
+			if wps == None:	# if no genotype given, assume heterozygous and choose a single ploid based on their mut rates
+				whichPloid.append(self.ploidMutPrior.sample())
 				whichAlt = [0]
 			else:
 				if 'WP=' in wps:
@@ -115,15 +130,13 @@ class SequenceContainer:
 	def random_mutations(self):
 		
 		#	add random indels
-		indelsToAdd = [int(self.seqLen*n[0]*n[2]) for n in self.models]
 		all_indels  = [[] for n in self.sequences]
 		for i in xrange(self.ploidy):
-			myModel  = self.models[i]
-			for j in xrange(indelsToAdd[i]):
-				if random.random() <= myModel[1]:	# insert homozygous indel
+			for j in xrange(self.indelsToAdd[i]):
+				if random.random() <= self.models[i][1]:	# insert homozygous indel
 					whichPloid = range(self.ploidy)
 				else:								# insert heterozygous indel
-					whichPloid = [random.randint(0,self.ploidy-1)]
+					whichPloid = [self.ploidMutPrior.sample()]
 
 				# try to find suitable places to insert indels
 				eventPos = -1
@@ -137,14 +150,14 @@ class SequenceContainer:
 				if eventPos == -1:
 					continue
 
-				if random.random() <= myModel[3]:	# insertion
-					inLen   = myModel[4].sample()
+				if random.random() <= self.models[i][3]:	# insertion
+					inLen   = self.models[i][4].sample()
 					# sequence content of random insertions is uniformly random (change this later)
 					inSeq   = ''.join([random.choice(NUCL) for n in xrange(inLen)])
 					refNucl = chr(self.sequences[i][eventPos])
 					myIndel = (eventPos,refNucl,refNucl+inSeq)
-				else:								# deletion
-					inLen   = myModel[5].sample()
+				else:										# deletion
+					inLen   = self.models[i][5].sample()
 					if eventPos+inLen+1 >= len(self.sequences[i]):	# skip if deletion too close to boundary
 						continue
 					if inLen == 1:
@@ -178,15 +191,13 @@ class SequenceContainer:
 		#print all_indels
 
 		#	add random snps
-		snpsToAdd = [int(self.seqLen*n[0]*(1.-n[2])) for n in self.models]
 		all_snps  = [[] for n in self.sequences]
 		for i in xrange(self.ploidy):
-			myModel = self.models[i]
-			for j in xrange(snpsToAdd[i]):
-				if random.random() <= myModel[1]:	# insert homozygous SNP
+			for j in xrange(self.snpsToAdd[i]):
+				if random.random() <= self.models[i][1]:	# insert homozygous SNP
 					whichPloid = range(self.ploidy)
 				else:								# insert heterozygous SNP
-					whichPloid = [random.randint(0,self.ploidy-1)]
+					whichPloid = [self.ploidMutPrior.sample()]
 
 				# try to find suitable places to insert snps
 				eventPos = -1
@@ -203,7 +214,7 @@ class SequenceContainer:
 				refNucl = chr(self.sequences[i][eventPos])
 				context = str(chr(self.sequences[i][eventPos-1])+chr(self.sequences[i][eventPos+1]))
 				# sample from tri-nucleotide substitution matrices to get SNP alt allele
-				newNucl = myModel[6][TRI_IND[context]][NUC_IND[refNucl]].sample()
+				newNucl = self.models[i][6][TRI_IND[context]][NUC_IND[refNucl]].sample()
 				mySNP   = (eventPos,refNucl,newNucl)
 
 				for p in whichPloid:
@@ -737,22 +748,7 @@ example_matrix_1   = [[0.0, 0.15, 0.7, 0.15],
 				      [0.7, 0.15, 0.0, 0.15],
 				      [0.15, 0.7, 0.15, 0.0]]
 
-DEFAULT_1_TRI_FREQS  = [example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1,
-						example_matrix_1]
+DEFAULT_1_TRI_FREQS  = [copy.deepcopy(example_matrix_1) for n in xrange(16)]
 
 DEFAULT_MODEL_1 = [DEFAULT_1_OVERALL_MUT_RATE,
 				   DEFAULT_1_HOMOZYGOUS_FREQ,
@@ -780,22 +776,7 @@ example_matrix_2   = [[0.0, 0.15, 0.7, 0.15],
 				      [0.7, 0.15, 0.0, 0.15],
 				      [0.15, 0.7, 0.15, 0.0]]
 
-DEFAULT_2_TRI_FREQS  = [example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2,
-						example_matrix_2]
+DEFAULT_2_TRI_FREQS  = [copy.deepcopy(example_matrix_2) for n in xrange(16)]
 
 DEFAULT_MODEL_2 = [DEFAULT_2_OVERALL_MUT_RATE,
 				   DEFAULT_2_HOMOZYGOUS_FREQ,

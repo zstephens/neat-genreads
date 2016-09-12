@@ -181,7 +181,7 @@ for fn in INP:
 	                   'T_A','T_C','T_G','T_T']
 
 	for pi in xrange(16):
-		mpl.subplot(4,4,pi)
+		mpl.subplot(4,4,pi+1)
 		Z2 = Z[pi*4:(pi+1)*4,pi*4:(pi+1)*4]
 		X, Y = np.meshgrid( range(0,len(Z2[0])+1), range(0,len(Z2)+1) )
 		mpl.pcolormesh(X,Y,Z2[::-1,:])
