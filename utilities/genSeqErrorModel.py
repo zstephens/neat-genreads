@@ -1,3 +1,14 @@
+#
+#
+#          genSeqErrorModel.py
+#          Computes sequencing error model for genReads.py
+#
+#         
+#          Usage: python genSeqErrorModel.py -i input_reads.fq -o path/to/output_name.p
+#
+#
+
+
 import os
 import sys
 import gzip

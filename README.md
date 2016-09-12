@@ -181,6 +181,20 @@ Several scripts are distributed with genReads that are used to generate the mode
 Computes GC% coverage bias distribution from sample (bedrolls genomecov) data.
 Takes .genomecov files produced by BEDtools genomeCov (with -d option).
 
+```
+bedtools genomecov
+        -d                          \
+        -ibam normal.bam            \
+        -g reference.fa
+```
+
+```
+python computeGC.py                 \
+        -r reference.fa             \
+        -i genomecovfile            \
+        -w [sliding window length]  \
+        -o /path/to/model.p
+```
 
 ## computeFraglen.py
 
@@ -226,7 +240,10 @@ python genSeqErrorModel.py                            \
 Performs plotting and comparison of mutation models generated from genMutModel.py.
 
 ```
-python plotMutModel.py model1.p [model2.p model3.p ...]
+python plotMutModel.py                                    \
+        -i model1.p [model2.p] [model3.p]...              \
+        -l legend_label1,legend_label2,legend_label3...   \
+        -o path/to/pdf_plot_prefix
 ```
 
 ## vcf_compare_OLD.py

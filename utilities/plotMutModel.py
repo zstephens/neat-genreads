@@ -1,7 +1,7 @@
 #
 #	a quick script for comparing mutation models
 #
-#	python plotMutModel.py /path/to/outputPrefix model1.p [model2.p model3.p ...]
+#	python plotMutModel.py -i model1.p [model2.p] [model3.p]... -l legend_label1,legend_label2,legend_label3... -o path/to/pdf_plot_prefix 
 #
 
 import sys
@@ -18,7 +18,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Plot and compare mutation models from genMutModel.py')
 parser.add_argument('-i',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* mutation_model_1.p [mutation_model_2.p] [mutation_model_3] ...")
-parser.add_argument('-l',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* legend labels: model1_name [model2_name] [model3_name] ...")
+parser.add_argument('-l',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* legend labels: model1_name,[model2_name],[model3_name]...")
 parser.add_argument('-o',  type=str,   required=True,   metavar='<str>',                             help="* output pdf prefix")
 args = parser.parse_args()
 
@@ -64,6 +64,7 @@ def getBedOverlap(track,ind_s,ind_e):
 
 OUP  = args.o
 LAB  = args.l
+LAB  = LAB.split(',')
 INP  = args.i
 
 N_FILES = len(INP)
@@ -107,7 +108,7 @@ mpl.yticks([0,.2,.4,.6,.8,1.],[0,0.2,0.4,0.6,0.8,1.0])
 
 mpl.subplot(2,1,2)
 colorInd = 0
-#legText  = [LAB]
+legText  = LAB
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
@@ -131,7 +132,7 @@ mpl.savefig(OUP+'_plot1_mutRates.pdf')
 #################################################
 mpl.figure(1,figsize=(14,6))
 colorInd = 0
-#legText  = [LAB]
+legText  = LAB
 for fn in INP:
 	myCol = getColor(colorInd,N_FILES)
 	colorInd += 1
