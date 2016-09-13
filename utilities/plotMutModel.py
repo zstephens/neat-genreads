@@ -1,7 +1,7 @@
 #
 #	a quick script for comparing mutation models
 #
-#	python plotMutModel.py -i model1.p [model2.p] [model3.p]... -l legend_label1,legend_label2,legend_label3... -o path/to/pdf_plot_prefix 
+#	python plotMutModel.py -i model1.p [model2.p] [model3.p]... -l legend_label1 [legend_label2] [legend_label3]... -o path/to/pdf_plot_prefix 
 #
 
 import sys
@@ -16,9 +16,9 @@ import argparse
 #mpl.rc('text',usetex=True)
 #mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
 
-parser = argparse.ArgumentParser(description='Plot and compare mutation models from genMutModel.py')
+parser = argparse.ArgumentParser(description='Plot and compare mutation models from genMutModel.py Usage: python plotMutModel.py -i model1.p [model2.p] [model3.p]... -l legend_label1 [legend_label2] [legend_label3]... -o path/to/pdf_plot_prefix')
 parser.add_argument('-i',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* mutation_model_1.p [mutation_model_2.p] [mutation_model_3] ...")
-parser.add_argument('-l',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* legend labels: model1_name,[model2_name],[model3_name]...")
+parser.add_argument('-l',  type=str,   required=True,   metavar='<str>',   nargs='+',                help="* legend labels: model1_name [model2_name] [model3_name]...")
 parser.add_argument('-o',  type=str,   required=True,   metavar='<str>',                             help="* output pdf prefix")
 args = parser.parse_args()
 
