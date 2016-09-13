@@ -63,8 +63,8 @@ def getBedOverlap(track,ind_s,ind_e):
 #	return ocount
 
 OUP  = args.o
-LAB  = args.l
-LAB  = LAB.split(',')
+LAB = args.l
+print LAB
 INP  = args.i
 
 N_FILES = len(INP)
@@ -121,7 +121,7 @@ for fn in INP:
 mpl.grid()
 mpl.xlabel('Indel size (bp)', fontweight='bold')
 #mpl.title('Indel frequency by size (- deletion, + insertion)')
-mpl.legend(LAB)
+mpl.legend(legText)
 #mpl.show()
 mpl.savefig(OUP+'_plot1_mutRates.pdf')
 
@@ -152,7 +152,7 @@ for fn in INP:
 	#legText.append(fn)
 mpl.grid()
 #mpl.title('p(trinucleotide mutates)')
-mpl.legend(LAB)
+mpl.legend(legText)
 #mpl.show()
 mpl.savefig(OUP+'_plot2_trinucPriors.pdf')
 
