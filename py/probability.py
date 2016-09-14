@@ -1,6 +1,7 @@
 import math
 import random
 import bisect
+import copy
 import numpy as np
 
 def mean_ind_of_weighted_list(l):
@@ -14,8 +15,9 @@ def mean_ind_of_weighted_list(l):
 class DiscreteDistribution:
 	def __init__(self, weights, values, degenerateVal=None, method='bisect'):
 
-		self.weights = [n/float(sum(weights)) for n in weights]
-		self.values  = values
+		sumWeight    = float(sum(weights))
+		self.weights = [n/sumWeight for n in weights]
+		self.values  = copy.deepcopy(values)
 		self.method  = method
 		if len(self.values) != len(self.weights):
 			print '\nError: length and weights and values vectors must be the same.\n'

@@ -15,36 +15,51 @@ NUCL    = ['A','C','G','T']
 TRI_IND = {'AA':0,  'AC':1,  'AG':2,   'AT':3,  'CA':4,  'CC':5,  'CG':6,  'CT':7,
            'GA':8,  'GC':9,  'GG':10,  'GT':11, 'TA':12, 'TC':13, 'TG':14, 'TT':15}
 NUC_IND = {'A':0, 'C':1, 'G':2, 'T':3}
+ALL_TRI = [NUCL[i]+NUCL[j]+NUCL[k] for i in xrange(len(NUCL)) for j in xrange(len(NUCL)) for k in xrange(len(NUCL))]
+ALL_IND = {ALL_TRI[i]:i for i in xrange(len(ALL_TRI))}
 
 #
 #	Container for reference sequences, applies mutations
 #
 class SequenceContainer:
-	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None, prevModel=None, onlyVCF=False):
+	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None, onlyVCF=False):
+		# initialize basic variables
+		self.onlyVCF = onlyVCF
+		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen, coverageDat)
+		# initialize mutation models
+		self.init_mutModels(mutationModels, mutRate)
+		# sample the number of variants that will be inserted into each ploid
+		self.init_poisson()
+		self.indelsToAdd = [n.sample() for n in self.ind_pois]
+		self.snpsToAdd   = [n.sample() for n in self.snp_pois]
+		# initialize trinuc snp bias
+		self.init_trinucBias()
 
+	def init_basicVars(self, xOffset, sequence, ploidy, windowOverlap, readLen, coverageDat):
 		self.x         = xOffset
 		self.ploidy    = ploidy
 		self.readLen   = readLen
 		self.sequences = [bytearray(sequence) for n in xrange(self.ploidy)]
 		self.seqLen    = len(sequence)
-		self.cigars    = [[(self.seqLen,'M')] for n in xrange(self.ploidy)]
 		self.indelList = [[] for n in xrange(self.ploidy)]
 		self.snpList   = [[] for n in xrange(self.ploidy)]
 		self.allCigar  = [[] for n in xrange(self.ploidy)]
 		self.adj       = [None for n in xrange(self.ploidy)]
 		self.blackList = [np.zeros(self.seqLen,dtype='b') for n in xrange(self.ploidy)]
+
+		# disallow mutations to occur on window overlap points
+		self.winBuffer = windowOverlap
+		for p in xrange(self.ploidy):
+			self.blackList[p][-self.winBuffer] = True
+			self.blackList[p][-self.winBuffer-1] = True
 		
-		self.onlyVCF = onlyVCF
+		# if we're only creating a vcf, skip some expensive initialization related to coverage depth
 		if not self.onlyVCF:
 			(self.windowSize, coverage_vals) = coverageDat
 			self.win_per_read = int(self.readLen/float(self.windowSize)+0.5)
 			self.which_bucket = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
 
-		self.winBuffer = windowOverlap
-		for p in xrange(self.ploidy):
-			self.blackList[p][-self.winBuffer] = True
-			self.blackList[p][-self.winBuffer-1] = True
-
+	def init_mutModels(self,mutationModels,mutRate):
 		if mutationModels == []:
 			ml = [copy.deepcopy(DEFAULT_MODEL_1) for n in xrange(self.ploidy)]
 			self.modelData = ml[:self.ploidy]
@@ -56,36 +71,71 @@ class SequenceContainer:
 
 		# do we need to rescale mutation frequencies?
 		mutRateSum = sum([n[0] for n in self.modelData])
-		if mutRate == None:
+		self.mutRescale = mutRate
+		if self.mutRescale == None:
 			self.mutScalar = 1.0
 		else:
-			self.mutScalar = float(mutRate)/(mutRateSum/float(len(self.modelData)))
+			self.mutScalar = float(self.mutRescale)/(mutRateSum/float(len(self.modelData)))
 
+		# how are mutations spread to each ploid, based on their specified mut rates?
 		self.ploidMutFrac  = [float(n[0])/mutRateSum for n in self.modelData]
 		self.ploidMutPrior = DiscreteDistribution(self.ploidMutFrac,range(self.ploidy))
 
 		# init mutation models
-		if prevModel == None:
-			self.models = []
-			for n in self.modelData:
-				self.models.append([self.mutScalar*n[0],n[1],n[2],n[3],DiscreteDistribution(n[5],n[4]),DiscreteDistribution(n[7],n[6]),[]])
-				for m in n[8]:
-					self.models[-1][6].append([DiscreteDistribution(m[0],NUCL),
-						                       DiscreteDistribution(m[1],NUCL),
-						                       DiscreteDistribution(m[2],NUCL),
-						                       DiscreteDistribution(m[3],NUCL)])
-		else:
-			self.models = prevModel
+		#
+		# self.models[ploid][0] = average mutation rate
+		# self.models[ploid][1] = p(mut is homozygous | mutation occurs)
+		# self.models[ploid][2] = p(mut is indel | mut occurs)
+		# self.models[ploid][3] = p(insertion | indel occurs)
+		# self.models[ploid][4] = distribution of insertion lengths
+		# self.models[ploid][5] = distribution of deletion lengths
+		# self.models[ploid][6] = distribution of trinucleotide SNP transitions
+		# self.models[ploid][7] = p(trinuc mutates)
+		self.models = []
+		for n in self.modelData:
+			self.models.append([self.mutScalar*n[0],n[1],n[2],n[3],DiscreteDistribution(n[5],n[4]),DiscreteDistribution(n[7],n[6]),[]])
+			for m in n[8]:
+				self.models[-1][6].append([DiscreteDistribution(m[0],NUCL),
+					                       DiscreteDistribution(m[1],NUCL),
+					                       DiscreteDistribution(m[2],NUCL),
+					                       DiscreteDistribution(m[3],NUCL)])
+			self.models[-1].append([m for m in n[9]])
 
-		# sample the number of variants that will be inserted into each ploid
+	def init_poisson(self):
 		ind_l_list = [self.seqLen*self.models[i][0]*self.models[i][2]*self.ploidMutFrac[i] for i in xrange(len(self.models))]
 		snp_l_list = [self.seqLen*self.models[i][0]*(1.-self.models[i][2])*self.ploidMutFrac[i] for i in xrange(len(self.models))]
 		k_range    = range(int(self.seqLen*MAX_MUTFRAC))
-		ind_pois = [poisson_list(k_range,ind_l_list[n]) for n in xrange(len(self.models))]
-		snp_pois = [poisson_list(k_range,snp_l_list[n]) for n in xrange(len(self.models))]
-		self.indelsToAdd = [n.sample() for n in ind_pois]
-		self.snpsToAdd   = [n.sample() for n in snp_pois]
+		self.ind_pois = [poisson_list(k_range,ind_l_list[n]) for n in xrange(len(self.models))]
+		self.snp_pois = [poisson_list(k_range,snp_l_list[n]) for n in xrange(len(self.models))]
 
+	def init_trinucBias(self):
+		# compute mutation positional bias given trinucleotide strings of the sequence (ONLY AFFECTS SNPs)
+		#
+		# note: since indels are added before snps, it's possible these positional biases aren't correctly utilized
+		#       at positions affected by indels. At the moment I'm going to consider this negligible.
+		trinuc_snp_bias  = [[0. for n in xrange(self.seqLen)] for m in xrange(self.ploidy)]
+		self.trinuc_bias = [None for n in xrange(self.ploidy)]
+		for p in xrange(self.ploidy):
+			for i in xrange(self.winBuffer+1,self.seqLen-1):
+				trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[str(self.sequences[p][i-1:i+2])]]
+			self.trinuc_bias[p] = DiscreteDistribution(trinuc_snp_bias[p][self.winBuffer+1:self.seqLen-1],range(self.winBuffer+1,self.seqLen-1))
+
+	def update(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None):
+		# if mutation model is changed, we have to reinitialize it...
+		if ploidy != self.ploidy or mutRate != self.mutRescale or mutationModels != []:
+			self.ploidy = ploidy
+			self.mutRescale = mutRate
+			self.init_mutModels(mutationModels, mutRate)
+		# if sequence length is different than previous window, we have to redo snp/indel poissons
+		if len(sequence) != self.seqLen:
+			self.seqLen = len(sequence)
+			self.init_poisson()
+		# basic vars
+		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen, coverageDat)
+		self.indelsToAdd = [n.sample() for n in self.ind_pois]
+		self.snpsToAdd   = [n.sample() for n in self.snp_pois]
+		# initialize trinuc snp bias
+		self.init_trinucBias()
 
 	def insert_mutations(self, inputList):
 		#
@@ -202,7 +252,11 @@ class SequenceContainer:
 				# try to find suitable places to insert snps
 				eventPos = -1
 				for attempt in xrange(MAX_ATTEMPTS):
-					eventPos = random.randint(self.winBuffer+1,self.seqLen-2)
+					# based on the mutation model for the specified ploid, choose a SNP location based on trinuc bias
+					# (if there are multiple ploids, choose one at random)
+					#eventPos = random.randint(self.winBuffer+1,self.seqLen-2)
+					ploid_to_use = whichPloid[random.randint(0,len(whichPloid)-1)]
+					eventPos     = self.trinuc_bias[ploid_to_use].sample()
 					for p in whichPloid:
 						if self.blackList[p][eventPos]:
 							eventPos = -1
@@ -649,6 +703,16 @@ def parseInputMutationModel(model=None, whichDefault=1):
 				for l in xrange(len(outModel[8][i][j])):
 					outModel[8][i][j][l] /= float(sum(outModel[8][i][j]))
 
+		trinuc_mut_prob    = pickle_dict['TRINUC_MUT_PROB']
+		which_have_we_seen = {n:False for n in ALL_TRI}
+		trinuc_mean        = np.mean(trinuc_mut_prob.values())
+		for trinuc in trinuc_mut_prob.keys():
+			outModel[9][ALL_IND[trinuc]] = trinuc_mut_prob[trinuc]
+			which_have_we_seen[trinuc]   = True
+		for trinuc in which_have_we_seen.keys():
+			if which_have_we_seen[trinuc] == False:
+				outModel[9][ALL_IND[trinuc]] = trinuc_mean
+
 	return outModel
 
 
@@ -731,61 +795,58 @@ def parseInputMutationModel_deprecated(prefix=None, whichDefault=1):
 
 	return outModel
 
-
+######################
+#	DEFAULT VALUES   #
+######################
 
 DEFAULT_1_OVERALL_MUT_RATE   = 0.001
 DEFAULT_1_HOMOZYGOUS_FREQ    = 0.010
 DEFAULT_1_INDEL_FRACTION     = 0.05
 DEFAULT_1_INS_VS_DEL         = 0.6
-
 DEFAULT_1_INS_LENGTH_VALUES  = [1,2,3,4,5,6,7,8,9,10]
 DEFAULT_1_INS_LENGTH_WEIGHTS = [0.4, 0.2, 0.1, 0.05, 0.05, 0.05, 0.05, 0.034, 0.033, 0.033]
 DEFAULT_1_DEL_LENGTH_VALUES  = [1,2,3,4,5]
 DEFAULT_1_DEL_LENGTH_WEIGHTS = [0.3,0.2,0.2,0.2,0.1]
-
-example_matrix_1   = [[0.0, 0.15, 0.7, 0.15],
-				      [0.15, 0.0, 0.15, 0.7],
-				      [0.7, 0.15, 0.0, 0.15],
-				      [0.15, 0.7, 0.15, 0.0]]
-
-DEFAULT_1_TRI_FREQS  = [copy.deepcopy(example_matrix_1) for n in xrange(16)]
-
-DEFAULT_MODEL_1 = [DEFAULT_1_OVERALL_MUT_RATE,
-				   DEFAULT_1_HOMOZYGOUS_FREQ,
-				   DEFAULT_1_INDEL_FRACTION,
-				   DEFAULT_1_INS_VS_DEL,
-				   DEFAULT_1_INS_LENGTH_VALUES,
-				   DEFAULT_1_INS_LENGTH_WEIGHTS,
-				   DEFAULT_1_DEL_LENGTH_VALUES,
-				   DEFAULT_1_DEL_LENGTH_WEIGHTS,
-				   DEFAULT_1_TRI_FREQS]
-
+example_matrix_1             = [[0.0, 0.15, 0.7, 0.15],
+						        [0.15, 0.0, 0.15, 0.7],
+						        [0.7, 0.15, 0.0, 0.15],
+						        [0.15, 0.7, 0.15, 0.0]]
+DEFAULT_1_TRI_FREQS          = [copy.deepcopy(example_matrix_1) for n in xrange(16)]
+DEFAULT_1_TRINUC_BIAS        = [1./float(len(ALL_TRI)) for n in ALL_TRI]
+DEFAULT_MODEL_1              = [DEFAULT_1_OVERALL_MUT_RATE,
+							    DEFAULT_1_HOMOZYGOUS_FREQ,
+							    DEFAULT_1_INDEL_FRACTION,
+							    DEFAULT_1_INS_VS_DEL,
+							    DEFAULT_1_INS_LENGTH_VALUES,
+							    DEFAULT_1_INS_LENGTH_WEIGHTS,
+							    DEFAULT_1_DEL_LENGTH_VALUES,
+							    DEFAULT_1_DEL_LENGTH_WEIGHTS,
+							    DEFAULT_1_TRI_FREQS,
+							    DEFAULT_1_TRINUC_BIAS]
 
 DEFAULT_2_OVERALL_MUT_RATE   = 0.002
 DEFAULT_2_HOMOZYGOUS_FREQ    = 0.200
 DEFAULT_2_INDEL_FRACTION     = 0.1
 DEFAULT_2_INS_VS_DEL         = 0.3
-
 DEFAULT_2_INS_LENGTH_VALUES  = [1,2,3,4,5,6,7,8,9,10]
 DEFAULT_2_INS_LENGTH_WEIGHTS = [0.1, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
 DEFAULT_2_DEL_LENGTH_VALUES  = [1,2,3,4,5]
 DEFAULT_2_DEL_LENGTH_WEIGHTS = [0.3,0.2,0.2,0.2,0.1]
-
-example_matrix_2   = [[0.0, 0.15, 0.7, 0.15],
-				      [0.15, 0.0, 0.15, 0.7],
-				      [0.7, 0.15, 0.0, 0.15],
-				      [0.15, 0.7, 0.15, 0.0]]
-
-DEFAULT_2_TRI_FREQS  = [copy.deepcopy(example_matrix_2) for n in xrange(16)]
-
-DEFAULT_MODEL_2 = [DEFAULT_2_OVERALL_MUT_RATE,
-				   DEFAULT_2_HOMOZYGOUS_FREQ,
-				   DEFAULT_2_INDEL_FRACTION,
-				   DEFAULT_2_INS_VS_DEL,
-				   DEFAULT_2_INS_LENGTH_VALUES,
-				   DEFAULT_2_INS_LENGTH_WEIGHTS,
-				   DEFAULT_2_DEL_LENGTH_VALUES,
-				   DEFAULT_2_DEL_LENGTH_WEIGHTS,
-				   DEFAULT_2_TRI_FREQS]
+example_matrix_2             = [[0.0, 0.15, 0.7, 0.15],
+						        [0.15, 0.0, 0.15, 0.7],
+						        [0.7, 0.15, 0.0, 0.15],
+						        [0.15, 0.7, 0.15, 0.0]]
+DEFAULT_2_TRI_FREQS          = [copy.deepcopy(example_matrix_2) for n in xrange(16)]
+DEFAULT_2_TRINUC_BIAS        = [1./float(len(ALL_TRI)) for n in ALL_TRI]
+DEFAULT_MODEL_2              = [DEFAULT_2_OVERALL_MUT_RATE,
+							    DEFAULT_2_HOMOZYGOUS_FREQ,
+							    DEFAULT_2_INDEL_FRACTION,
+							    DEFAULT_2_INS_VS_DEL,
+							    DEFAULT_2_INS_LENGTH_VALUES,
+							    DEFAULT_2_INS_LENGTH_WEIGHTS,
+							    DEFAULT_2_DEL_LENGTH_VALUES,
+							    DEFAULT_2_DEL_LENGTH_WEIGHTS,
+							    DEFAULT_2_TRI_FREQS,
+							    DEFAULT_2_TRINUC_BIAS]
 
 

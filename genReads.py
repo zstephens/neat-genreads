@@ -398,7 +398,7 @@ def main():
 		# coverage distributions due to GC% and targeted regions are specified within these windows
 		samplingWindows  = []
 		ALL_VARIANTS_OUT = {}
-		prevMutModel     = None
+		sequences        = None
 		if PAIRED_END:
 			targSize = WINDOW_TARGET_SCALE*FRAGMENT_SIZE
 			overlap  = FRAGMENT_SIZE
@@ -493,11 +493,10 @@ def main():
 				# PROVIDED MUTATION RATES OVERRIDE AVERAGE VALUE
 
 				# construct sequence data that we will sample reads from
-				if CONSTANT_MUT_MODEL and prevMutModel != None:
-					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat,prevModel=prevMutModel,onlyVCF=ONLY_VCF)
-				else:
+				if sequences == None:
 					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat,onlyVCF=ONLY_VCF)
-					prevMutModel = sequences.models
+				else:
+					sequences.update(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
 
 				# adjust position of all inserted variants to match current window offset
 				#variants_to_insert = []

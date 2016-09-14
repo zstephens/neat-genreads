@@ -64,7 +64,7 @@ def getBedOverlap(track,ind_s,ind_e):
 
 OUP  = args.o
 LAB = args.l
-print LAB
+#print LAB
 INP  = args.i
 
 N_FILES = len(INP)
