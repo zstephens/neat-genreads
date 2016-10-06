@@ -570,7 +570,7 @@ def main():
 								myReadData[j][2] = ''.join(myReadString)
 
 						# write read data out to FASTQ and BAM files, bypass FASTQ if option specified
-						myRefIndex = indices_by_refName[refIndex[RI][0]]
+						myRefIndex = indices_by_refName[bamHeader[0][RI][0]]
 						if len(myReadData) == 1:
 							if NO_FASTQ != True:
 								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
