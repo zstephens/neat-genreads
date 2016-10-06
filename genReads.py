@@ -307,7 +307,7 @@ def main():
 	# initialize output files (part I)
 	bamHeader = None
 	if SAVE_BAM:
-		bamHeader = [refIndex]
+		bamHeader = [copy.deepcopy(refIndex)]
 	vcfHeader = None
 	if SAVE_VCF:
 		vcfHeader = [REFERENCE]
