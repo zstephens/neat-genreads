@@ -134,6 +134,7 @@ class SequenceContainer:
 		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen, coverageDat)
 		self.indelsToAdd = [n.sample() for n in self.ind_pois]
 		self.snpsToAdd   = [n.sample() for n in self.snp_pois]
+		#print (self.indelsToAdd,self.snpsToAdd)
 		# initialize trinuc snp bias
 		self.init_trinucBias()
 

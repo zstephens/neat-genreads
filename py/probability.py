@@ -60,7 +60,7 @@ class DiscreteDistribution:
 	def sample(self):
 
 		if self.degenerate != None:
-			return degenerateVal
+			return self.degenerate
 
 		else:
 
@@ -80,6 +80,8 @@ class DiscreteDistribution:
 # takes k_range, lambda, [0,1,2,..], returns a DiscreteDistribution object with the corresponding to a poisson distribution
 MIN_WEIGHT = 1e-12
 def poisson_list(k_range,l):
+	if l < MIN_WEIGHT:
+		return DiscreteDistribution([1],[0],degenerateVal=0)
 	logFactorial_list = [0.0]
 	for k in k_range[1:]:
 		logFactorial_list.append(np.log(float(k))+logFactorial_list[k-1])
