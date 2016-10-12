@@ -47,20 +47,25 @@ def parseLine(splt,colDict,colSamp):
 	else:
 		alt_freqs = [None]*max([len(alt_alleles),1])
 
-	#	if no sample columns, check info for GT
 	gt_perSamp = None
-	if len(colSamp) == 0 and 'INFO' in colDict and 'GT=' in splt[colDict['INFO']]:
-		info = splt[colDict['INFO']]+';'
-		gt_perSamp = [re.findall(r"GT=.*?(?=;)",info)[0][3:]]
-	elif len(colSamp):
-		fmt = ':'+splt[colDict['FORMAT']]+':'
-		if ':GT:' in fmt:
-			gtInd = fmt.split(':').index('GT')
-			gt_perSamp = [splt[colSamp[iii]].split(':')[gtInd-1] for iii in xrange(len(colSamp))]
-			for i in xrange(len(gt_perSamp)):
-				gt_perSamp[i] = gt_perSamp[i].replace('.','0')
-	if gt_perSamp == None:
-		gt_perSamp = [None]*max([len(colSamp),1])
+	#	if available (i.e. we simulated it) look for WP in info
+	if len(colSamp) == 0 and 'INFO' in colDict and 'WP=' in splt[colDict['INFO']]:
+		info       = splt[colDict['INFO']]+';'
+		gt_perSamp = [re.findall(r"WP=.*?(?=;)",info)[0][3:]]
+	else:
+		#	if no sample columns, check info for GT
+		if len(colSamp) == 0 and 'INFO' in colDict and 'GT=' in splt[colDict['INFO']]:
+			info       = splt[colDict['INFO']]+';'
+			gt_perSamp = [re.findall(r"GT=.*?(?=;)",info)[0][3:]]
+		elif len(colSamp):
+			fmt = ':'+splt[colDict['FORMAT']]+':'
+			if ':GT:' in fmt:
+				gtInd = fmt.split(':').index('GT')
+				gt_perSamp = [splt[colSamp[iii]].split(':')[gtInd-1] for iii in xrange(len(colSamp))]
+				for i in xrange(len(gt_perSamp)):
+					gt_perSamp[i] = gt_perSamp[i].replace('.','0')
+		if gt_perSamp == None:
+			gt_perSamp = [None]*max([len(colSamp),1])
 
 	return (alt_alleles, alt_freqs, gt_perSamp)
 
@@ -101,7 +106,7 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 				if None in gtEval:
 					if CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND:
 						if not alreadyPrintedWarning:
-							print 'Warning: Found variants without a GT field, assuming het...'
+							print 'Warning: Found variants without a GT field, assuming heterozygous...'
 							alreadyPrintedWarning = True
 						for i in xrange(len(gtEval)):
 							tmp = ['0']*ploidy
@@ -159,7 +164,7 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 		varsOut[r] = [allVars[r][k] for k in sorted(allVars[r].keys())]
 	
 	print 'found',sum([len(n) for n in allVars.values()]),'valid variants in input vcf.'
-	print ' *',nSkipped,'variants skipped due to: (quality filtered / reference genotypes / invalid syntax)'
+	print ' *',nSkipped,'variants skipped: (qual filtered / ref genotypes / invalid syntax)'
 	print ' *',nSkipped_becauseHash,'variants skipped due to multiple variants found per position'
 	print '--------------------------------'
 	return (sampNames, varsOut)

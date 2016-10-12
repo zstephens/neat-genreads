@@ -364,21 +364,30 @@ def main():
 		#		- don't match the reference base at their specified position
 		#		- any alt allele contains anything other than allowed characters
 		validVariants = []
-		nSkipped = 0
+		nSkipped = [0,0,0]
 		if refIndex[RI][0] in inputVariants:
 			for n in inputVariants[refIndex[RI][0]]:
 				span = (n[0],n[0]+len(n[1]))
 				rseq = str(refSequence[span[0]-1:span[1]-1])	# -1 because going from VCF coords to array coords
 				anyBadChr = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
-				if rseq != n[1] or 'N' in rseq or anyBadChr:
-					nSkipped += 1
+				if rseq != n[1]:
+					nSkipped[0] += 1
+					continue
+				elif 'N' in rseq:
+					nSkipped[1] += 1
+					continue
+				elif anyBadChr:
+					nSkipped[2] += 1
 					continue
 				#if bisect.bisect(N_regions['big'],span[0])%2 or bisect.bisect(N_regions['big'],span[1])%2:
 				#	continue
 				validVariants.append(n)
 			print 'found',len(validVariants),'valid variants for '+refIndex[RI][0]+' in input VCF...'
-			if nSkipped:
-				print nSkipped,'variants skipped (invalid position or alt allele)'
+			if any(nSkipped):
+				print sum(nSkipped),'variants skipped...'
+				print ' - ['+str(nSkipped[0])+'] ref allele does not match reference'
+				print ' - ['+str(nSkipped[1])+'] attempting to insert into N-region'
+				print ' - ['+str(nSkipped[2])+'] alt allele contains non-ACGT characters'
 
 		# add large random structural variants
 		#
@@ -405,6 +414,9 @@ def main():
 		else:
 			targSize = WINDOW_TARGET_SCALE*READLEN
 			overlap  = READLEN
+
+		print '--------------------------------'
+		print 'sampling reads...'
 		for i in xrange(len(N_regions['non_N'])):
 			(pi,pf) = N_regions['non_N'][i]
 			nTargWindows = max([1,(pf-pi)/targSize])
@@ -598,7 +610,10 @@ def main():
 				if end >= pf:
 					isLastTime = True
 
-		print '100%'
+		if currentPercent != 100:
+			print '100%'
+		else:
+			print ''
 
 		# write all output variants for this reference
 		if SAVE_VCF:

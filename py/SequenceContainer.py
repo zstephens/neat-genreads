@@ -45,13 +45,17 @@ class SequenceContainer:
 		self.snpList   = [[] for n in xrange(self.ploidy)]
 		self.allCigar  = [[] for n in xrange(self.ploidy)]
 		self.adj       = [None for n in xrange(self.ploidy)]
-		self.blackList = [np.zeros(self.seqLen,dtype='b') for n in xrange(self.ploidy)]
+		# blackList[ploid][pos] = 0		safe to insert variant here
+		# blackList[ploid][pos] = 1		indel inserted here
+		# blackList[ploid][pos] = 2		snp inserted here
+		# blackList[ploid][pos] = 3		invalid position for various processing reasons
+		self.blackList = [np.zeros(self.seqLen,dtype='<i4') for n in xrange(self.ploidy)]
 
 		# disallow mutations to occur on window overlap points
 		self.winBuffer = windowOverlap
 		for p in xrange(self.ploidy):
-			self.blackList[p][-self.winBuffer] = True
-			self.blackList[p][-self.winBuffer-1] = True
+			self.blackList[p][-self.winBuffer]   = 3
+			self.blackList[p][-self.winBuffer-1] = 3
 		
 		# if we're only creating a vcf, skip some expensive initialization related to coverage depth
 		if not self.onlyVCF:
@@ -171,12 +175,17 @@ class SequenceContainer:
 				inLen = max([len(inpV[1]),len(myAlt)])
 				#print myVar, chr(self.sequences[p][myVar[0]])
 				if len(inpV[1]) == 1 and len(myAlt) == 1:
+					if self.blackList[p][myVar[0]]:
+						continue
 					self.snpList[p].append(myVar)
-					self.blackList[p][myVar[0]] = True
+					self.blackList[p][myVar[0]] = 2
 				else:
-					self.indelList[p].append(myVar)
 					for k in xrange(myVar[0],myVar[0]+inLen+1):
-						self.blackList[p][k] = True
+						if self.blackList[p][k]:
+							continue
+					for k in xrange(myVar[0],myVar[0]+inLen+1):
+						self.blackList[p][k] = 1
+					self.indelList[p].append(myVar)
 
 	def random_mutations(self):
 		
@@ -233,7 +242,7 @@ class SequenceContainer:
 
 				for p in whichPloid:
 					for k in xrange(eventPos,eventPos+inLen+1):
-						self.blackList[p][k] = True
+						self.blackList[p][k] = 1
 					all_indels[p].append(myIndel)
 
 		for i in xrange(len(all_indels)):
@@ -274,10 +283,12 @@ class SequenceContainer:
 
 				for p in whichPloid:
 					all_snps[p].append(mySNP)
-					self.blackList[p][mySNP[0]] = True
+					self.blackList[p][mySNP[0]] = 2
 
-		for i in xrange(len(all_snps)):
-			all_snps[i].extend(self.snpList[i])
+		# combine random snps with inserted snps, remove any snps that overlap indels
+		for p in xrange(len(all_snps)):
+			all_snps[p].extend(self.snpList[p])
+			all_snps[p] = [n for n in all_snps[p] if self.blackList[p][n[0]] != 1]
 
 		# modify reference sequences
 		for i in xrange(len(all_snps)):
@@ -303,9 +314,7 @@ class SequenceContainer:
 					exit(1)
 				else:
 					self.sequences[i] = self.sequences[i][:vPos] + bytearray(all_indels[i][j][2]) + self.sequences[i][vPos2:]
-					#print 'rawr:', all_indels[i][j]
 					adjToAdd[i].append((all_indels[i][j][0],len(all_indels[i][j][2])-len(all_indels[i][j][1])))
-					#adjToAdd.append((vPos,))
 				#print len(self.sequences[i])
 			adjToAdd[i].sort()
 			#print adjToAdd[i]
@@ -359,9 +368,10 @@ class SequenceContainer:
 		output_variants = []
 		for k in sorted(countDict.keys()):
 			output_variants.append(k+tuple([len(countDict[k])/float(self.ploidy)]))
-			output_variants[-1] += tuple(['WP='+','.join([str(n) for n in countDict[k]])])
-		#for n in output_variants:
-		#	print n
+			ploid_string = ['0' for n in xrange(self.ploidy)]
+			for k2 in [n for n in countDict[k]]:
+				ploid_string[k2] = '1'
+			output_variants[-1] += tuple(['WP='+'/'.join(ploid_string)])
 		return output_variants
 
 
