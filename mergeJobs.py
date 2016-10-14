@@ -1,14 +1,32 @@
 import os
 import argparse
 
+def getListOfFiles(inDir,pattern):
+	return [inDir+n for n in os.listdir(inDir) if (pattern in n and os.path.getsize(inDir+n))]
 
-parser = argparse.ArgumentParser(description='mergeJobs.py')
-parser.add_argument('-i', type=str, required=True, metavar='<str>', help="* input prefix")
-parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output prefix")
-parser.add_argument('-s', type=str, required=True, metavar='<str>', help="* /path/to/samtools")
-args = parser.parse_args()
-(INP,OUP,SAMTOOLS) = (args.i,args.o,args.s)
-
+TEMP_IND = 0
+def stripVCF_header(fn):
+	global TEMP_IND
+	f = open(fn,'r')
+	ftn = fn+'_temp'+str(TEMP_IND)
+	f_t = open(ftn,'w')
+	hasHeader = False
+	for line in f:
+		if line[0] == '#':
+			if not hasHeader:
+				TEMP_IND += 1
+			hasHeader = True
+		elif hasHeader:
+			f_t.write(line)
+		else:
+			break
+	f_t.close()
+	f.close()
+	if hasHeader:
+		return ftn
+	else:
+		os.system('rm '+ftn)
+		return fn
 
 def catListOfFiles(l,outName,gzipped=False):
 	for n in l:
@@ -44,37 +62,59 @@ def catBams(l,outName,samtools_exe):
 
 def main():
 
-	inDir = '/'.join(INP.split('/')[:-1])+'/'
+	parser = argparse.ArgumentParser(description='mergeJobs.py')
+	parser.add_argument('-i', type=str, required=True, metavar='<str>', nargs='+', help="* input prefix: [prefix_1] [prefix_2] ...")
+	parser.add_argument('-o', type=str, required=True, metavar='<str>',            help="* output prefix")
+	parser.add_argument('-s', type=str, required=True, metavar='<str>',            help="* /path/to/samtools")
+
+	args = parser.parse_args()
+	(INP,OUP,SAMTOOLS) = (args.i,args.o,args.s)
+
+	inDir = '/'.join(INP[0].split('/')[:-1])+'/'
 	if inDir == '/':
 		inDir = './'
-	print inDir
+	#print inDir
+
+	INP_LIST = []
+	for n in INP:
+		if n[-1] == '/':
+			n = n[:-1]
+		INP_LIST.append(n.split('/')[-1])
+	listing_r1 = []
+	listing_r2 = []
+	listing_b  = []
+	listing_v  = []
+	for n in INP_LIST:
+		listing_r1 += getListOfFiles(inDir,n+'_read1.fq.job')
+		listing_r2 += getListOfFiles(inDir,n+'_read2.fq.job')
+		listing_b  += getListOfFiles(inDir,n+'_golden.bam.job')
+		if len(listing_v):	# remove headers from vcf files that aren't the first being processed
+			initList   = getListOfFiles(inDir,n+'_golden.vcf.job')
+			listing_v += [stripVCF_header(n) for n in initList]
+		else:
+			listing_v  += getListOfFiles(inDir,n+'_golden.vcf.job')
 	
 	#
 	#	merge fq files
 	#
-	listing_r1 = [inDir+n for n in os.listdir(inDir) if ('_read1.fq.job' in n and os.path.getsize(inDir+n))]
 	if len(listing_r1):
 		catListOfFiles(listing_r1,OUP+'_read1.fq')
-	listing_r2 = [inDir+n for n in os.listdir(inDir) if ('_read2.fq.job' in n and os.path.getsize(inDir+n))]
 	if len(listing_r2):
 		catListOfFiles(listing_r2,OUP+'_read2.fq')
 
 	#
 	#	merge golden alignments, if present
 	#
-	listing = [inDir+n for n in os.listdir(inDir) if ('_golden.bam.job' in n and os.path.getsize(inDir+n))]
-	if len(listing):
-		catBams(listing,OUP+'_golden.bam',SAMTOOLS)
+	if len(listing_b):
+		catBams(listing_b,OUP+'_golden.bam',SAMTOOLS)
 
 	#
 	#	merge golden vcfs, if present
 	#
-	listing = [inDir+n for n in os.listdir(inDir) if ('_golden.vcf.job' in n and os.path.getsize(inDir+n))]
-	if len(listing):
-		catListOfFiles(listing,OUP+'_golden.vcf')
+	if len(listing_v):
+		catListOfFiles(listing_v,OUP+'_golden.vcf')
 
 
 if __name__ == "__main__":
 	main()
-
 
