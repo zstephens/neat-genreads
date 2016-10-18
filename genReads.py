@@ -298,7 +298,7 @@ def main():
 				if len(mutStr) and (pos2-pos1) > 1:
 					# mutRate = #_mutations / length_of_region, let's bound it by a reasonable amount
 					mutRate = max([0.0,min([float(mutStr[0][9:]),0.3])])
-					if myChr not in inputRegions:
+					if myChr not in mutRateRegions:
 						mutRateRegions[myChr] = [-1]
 						mutRateValues[myChr]  = [0.0]
 					mutRateRegions[myChr].extend([pos1,pos2])
