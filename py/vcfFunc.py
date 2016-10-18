@@ -85,11 +85,13 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 	allVars   = {}	# [ref][pos]
 	sampNames = []
 	alreadyPrintedWarning = False
-	for line in open(vcfPath,'r'):
+	f = open(vcfPath,'r')
+	for line in f:
 
 		if line[0] != '#':
 			if len(colDict) == 0:
 				print '\n\nERROR: VCF has no header?\n'+VCF_FILENAME+'\n\n'
+				f.close()
 				exit(1)
 			splt = line[:-1].split('\t')
 			plOut = parseLine(splt,colDict,colSamp)
@@ -129,6 +131,12 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 				chrom = splt[0]
 				pos   = int(splt[1])
 				ref   = splt[3]
+				# skip if position is <= 0
+				if pos <= 0:
+					nSkipped += 1
+					continue
+
+				# hash variants to avoid inserting duplicates (there are some messy VCFs out there...)
 				if chrom not in allVars:
 					allVars[chrom] = {}
 				if pos not in allVars[chrom]:
@@ -158,6 +166,7 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 					#normalInd = sampNames.index('NORMAL')
 					if 'NORMAL' not in sampNames or 'TUMOR' not in sampNames:
 						print '\n\nERROR: Input VCF must have a "NORMAL" and "TUMOR" column.\n'
+	f.close()
 
 	varsOut = {}
 	for r in allVars.keys():
