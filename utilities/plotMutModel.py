@@ -89,7 +89,8 @@ for fn in INP:
 mpl.xlim([-1,N_FILES+1])
 mpl.grid()
 mpl.xticks([],[])
-#mpl.title('Overall mutation rate (1/bp)')
+mpl.ylabel('Frequency')
+mpl.title('Overall mutation rate (1/bp)')
 
 mpl.subplot(2,2,2)
 colorInd = 0
@@ -104,7 +105,8 @@ mpl.axis([-1,N_FILES+1,0,1.2])
 mpl.grid()
 mpl.xticks([],[])
 mpl.yticks([0,.2,.4,.6,.8,1.],[0,0.2,0.4,0.6,0.8,1.0])
-#mpl.title('SNP freq [  ] & indel freq [//]')
+mpl.ylabel('Frequency')
+mpl.title('SNP freq [  ] & indel freq [//]')
 
 mpl.subplot(2,1,2)
 colorInd = 0
@@ -120,7 +122,8 @@ for fn in INP:
 	#legText.append(fn)
 mpl.grid()
 mpl.xlabel('Indel size (bp)', fontweight='bold')
-#mpl.title('Indel frequency by size (- deletion, + insertion)')
+mpl.ylabel('Frequency')
+mpl.title('Indel frequency by size (- deletion, + insertion)')
 mpl.legend(legText)
 #mpl.show()
 mpl.savefig(OUP+'_plot1_mutRates.pdf')
@@ -151,7 +154,7 @@ for fn in INP:
 		mpl.xticks(x,xt,rotation=90)
 	#legText.append(fn)
 mpl.grid()
-#mpl.title('p(trinucleotide mutates)')
+mpl.ylabel('p(trinucleotide mutates)')
 mpl.legend(legText)
 #mpl.show()
 mpl.savefig(OUP+'_plot2_trinucPriors.pdf')
@@ -163,7 +166,7 @@ mpl.savefig(OUP+'_plot2_trinucPriors.pdf')
 #################################################
 plotNum = 3
 for fn in INP:
-	mpl.figure(plotNum,figsize=(12,10))
+	fig = mpl.figure(plotNum,figsize=(12,10))
 	DATA_DICT = pickle.load( open( fn, "rb" ) )
 	TRINUC_TRANS_PROBS = DATA_DICT['TRINUC_TRANS_PROBS']
 
@@ -185,13 +188,20 @@ for fn in INP:
 		mpl.subplot(4,4,pi+1)
 		Z2 = Z[pi*4:(pi+1)*4,pi*4:(pi+1)*4]
 		X, Y = np.meshgrid( range(0,len(Z2[0])+1), range(0,len(Z2)+1) )
-		mpl.pcolormesh(X,Y,Z2[::-1,:])
+		im = mpl.pcolormesh(X,Y,Z2[::-1,:],vmin=0.0,vmax=0.5)
 		mpl.axis([0,4,0,4])
 		mpl.xticks([0.5,1.5,2.5,3.5],['A','C','G','T'])
 		mpl.yticks([0.5,1.5,2.5,3.5],['T','G','C','A'])
 		mpl.text(1.6, 1.8, HARDCODED_LABEL[pi], color='white')
-	mpl.tight_layout()
-	#mpl.figtext(0.052,0.985,'Trinucleotide Transition Heatmap')
+
+	# colorbar haxx
+	fig.subplots_adjust(right=0.8)
+	cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+	cb = fig.colorbar(im,cax=cbar_ax)
+	cb.set_label(r"p(X$Y_1$Z->X$Y_2$Z | X_Z mutates)")
+
+	#mpl.tight_layout()
+	#mpl.figtext(0.24,0.94,'Trinucleotide Mutation Frequency',size=20)
 	#mpl.show()
 	mpl.savefig(OUP+'_plot'+str(plotNum)+'_trinucTrans.pdf')
 	plotNum += 1
