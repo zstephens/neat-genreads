@@ -174,6 +174,10 @@ class SequenceContainer:
 				myVar = (inpV[0]-self.x,inpV[1],myAlt)
 				inLen = max([len(inpV[1]),len(myAlt)])
 				#print myVar, chr(self.sequences[p][myVar[0]])
+				if myVar[0] < 0 or myVar[0] >= len(self.blackList[p]):
+					print '\nError: Attempting to insert variant out of window bounds:'
+					print myVar, '--> blackList[0:'+str(len(self.blackList[p]))+']\n'
+					exit(1)
 				if len(inpV[1]) == 1 and len(myAlt) == 1:
 					if self.blackList[p][myVar[0]]:
 						continue

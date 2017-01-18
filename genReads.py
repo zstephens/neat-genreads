@@ -439,6 +439,7 @@ def main():
 			varsCancerFromPrevOverlap = []
 			vindFromPrev = 0
 			isLastTime = False
+
 			while True:
 				####print (start,end)
 				# adjust end-position of window based on inserted structural mutations
@@ -474,7 +475,7 @@ def main():
 				updated = False
 				for j in xrange(vindFromPrev,len(validVariants)):
 					vPos = validVariants[j][0]
-					if vPos >= start and vPos < end:
+					if vPos > start and vPos < end:	# update: changed >= to >, so variant cannot be inserted in first position
 						varsInWindow.append(tuple([vPos-1]+list(validVariants[j][1:])))	# vcf --> array coords
 					if vPos >= end-overlap-1 and updated == False:
 						updated = True
@@ -519,6 +520,10 @@ def main():
 				#	ln = [n[0]-start] + list(n[1:])
 				#	variants_to_insert.append(tuple(ln))
 				#sequences.insert_mutations(variants_to_insert)
+
+				# some inserted variant debugging...
+				#print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
+
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
 				all_inserted_variants = sequences.random_mutations()
 				#print all_inserted_variants
