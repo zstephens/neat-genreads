@@ -450,6 +450,11 @@ def main():
 				if k in TRINUC_BED_COUNT:
 					TRINUC_REF_COUNT[k] -= TRINUC_BED_COUNT[k]
 
+	# if for some reason we didn't find any valid input variants, exit gracefully...
+	totalVar = SNP_COUNT + sum(INDEL_COUNT.values())
+	if totalVar == 0:
+		print '\nError: No valid variants were found, model could not be created. (Are you using the correct reference?)\n'
+		exit(1)
 
 	""" ##########################################################################
 	###							COMPUTE PROBABILITIES						   ###
@@ -487,7 +492,6 @@ def main():
 				SNP_TRANS_FREQ[key2] = SNP_TRANSITION_COUNT[key2] / float(rollingTot)
 
 	# compute average snp and indel frequencies
-	totalVar       = SNP_COUNT + sum(INDEL_COUNT.values())
 	SNP_FREQ       = SNP_COUNT/float(totalVar)
 	AVG_INDEL_FREQ = 1.-SNP_FREQ
 	INDEL_FREQ     = {k:(INDEL_COUNT[k]/float(totalVar))/AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
@@ -498,6 +502,22 @@ def main():
 			AVG_MUT_RATE = totalVar/float(TOTAL_REFLEN - getTrackLen(MYBED[0]))
 	else:
 		AVG_MUT_RATE = totalVar/float(TOTAL_REFLEN)
+
+	#
+	#	if values weren't found in data, appropriately append null entries
+	#
+	printTrinucWarning = False
+	for trinuc in VALID_TRINUC:
+		trinuc_mut = [trinuc[0]+n+trinuc[2] for n in VALID_NUCL if n != trinuc[1]]
+		if trinuc not in TRINUC_MUT_PROB:
+			TRINUC_MUT_PROB[trinuc] = 0.
+			printTrinucWarning = True
+		for trinuc2 in trinuc_mut:
+			if (trinuc,trinuc2) not in TRINUC_TRANS_PROBS:
+				TRINUC_TRANS_PROBS[(trinuc,trinuc2)] = 0.
+				printTrinucWarning = True
+	if printTrinucWarning:
+		print 'Warning: Some trinucleotides transitions were not encountered in the input dataset, probabilities of 0.0 have been assigned to these events.'
 
 	#
 	#	print some stuff
