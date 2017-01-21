@@ -433,7 +433,7 @@ def main():
 
 			start = pi
 			end   = min([start+bpd,pf])
-			print '------------------RAWR:', (pi,pf), bpd
+			####print '------------------RAWR:', (pi,pf), bpd
 			currentVariantInd = 0
 			varsFromPrevOverlap = []
 			varsCancerFromPrevOverlap = []
@@ -450,9 +450,9 @@ def main():
 					while structuralVars[currentVariantInd][0] <= end:
 						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
 						if delta <= 0:
-							print 'DELTA:', delta, 'END:', end, '-->',
+							####print 'DELTA:', delta, 'END:', end, '-->',
 							end -= (delta-1)
-							print end
+							####print end
 						currentVariantInd += 1
 						if currentVariantInd == len(structuralVars):
 							break
@@ -464,11 +464,11 @@ def main():
 					isLastTime = True
 
 				# print progress indicator
-				#print 'PROCESSING WINDOW:',(start,end)
+				print 'PROCESSING WINDOW:',(start,end)
 				currentProgress += end-start
 				newPercent = int((currentProgress*100)/float(total_bp_span))
 				if newPercent > currentPercent:
-					if newPercent == 100 and not havePrinted100:
+					if newPercent <= 99 or (newPercent == 100 and not havePrinted100):
 						sys.stdout.write(str(newPercent)+'% ')
 						sys.stdout.flush()
 					currentPercent = newPercent
