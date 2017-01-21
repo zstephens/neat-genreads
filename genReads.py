@@ -433,7 +433,7 @@ def main():
 
 			start = pi
 			end   = min([start+bpd,pf])
-			#print '------------------RAWR:', (pi,pf), bpd
+			print '------------------RAWR:', (pi,pf), bpd
 			currentVariantInd = 0
 			varsFromPrevOverlap = []
 			varsCancerFromPrevOverlap = []
