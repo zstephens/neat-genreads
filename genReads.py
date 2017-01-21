@@ -476,7 +476,7 @@ def main():
 					isLastTime = True
 
 				# print progress indicator
-				print 'PROCESSING WINDOW:',(start,end), [buffer_added]
+				####print 'PROCESSING WINDOW:',(start,end), [buffer_added]
 				currentProgress += end-start
 				newPercent = int((currentProgress*100)/float(total_bp_span))
 				if newPercent > currentPercent:
@@ -516,19 +516,10 @@ def main():
 				else:
 					sequences.update(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
 
-				# adjust position of all inserted variants to match current window offset
-				#variants_to_insert = []
-				#for n in varsFromPrevOverlap:
-				#	ln = [n[0]-start] + list(n[1:])
-				#	variants_to_insert.append(tuple(ln))
-				#for n in varsInWindow:
-				#	ln = [n[0]-start] + list(n[1:])
-				#	variants_to_insert.append(tuple(ln))
-				#sequences.insert_mutations(variants_to_insert)
-
 				# some inserted variant debugging...
 				####print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
 
+				# insert variants
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
 				all_inserted_variants = sequences.random_mutations()
 				#print all_inserted_variants
