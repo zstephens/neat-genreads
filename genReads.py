@@ -449,6 +449,7 @@ def main():
 				if len(structuralVars) and currentVariantInd < len(structuralVars):
 					prevVarInd = currentVariantInd
 					while structuralVars[currentVariantInd][0] <= end:
+						print '--',structuralVars[currentVariantInd]
 						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
 						if delta <= 0:
 							####print 'DELTA:', delta, 'END:', end, '-->',
