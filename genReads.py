@@ -412,7 +412,10 @@ def main():
 			overlap  = READLEN
 
 		print '--------------------------------'
-		print 'sampling reads...'
+		if ONLY_VCF:
+			print 'generating vcf...'
+		else:
+			print 'sampling reads...'
 		for i in xrange(len(N_regions['non_N'])):
 			(pi,pf) = N_regions['non_N'][i]
 			nTargWindows = max([1,(pf-pi)/targSize])
@@ -456,8 +459,6 @@ def main():
 				for n in varsInWindow:
 					bufferNeeded = max([max([len(n[1])-len(alt_allele),1]) for alt_allele in n[2]])
 					structuralVars.append((n[0]-1,bufferNeeded))	# -1 because going from VCF coords to array coords
-				for n in structuralVars:
-					print '--',n
 
 				# adjust end-position of window based on inserted structural mutations
 				buffer_added = 0
@@ -526,7 +527,7 @@ def main():
 				#sequences.insert_mutations(variants_to_insert)
 
 				# some inserted variant debugging...
-				#print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
+				print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
 
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
 				all_inserted_variants = sequences.random_mutations()
