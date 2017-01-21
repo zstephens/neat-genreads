@@ -445,13 +445,15 @@ def main():
 				####print (start,end)
 				# adjust end-position of window based on inserted structural mutations
 				relevantVars = []
+				buffer_added = 0
 				if len(structuralVars) and currentVariantInd < len(structuralVars):
 					prevVarInd = currentVariantInd
 					while structuralVars[currentVariantInd][0] <= end:
 						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
 						if delta <= 0:
 							####print 'DELTA:', delta, 'END:', end, '-->',
-							end -= (delta-1)
+							buffer_added = 1-delta
+							end += buffer_added
 							####print end
 						currentVariantInd += 1
 						if currentVariantInd == len(structuralVars):
@@ -464,7 +466,7 @@ def main():
 					isLastTime = True
 
 				# print progress indicator
-				print 'PROCESSING WINDOW:',(start,end)
+				print 'PROCESSING WINDOW:',(start,end), [buffer_added]
 				currentProgress += end-start
 				newPercent = int((currentProgress*100)/float(total_bp_span))
 				if newPercent > currentPercent:
@@ -480,7 +482,7 @@ def main():
 				updated = False
 				for j in xrange(vindFromPrev,len(validVariants)):
 					vPos = validVariants[j][0]
-					if vPos > start and vPos < end:	# update: changed >= to >, so variant cannot be inserted in first position
+					if vPos > start and vPos < end-buffer_added:	# update: changed >= to >, so variant cannot be inserted in first position
 						varsInWindow.append(tuple([vPos-1]+list(validVariants[j][1:])))	# vcf --> array coords
 					if vPos >= end-overlap-1 and updated == False:
 						updated = True
