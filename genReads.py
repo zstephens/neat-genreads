@@ -456,6 +456,8 @@ def main():
 				for n in varsInWindow:
 					bufferNeeded = max([max([len(n[1])-len(alt_allele),1]) for alt_allele in n[2]])
 					structuralVars.append((n[0]-1,bufferNeeded))	# -1 because going from VCF coords to array coords
+				for n in structuralVars:
+					print '--',n
 
 				# adjust end-position of window based on inserted structural mutations
 				buffer_added = 0
