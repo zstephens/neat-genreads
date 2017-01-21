@@ -389,15 +389,11 @@ def main():
 				print ' - ['+str(nSkipped[1])+'] attempting to insert into N-region'
 				print ' - ['+str(nSkipped[2])+'] alt allele contains non-ACGT characters'
 
+
 		# add large random structural variants
 		#
 		#	TBD!!!
 
-		# determine which structural variants will affect our sampling window positions
-		structuralVars = []
-		for n in validVariants:
-			bufferNeeded = max([max([len(n[1])-len(alt_allele),1]) for alt_allele in n[2]])
-			structuralVars.append((n[0]-1,bufferNeeded))	# -1 because going from VCF coords to array coords
 
 		# determine sampling windows based on read length, large N regions, and structural mutations.
 		# in order to obtain uniform coverage, windows should overlap by:
@@ -434,7 +430,6 @@ def main():
 			start = pi
 			end   = min([start+bpd,pf])
 			####print '------------------RAWR:', (pi,pf), bpd
-			currentVariantInd = 0
 			varsFromPrevOverlap = []
 			varsCancerFromPrevOverlap = []
 			vindFromPrev = 0
@@ -442,24 +437,35 @@ def main():
 			havePrinted100 = False
 
 			while True:
-				####print (start,end)
+				
+				# which inserted variants are in this window?
+				varsInWindow = []
+				updated = False
+				for j in xrange(vindFromPrev,len(validVariants)):
+					vPos = validVariants[j][0]
+					if vPos > start and vPos < end:	# update: changed >= to >, so variant cannot be inserted in first position
+						varsInWindow.append(tuple([vPos-1]+list(validVariants[j][1:])))	# vcf --> array coords
+					if vPos >= end-overlap-1 and updated == False:
+						updated = True
+						vindFromPrev = j
+					if vPos >= end:
+						break
+
+				# determine which structural variants will affect our sampling window positions
+				structuralVars = []
+				for n in varsInWindow:
+					bufferNeeded = max([max([len(n[1])-len(alt_allele),1]) for alt_allele in n[2]])
+					structuralVars.append((n[0]-1,bufferNeeded))	# -1 because going from VCF coords to array coords
+
 				# adjust end-position of window based on inserted structural mutations
-				relevantVars = []
 				buffer_added = 0
-				if len(structuralVars) and currentVariantInd < len(structuralVars):
-					prevVarInd = currentVariantInd
-					while structuralVars[currentVariantInd][0] <= end:
-						print '--',structuralVars[currentVariantInd]
-						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
-						if delta <= 0:
-							####print 'DELTA:', delta, 'END:', end, '-->',
-							buffer_added = 1-delta
-							end += buffer_added
-							####print end
-						currentVariantInd += 1
-						if currentVariantInd == len(structuralVars):
-							break
-					relevantVars = structuralVars[prevVarInd:currentVariantInd]
+				for n in structuralVars:
+					delta = (end-1) - (n[0] + n[1])
+					if delta <= 0:
+						####print 'DELTA:', delta, 'END:', end, '-->',
+						buffer_added = 1-delta
+						end += buffer_added
+						####print end
 				next_start = end-overlap
 				next_end   = min([next_start+bpd,pf])
 				if next_end-next_start < bpd:
@@ -478,18 +484,6 @@ def main():
 					if currentPercent == 100:
 						havePrinted100 = True
 
-				# which inserted variants are in this window?
-				varsInWindow = []
-				updated = False
-				for j in xrange(vindFromPrev,len(validVariants)):
-					vPos = validVariants[j][0]
-					if vPos > start and vPos < end-buffer_added:	# update: changed >= to >, so variant cannot be inserted in first position
-						varsInWindow.append(tuple([vPos-1]+list(validVariants[j][1:])))	# vcf --> array coords
-					if vPos >= end-overlap-1 and updated == False:
-						updated = True
-						vindFromPrev = j
-					if vPos >= end:
-						break
 
 				# if computing only VCF, we can skip this...
 				if ONLY_VCF:
