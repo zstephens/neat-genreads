@@ -463,7 +463,7 @@ def main():
 				# adjust end-position of window based on inserted structural mutations
 				buffer_added = 0
 				for n in structuralVars:
-					delta = (end-1) - (n[0] + n[1]) - 1
+					delta = (end-1) - (n[0] + n[1]) - 2
 					if delta <= 0:
 						####print 'DELTA:', delta, 'END:', end, '-->',
 						buffer_added = -delta
@@ -527,7 +527,7 @@ def main():
 				#sequences.insert_mutations(variants_to_insert)
 
 				# some inserted variant debugging...
-				print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
+				####print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
 
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
 				all_inserted_variants = sequences.random_mutations()
