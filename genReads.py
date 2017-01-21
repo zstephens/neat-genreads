@@ -450,8 +450,9 @@ def main():
 					while structuralVars[currentVariantInd][0] <= end:
 						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
 						if delta <= 0:
-							####print 'DELTA:', delta
-							end -= (delta-2)	# changed -1 to -2 to add one extra buffer
+							print 'DELTA:', delta, 'END:', end, '-->',
+							end -= (delta-1)
+							print end
 						currentVariantInd += 1
 						if currentVariantInd == len(structuralVars):
 							break
