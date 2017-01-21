@@ -457,7 +457,7 @@ def main():
 				# determine which structural variants will affect our sampling window positions
 				structuralVars = []
 				for n in varsInWindow:
-					bufferNeeded = max([max([len(n[1])-len(alt_allele),1]) for alt_allele in n[2]])
+					bufferNeeded = max([max([abs(len(n[1])-len(alt_allele)),1]) for alt_allele in n[2]]) # change: added abs() so that insertions are also buffered.
 					structuralVars.append((n[0]-1,bufferNeeded))	# -1 because going from VCF coords to array coords
 
 				# adjust end-position of window based on inserted structural mutations
@@ -476,7 +476,7 @@ def main():
 					isLastTime = True
 
 				# print progress indicator
-				print 'PROCESSING WINDOW:',(start,end), [buffer_added]
+				####print 'PROCESSING WINDOW:',(start,end), [buffer_added]
 				currentProgress += end-start
 				newPercent = int((currentProgress*100)/float(total_bp_span))
 				if newPercent > currentPercent:
@@ -527,7 +527,7 @@ def main():
 				#sequences.insert_mutations(variants_to_insert)
 
 				# some inserted variant debugging...
-				print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
+				####print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
 
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
 				all_inserted_variants = sequences.random_mutations()
