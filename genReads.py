@@ -439,6 +439,7 @@ def main():
 			varsCancerFromPrevOverlap = []
 			vindFromPrev = 0
 			isLastTime = False
+			havePrinted100 = False
 
 			while True:
 				####print (start,end)
@@ -450,7 +451,7 @@ def main():
 						delta = (end-1) - (structuralVars[currentVariantInd][0] + structuralVars[currentVariantInd][1])
 						if delta <= 0:
 							####print 'DELTA:', delta
-							end -= (delta-1)
+							end -= (delta-2)	# changed -1 to -2 to add one extra buffer
 						currentVariantInd += 1
 						if currentVariantInd == len(structuralVars):
 							break
@@ -466,9 +467,12 @@ def main():
 				currentProgress += end-start
 				newPercent = int((currentProgress*100)/float(total_bp_span))
 				if newPercent > currentPercent:
-					sys.stdout.write(str(newPercent)+'% ')
-					sys.stdout.flush()
+					if newPercent == 100 and not havePrinted100:
+						sys.stdout.write(str(newPercent)+'% ')
+						sys.stdout.flush()
 					currentPercent = newPercent
+					if currentPercent == 100:
+						havePrinted100 = True
 
 				# which inserted variants are in this window?
 				varsInWindow = []
@@ -615,7 +619,7 @@ def main():
 				if end >= pf:
 					isLastTime = True
 
-		if currentPercent != 100:
+		if currentPercent != 100 and not havePrinted100:
 			print '100%'
 		else:
 			print ''
