@@ -4,6 +4,8 @@ import bisect
 import copy
 import numpy as np
 
+####LOW_PROB_THRESH = 1e-12
+
 def mean_ind_of_weighted_list(l):
 	myMid = sum(l)/2.0
 	mySum = 0.0
@@ -23,6 +25,15 @@ class DiscreteDistribution:
 			print '\nError: length and weights and values vectors must be the same.\n'
 			exit(1)
 		self.degenerate = degenerateVal
+		# prune values with probability too low to be worth using [DOESN'T REALLY IMPROVE PERFORMANCE]
+		####if self.degenerate != None:
+		####	for i in xrange(len(self.weights)-1,-1,-1):
+		####		if self.weights[i] < LOW_PROB_THRESH:
+		####			del self.weights[i]
+		####			del self.values[i]
+		####	if len(self.weights) == 0:
+		####		print '\nError: probability distribution has no usable values.\n'
+		####		exit(1)
 
 		if self.method == 'alias':
 			K       = len(self.weights)

@@ -18,6 +18,9 @@ NUC_IND = {'A':0, 'C':1, 'G':2, 'T':3}
 ALL_TRI = [NUCL[i]+NUCL[j]+NUCL[k] for i in xrange(len(NUCL)) for j in xrange(len(NUCL)) for k in xrange(len(NUCL))]
 ALL_IND = {ALL_TRI[i]:i for i in xrange(len(ALL_TRI))}
 
+# DEBUG
+IGNORE_TRINUC = False
+
 #
 #	Container for reference sequences, applies mutations
 #
@@ -140,7 +143,8 @@ class SequenceContainer:
 		self.snpsToAdd   = [n.sample() for n in self.snp_pois]
 		#print (self.indelsToAdd,self.snpsToAdd)
 		# initialize trinuc snp bias
-		self.init_trinucBias()
+		if not IGNORE_TRINUC:
+			self.init_trinucBias()
 
 	def insert_mutations(self, inputList):
 		#
@@ -268,9 +272,11 @@ class SequenceContainer:
 				for attempt in xrange(MAX_ATTEMPTS):
 					# based on the mutation model for the specified ploid, choose a SNP location based on trinuc bias
 					# (if there are multiple ploids, choose one at random)
-					#eventPos = random.randint(self.winBuffer+1,self.seqLen-2)
-					ploid_to_use = whichPloid[random.randint(0,len(whichPloid)-1)]
-					eventPos     = self.trinuc_bias[ploid_to_use].sample()
+					if IGNORE_TRINUC:
+						eventPos = random.randint(self.winBuffer+1,self.seqLen-2)
+					else:
+						ploid_to_use = whichPloid[random.randint(0,len(whichPloid)-1)]
+						eventPos     = self.trinuc_bias[ploid_to_use].sample()
 					for p in whichPloid:
 						if self.blackList[p][eventPos]:
 							eventPos = -1

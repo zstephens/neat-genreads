@@ -416,6 +416,8 @@ def main():
 			print 'generating vcf...'
 		else:
 			print 'sampling reads...'
+		tt = time.time()
+
 		for i in xrange(len(N_regions['non_N'])):
 			(pi,pf) = N_regions['non_N'][i]
 			nTargWindows = max([1,(pf-pi)/targSize])
@@ -476,7 +478,7 @@ def main():
 					isLastTime = True
 
 				# print progress indicator
-				####print 'PROCESSING WINDOW:',(start,end), [buffer_added]
+				####print 'PROCESSING WINDOW:',(start,end), [buffer_added], 'next:', (next_start,next_end)
 				currentProgress += end-start
 				newPercent = int((currentProgress*100)/float(total_bp_span))
 				if newPercent > currentPercent:
@@ -598,6 +600,11 @@ def main():
 						else:
 							print '\nError: Unexpected number of reads generated...\n'
 							exit(1)
+							
+					if not isLastTime:
+						OFW.flushBuffers(bamMax=next_start)
+					else:
+						OFW.flushBuffers(bamMax=end+1)
 
 				# tally up all the variants that got successfully introduced
 				for n in all_inserted_variants:
@@ -615,9 +622,15 @@ def main():
 			print '100%'
 		else:
 			print ''
+		if ONLY_VCF:
+			print 'VCF generation completed in',
+		else:
+			print 'Read sampling completed in',
+		print int(time.time()-tt),'(sec)'
 
 		# write all output variants for this reference
 		if SAVE_VCF:
+			print 'Writing output VCF...'
 			for k in sorted(ALL_VARIANTS_OUT.keys()):
 				currentRef = refIndex[RI][0]
 				myID       = '.'

@@ -27,6 +27,8 @@ CIGAR_PACKED = {'M':0, 'I':1, 'D':2, 'N':3, 'S':4, 'H':5, 'P':6, '=':7, 'X':8}
 SEQ_PACKED   = {'=':0, 'A':1, 'C':2, 'M':3, 'G':4, 'R':5, 'S':6, 'V':7,
                 'T':8, 'W':9, 'Y':10,'H':11,'K':12,'D':13,'B':14,'N':15}
 
+BUFFER_BATCH_SIZE = 1000		# write out to file after this many reads
+
 #
 #	outFQ      = path to output FASTQ prefix
 #	paired     = True for PE reads, False for SE
@@ -99,7 +101,7 @@ class OutputFileWriter:
 			# WRITE BAM HEADER (if parallel: only for first job)
 			if True or jobTuple[0] == 1:
 				self.bam_file.write("BAM\1")
-				header = '@HD\tVN:1.5\tSO:unsorted\n'
+				header = '@HD\tVN:1.5\tSO:coordinate\n'
 				for n in BAM_header[0]:
 					header += '@SQ\tSN:'+n[0]+'\tLN:'+str(n[3])+'\n'
 				header += '@RG\tID:NEAT\n'
@@ -115,10 +117,17 @@ class OutputFileWriter:
 					self.bam_file.write(n[0]+'\0')
 					self.bam_file.write(pack('<i',n[3]))
 
+		# buffers for more efficient writing
+		self.fq1_buffer = []
+		self.fq2_buffer = []
+		self.bam_buffer = []
+
 	def writeFASTQRecord(self,readName,read1,qual1,read2=None,qual2=None):
-		self.fq1_file.write('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
+		###self.fq1_file.write('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
+		self.fq1_buffer.append('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
 		if read2 != None:
-			self.fq2_file.write('@'+readName+'/2\n'+RC(read2)+'\n+\n'+qual2[::-1]+'\n')
+			####self.fq2_file.write('@'+readName+'/2\n'+RC(read2)+'\n+\n'+qual2[::-1]+'\n')
+			self.fq2_buffer.append('@'+readName+'/2\n'+RC(read2)+'\n+\n'+qual2[::-1]+'\n')
 
 	def writeVCFRecord(self, chrom, pos, idStr, ref, alt, qual, filt, info):
 		self.vcf_file.write(str(chrom)+'\t'+str(pos)+'\t'+str(idStr)+'\t'+str(ref)+'\t'+str(alt)+'\t'+str(qual)+'\t'+str(filt)+'\t'+str(info)+'\n')
@@ -173,22 +182,54 @@ class OutputFileWriter:
 		#blockSize = 32 + len(readName)+1 + 4*cig_ops + encodedLen + len(seq)
 		blockSize = 32 + len(readName)+1 + len(encodedCig) + len(encodedSeq) + len(encodedQual)
 
-		self.bam_file.write(pack('<i',blockSize))
-		self.bam_file.write(pack('<i',refID))
-		self.bam_file.write(pack('<i',pos_0))
-		self.bam_file.write(pack('<I',(myBin<<16) + (myMapQual<<8) + len(readName)+1))
-		self.bam_file.write(pack('<I',(samFlag<<16) + cig_ops))
-		self.bam_file.write(pack('<i',seqLen))
-		self.bam_file.write(pack('<i',next_refID))
-		self.bam_file.write(pack('<i',next_pos))
-		self.bam_file.write(pack('<i',my_tlen))
-		self.bam_file.write(readName+'\0')
-		self.bam_file.write(encodedCig)
-		self.bam_file.write(encodedSeq)
-		self.bam_file.write(encodedQual)
+		####self.bam_file.write(pack('<i',blockSize))
+		####self.bam_file.write(pack('<i',refID))
+		####self.bam_file.write(pack('<i',pos_0))
+		####self.bam_file.write(pack('<I',(myBin<<16) + (myMapQual<<8) + len(readName)+1))
+		####self.bam_file.write(pack('<I',(samFlag<<16) + cig_ops))
+		####self.bam_file.write(pack('<i',seqLen))
+		####self.bam_file.write(pack('<i',next_refID))
+		####self.bam_file.write(pack('<i',next_pos))
+		####self.bam_file.write(pack('<i',my_tlen))
+		####self.bam_file.write(readName+'\0')
+		####self.bam_file.write(encodedCig)
+		####self.bam_file.write(encodedSeq)
+		####self.bam_file.write(encodedQual)
+
+		# a horribly compressed line, I'm sorry.
+		# (ref_index, position, data)
+		self.bam_buffer.append((refID, pos_0, pack('<i',blockSize) + pack('<i',refID) + pack('<i',pos_0) + pack('<I',(myBin<<16) + (myMapQual<<8) + len(readName)+1) + pack('<I',(samFlag<<16) + cig_ops) + pack('<i',seqLen) + pack('<i',next_refID) + pack('<i',next_pos) + pack('<i',my_tlen) + readName+'\0' + encodedCig + encodedSeq + encodedQual))
+
+
+	def flushBuffers(self,bamMax=None,lastTime=False):
+		if len(self.fq1_buffer) >= BUFFER_BATCH_SIZE or (len(self.fq1_buffer) and lastTime):
+			# fq
+			self.fq1_file.write(''.join(self.fq1_buffer))
+			if len(self.fq2_buffer):
+				self.fq2_file.write(''.join(self.fq2_buffer))
+			# bam
+			if len(self.bam_buffer):
+				bam_data = sorted(self.bam_buffer)
+				ind_to_stop_at = 0
+				for i in xrange(0,len(bam_data)):
+					# if we are from previous reference, or have coordinates lower than next window position, it's safe to write out to file
+					if bam_data[i][0] != bam_data[-1][0] or bam_data[i][1] < bamMax:
+						ind_to_stop_at = i+1
+					else:
+						break
+				self.bam_file.write(''.join([n[2] for n in bam_data[:ind_to_stop_at]]))
+				####print 'BAM WRITING:',ind_to_stop_at,'/',len(bam_data)
+				if ind_to_stop_at >= len(bam_data):
+					self.bam_buffer = []
+				else:
+					self.bam_buffer = bam_data[ind_to_stop_at:]
+			self.fq1_buffer = []
+			self.fq2_buffer = []
+			self.bam_buffer = []
 
 
 	def closeFiles(self):
+		self.flushBuffers(lastTime=True)
 		self.fq1_file.close()
 		if self.fq2_file != None:
 			self.fq2_file.close()
