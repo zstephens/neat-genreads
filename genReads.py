@@ -37,6 +37,8 @@ from OutputFileWriter	import OutputFileWriter
 from probability		import DiscreteDistribution, mean_ind_of_weighted_list
 from SequenceContainer	import SequenceContainer, ReadContainer, parseInputMutationModel
 
+# if coverage val for a given window/position is below this value, consider it effectively zero.
+LOW_COV_THRESH = 1e-6
 
 """//////////////////////////////////////////////////
 ////////////    PARSE INPUT ARGUMENTS    ////////////
@@ -500,10 +502,14 @@ def main():
 					coverage_dat = (GC_WINDOW_SIZE,[])
 					for j in xrange(nSubWindows):
 						rInd = start + j*GC_WINDOW_SIZE
-						if INPUT_BED == None: tCov = True
-						else: tCov = not(bisect.bisect(inputRegions[myChr],rInd)%2) or not(bisect.bisect(inputRegions[myChr],rInd+GC_WINDOW_SIZE)%2)
-						if tCov: tScl = 1.0
-						else: tScl = OFFTARGET_SCALAR
+						if INPUT_BED == None:
+							tCov = True
+						else:
+							tCov = not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd)%2) or not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd+GC_WINDOW_SIZE)%2)
+						if tCov:
+							tScl = 1.0
+						else:
+							tScl = OFFTARGET_SCALAR
 						gc_v = refSequence[rInd:rInd+GC_WINDOW_SIZE].count('G') + refSequence[rInd:rInd+GC_WINDOW_SIZE].count('C')
 						gScl = GC_SCALE_VAL[gc_v]
 						coverage_dat[1].append(1.0*tScl*gScl)
@@ -556,7 +562,12 @@ def main():
 					else:
 						readsToSample = int(((end-start)*meanCov*coverage_avg)/(READLEN))+1
 
-					# sample reads from altered reference
+					# if coverage is so low such that no reads are to be sampled, skip region
+					#      (i.e., remove buffer of +1 reads we add to every window)
+					if readsToSample == 1 and coverage_avg < LOW_COV_THRESH:
+						readsToSample = 0
+
+					# sample reads
 					for i in xrange(readsToSample):
 
 						if PAIRED_END:
@@ -600,7 +611,7 @@ def main():
 						else:
 							print '\nError: Unexpected number of reads generated...\n'
 							exit(1)
-							
+
 					if not isLastTime:
 						OFW.flushBuffers(bamMax=next_start)
 					else:
