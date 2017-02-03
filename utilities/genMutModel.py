@@ -129,9 +129,10 @@ parser.add_argument('-m',  type=str, required=True,  metavar='<str>',           
 parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                  help="* output.p")
 parser.add_argument('-bi', type=str, required=False, metavar='<str>',   default=None,  help="only_use_these_regions.bed")
 parser.add_argument('-be', type=str, required=False, metavar='<str>',   default=None,  help="exclude_these_regions.bed")
-parser.add_argument('--save-trinuc',required=False,action='store_true', default=False, help='save trinuc counts for ref')
+parser.add_argument('--save-trinuc', required=False,action='store_true', default=False, help='save trinuc counts for ref')
+parser.add_argument('--no-whitelist',required=False,action='store_true', default=False, help='allow any non-standard ref')
 args = parser.parse_args()
-(REF, TSV, OUT_PICKLE, SAVE_TRINUC) = (args.r, args.m, args.o, args.save_trinuc)
+(REF, TSV, OUT_PICKLE, SAVE_TRINUC, NO_WHITELIST) = (args.r, args.m, args.o, args.save_trinuc, args.no_whitelist)
 
 MYBED = None
 if args.bi != None:
@@ -184,7 +185,7 @@ def main():
 	# load and process variants in each reference sequence individually, for memory reasons...
 	for refName in refList:
 
-		if refName not in REF_WHITELIST:
+		if (refName not in REF_WHITELIST) and (not NO_WHITELIST):
 			print refName,'is not in our whitelist, skipping...'
 			continue
 
