@@ -722,7 +722,11 @@ def parseInputMutationModel(model=None, whichDefault=1):
 		for i in xrange(len(outModel[8])):
 			for j in xrange(len(outModel[8][i])):
 				for l in xrange(len(outModel[8][i][j])):
-					outModel[8][i][j][l] /= float(sum(outModel[8][i][j]))
+					# if trinuc not present in input mutation model, assign it uniform probability
+					if float(sum(outModel[8][i][j])) < 1e-12:
+						outModel[8][i][j] = [0.25,0.25,0.25,0.25]
+					else:
+						outModel[8][i][j][l] /= float(sum(outModel[8][i][j]))
 
 		trinuc_mut_prob    = pickle_dict['TRINUC_MUT_PROB']
 		which_have_we_seen = {n:False for n in ALL_TRI}
