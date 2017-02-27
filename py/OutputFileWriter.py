@@ -37,7 +37,7 @@ BUFFER_BATCH_SIZE = 1000		# write out to file after this many reads
 #	gzipped    = True for compressed FASTQ/VCF, False for uncompressed
 #
 class OutputFileWriter:
-	def __init__(self, outPrefix, paired=False, BAM_header=None, VCF_header=None, gzipped=False, jobTuple=(1,1)):
+	def __init__(self, outPrefix, paired=False, BAM_header=None, VCF_header=None, gzipped=False, jobTuple=(1,1), noFASTQ=False):
 		
 		jobSuffix = ''
 		if jobTuple[1] > 1:
@@ -50,17 +50,19 @@ class OutputFileWriter:
 		bam = outPrefix+'_golden.bam'+jobSuffix
 		vcf = outPrefix+'_golden.vcf'+jobSuffix
 
-		if gzipped:
-			self.fq1_file = gzip.open(fq1+'.gz', 'wb')
-		else:
-			self.fq1_file = open(fq1,'w')
-
-		self.fq2_file = None
-		if paired:
+		self.noFASTQ = noFASTQ
+		if not self.noFASTQ:
 			if gzipped:
-				self.fq2_file = gzip.open(fq2+'.gz', 'wb')
+				self.fq1_file = gzip.open(fq1+'.gz', 'wb')
 			else:
-				self.fq2_file = open(fq2,'w')
+				self.fq1_file = open(fq1,'w')
+
+			self.fq2_file = None
+			if paired:
+				if gzipped:
+					self.fq2_file = gzip.open(fq2+'.gz', 'wb')
+				else:
+					self.fq2_file = open(fq2,'w')
 
 		#
 		#	VCF OUTPUT
@@ -202,11 +204,12 @@ class OutputFileWriter:
 
 
 	def flushBuffers(self,bamMax=None,lastTime=False):
-		if len(self.fq1_buffer) >= BUFFER_BATCH_SIZE or (len(self.fq1_buffer) and lastTime):
+		if (len(self.fq1_buffer) >= BUFFER_BATCH_SIZE or len(self.bam_buffer) >= BUFFER_BATCH_SIZE) or (len(self.fq1_buffer) and lastTime) or (len(self.bam_buffer) and lastTime):
 			# fq
-			self.fq1_file.write(''.join(self.fq1_buffer))
-			if len(self.fq2_buffer):
-				self.fq2_file.write(''.join(self.fq2_buffer))
+			if not self.noFASTQ:
+				self.fq1_file.write(''.join(self.fq1_buffer))
+				if len(self.fq2_buffer):
+					self.fq2_file.write(''.join(self.fq2_buffer))
 			# bam
 			if len(self.bam_buffer):
 				bam_data = sorted(self.bam_buffer)
@@ -230,9 +233,10 @@ class OutputFileWriter:
 
 	def closeFiles(self):
 		self.flushBuffers(lastTime=True)
-		self.fq1_file.close()
-		if self.fq2_file != None:
-			self.fq2_file.close()
+		if not self.noFASTQ:
+			self.fq1_file.close()
+			if self.fq2_file != None:
+				self.fq2_file.close()
 		if self.vcf_file != None:
 			self.vcf_file.close()
 		if self.bam_file != None:
