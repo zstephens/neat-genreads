@@ -628,6 +628,9 @@ class ReadContainer:
 			qOut[i] = myQ + self.offQ
 		qOut = ''.join([chr(n) for n in qOut])
 
+		if self.errorScale == 0.0:
+			return (qOut,[])
+
 		sOut = []
 		nDelSoFar = 0
 		# don't allow indel errors to occur on subsequent positions
