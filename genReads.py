@@ -280,6 +280,7 @@ def main():
 
 	# parse input targeted regions, if present
 	inputRegions = {}
+	refList      = [n[0] for n in refIndex]
 	if INPUT_BED != None:
 		with open(INPUT_BED,'r') as f:
 			for line in f:
@@ -287,6 +288,21 @@ def main():
 				if myChr not in inputRegions:
 					inputRegions[myChr] = [-1]
 				inputRegions[myChr].extend([int(pos1),int(pos2)])
+		# some validation
+		nInBedOnly = 0
+		nInRefOnly = 0
+		for k in refList:
+			if k not in inputRegions:
+				nInRefOnly += 1
+		for k in inputRegions.keys():
+			if not k in refList:
+				nInBedOnly += 1
+				del inputRegions[k]
+		if nInRefOnly > 0:
+			print 'Warning: Reference contains sequences not found in targeted regions BED file.'
+		if nInBedOnly > 0:
+			print 'Warning: Targeted regions BED file contains sequence names not found in reference (regions ignored).'
+
 
 	# parse input mutation rate rescaling regions, if present
 	mutRateRegions = {}
@@ -504,8 +520,10 @@ def main():
 						rInd = start + j*GC_WINDOW_SIZE
 						if INPUT_BED == None:
 							tCov = True
-						else:
+						elif refIndex[RI][0] in inputRegions:
 							tCov = not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd)%2) or not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd+GC_WINDOW_SIZE)%2)
+						else:
+							tCov = False
 						if tCov:
 							tScl = 1.0
 						else:
