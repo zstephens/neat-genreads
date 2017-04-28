@@ -591,10 +591,14 @@ def main():
 						if PAIRED_END:
 							myFraglen = FRAGLEN_DISTRIBUTION.sample()
 							myReadData = sequences.sample_read(SE_CLASS,myFraglen)
+							if myReadData == None:	# skip if we failed to find a valid position to sample read
+								continue
 							myReadData[0][0] += start	# adjust mapping position based on window start
 							myReadData[1][0] += start
 						else:
 							myReadData = sequences.sample_read(SE_CLASS)
+							if myReadData == None:	# skip if we failed to find a valid position to sample read
+								continue
 							myReadData[0][0] += start	# adjust mapping position based on window start
 					
 						if NJOBS > 1:

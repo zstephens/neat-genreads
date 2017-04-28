@@ -171,6 +171,11 @@ class SequenceContainer:
 						if splt[i] == '1':
 							whichPloid.append(i)
 						whichAlt.append(int(splt[i])-1)
+
+			# ignore invalid ploids
+			for i in xrange(len(whichPloid)-1,-1,-1):
+				if whichPloid[i] >= self.ploidy:
+					del whichPloid[i]
 						
 			for i in xrange(len(whichPloid)):
 				p = whichPloid[i]
@@ -390,6 +395,10 @@ class SequenceContainer:
 		# choose a ploid
 		myPloid = random.randint(0,self.ploidy-1)
 
+		# stop attempting to find a valid position if we fail enough times
+		MAX_READPOS_ATTEMPTS = 100
+		attempts_thus_far    = 0
+
 		# choose a random position within the ploid, and generate quality scores / sequencing errors
 		readsToSample = []
 		if fragLen == None:
@@ -398,10 +407,17 @@ class SequenceContainer:
 			# decide which subsection of the sequence to sample from using coverage probabilities
 			coords_bad = True
 			while coords_bad:
+				attempts_thus_far += 1
+				if attempts_thus_far > MAX_READPOS_ATTEMPTS:
+					return None
 				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
 				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
+				if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
+					continue
 				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
-				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[1]]
+				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]
+				if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
+					continue
 				if coords_to_select_from[1] < len(self.sequences[myPloid])-self.readLen:
 					coords_bad = False
 			rPos = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
@@ -417,10 +433,17 @@ class SequenceContainer:
 			# decide which subsection of the sequence to sample from using coverage probabilities
 			coords_bad = True
 			while coords_bad:
+				attempts_thus_far += 1
+				if attempts_thus_far > MAX_READPOS_ATTEMPTS:
+					return None
 				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
 				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
+				if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
+					continue
 				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
 				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]	# both ends use index of starting position to avoid issues with reads spanning breakpoints of large events
+				if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
+					continue
 				rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
 				# for PE-reads, flip a coin to decide if R1 or R2 will be the "covering" read
 				if random.randint(1,2) == 1 and rPos1 > fragLen - self.readLen:
@@ -431,6 +454,7 @@ class SequenceContainer:
 			rPos2 = rPos1 + fragLen - self.readLen
 			rDat1 = self.sequences[myPloid][rPos1:rPos1+self.readLen]
 			rDat2 = self.sequences[myPloid][rPos2:rPos2+self.readLen]
+			#print len(rDat1), rPos1, len(self.sequences[myPloid])
 			(myQual1, myErrors1) = sequencingModel.getSequencingErrors(rDat1)
 			(myQual2, myErrors2) = sequencingModel.getSequencingErrors(rDat2,isReverseStrand=True)
 			readsToSample.append([rPos1,myQual1,myErrors1,rDat1])
