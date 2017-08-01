@@ -84,6 +84,7 @@ class OutputFileWriter:
 				self.vcf_file.write('##INFO=<ID=VMX,Number=1,Type=String,Description="SNP is Missense in these Read Frames">\n')
 				self.vcf_file.write('##INFO=<ID=VNX,Number=1,Type=String,Description="SNP is Nonsense in these Read Frames">\n')
 				self.vcf_file.write('##INFO=<ID=VFX,Number=1,Type=String,Description="Indel Causes Frameshift">\n')
+				self.vcf_file.write('##INFO=<ID=WP,Number=A,Type=Integer,Description="NEAT-GenReads ploidy indicator">\n')
 				self.vcf_file.write('##ALT=<ID=DEL,Description="Deletion">\n')
 				self.vcf_file.write('##ALT=<ID=DUP,Description="Duplication">\n')
 				self.vcf_file.write('##ALT=<ID=INS,Description="Insertion of novel sequence">\n')
