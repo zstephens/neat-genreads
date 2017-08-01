@@ -435,6 +435,7 @@ class SequenceContainer:
 			while coords_bad:
 				attempts_thus_far += 1
 				if attempts_thus_far > MAX_READPOS_ATTEMPTS:
+					print coords_to_select_from
 					return None
 				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
 				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]

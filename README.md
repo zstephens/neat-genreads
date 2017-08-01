@@ -36,7 +36,7 @@ Table of Contents
 * Numpy 1.9.1+
 
 ## Usage
-Here's the simplest invocation of genReads using default parameters. This command produces a single ended fastq file with reads of length 100, ploidy 2, coverage 10X, using the default sequencing substitution, GC% bias, and mutation rate models.
+Here's the simplest invocation of genReads using default parameters. This command produces a single ended fastq file with reads of length 101, ploidy 2, coverage 10X, using the default sequencing substitution, GC% bias, and mutation rate models.
 
 ```
 python genReads.py -r ref.fa -R 101 -o simulated_data
