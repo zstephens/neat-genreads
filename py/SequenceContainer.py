@@ -157,10 +157,12 @@ class SequenceContainer:
 				whichPloid.append(self.ploidMutPrior.sample())
 				whichAlt = [0]
 			else:
-				if 'WP=' in wps:
-					whichPloid = [int(n) for n in inpV[-1][3:].split(',') if n == '1']
-					whichAlt   = [0]*len(whichPloid)
-				elif '/' in wps or '|' in wps:
+				#if 'WP=' in wps:
+				#	whichPloid = [int(n) for n in inpV[-1][3:].split(',') if n == '1']
+				#	print 'WHICH:', whichPloid
+				#	whichAlt   = [0]*len(whichPloid)
+				#elif '/' in wps or '|' in wps:
+				if '/' in wps or '|' in wps:
 					if '/' in wps:
 						splt = wps.split('/')
 					else:
@@ -171,6 +173,9 @@ class SequenceContainer:
 						if splt[i] == '1':
 							whichPloid.append(i)
 						whichAlt.append(int(splt[i])-1)
+				else:	# otherwise assume monoploidy
+					whichPloid = [0]
+					whichAlt   = [0]
 
 			# ignore invalid ploids
 			for i in xrange(len(whichPloid)-1,-1,-1):

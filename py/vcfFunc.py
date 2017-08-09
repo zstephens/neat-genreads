@@ -112,8 +112,8 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 							alreadyPrintedWarning = True
 						for i in xrange(len(gtEval)):
 							tmp = ['0']*ploidy
-							tmp[random.randint(0,1)] = '1'
-							gtEval[i] = tmp[0]+'/'+tmp[1]
+							tmp[random.randint(0,ploidy-1)] = '1'
+							gtEval[i] = '/'.join(tmp)
 					else:
 						# skip because no GT field was found
 						nSkipped += 1
