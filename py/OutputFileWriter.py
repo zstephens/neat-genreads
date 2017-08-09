@@ -214,22 +214,25 @@ class OutputFileWriter:
 			# bam
 			if len(self.bam_buffer):
 				bam_data = sorted(self.bam_buffer)
-				ind_to_stop_at = 0
-				for i in xrange(0,len(bam_data)):
-					# if we are from previous reference, or have coordinates lower than next window position, it's safe to write out to file
-					if bam_data[i][0] != bam_data[-1][0] or bam_data[i][1] < bamMax:
-						ind_to_stop_at = i+1
-					else:
-						break
-				self.bam_file.write(''.join([n[2] for n in bam_data[:ind_to_stop_at]]))
-				####print 'BAM WRITING:',ind_to_stop_at,'/',len(bam_data)
-				if ind_to_stop_at >= len(bam_data):
+				if lastTime:
+					self.bam_file.write(''.join([n[2] for n in bam_data]))
 					self.bam_buffer = []
 				else:
-					self.bam_buffer = bam_data[ind_to_stop_at:]
+					ind_to_stop_at = 0
+					for i in xrange(0,len(bam_data)):
+						# if we are from previous reference, or have coordinates lower than next window position, it's safe to write out to file
+						if bam_data[i][0] != bam_data[-1][0] or bam_data[i][1] < bamMax:
+							ind_to_stop_at = i+1
+						else:
+							break
+					self.bam_file.write(''.join([n[2] for n in bam_data[:ind_to_stop_at]]))
+					####print 'BAM WRITING:',ind_to_stop_at,'/',len(bam_data)
+					if ind_to_stop_at >= len(bam_data):
+						self.bam_buffer = []
+					else:
+						self.bam_buffer = bam_data[ind_to_stop_at:]
 			self.fq1_buffer = []
 			self.fq2_buffer = []
-			self.bam_buffer = []
 
 
 	def closeFiles(self):
