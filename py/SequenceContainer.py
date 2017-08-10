@@ -172,7 +172,9 @@ class SequenceContainer:
 					for i in xrange(len(splt)):
 						if splt[i] == '1':
 							whichPloid.append(i)
-						whichAlt.append(int(splt[i])-1)
+						#whichAlt.append(int(splt[i])-1)
+					# assume we're just using first alt for inserted variants?
+					whichAlt = [0 for n in whichPloid]
 				else:	# otherwise assume monoploidy
 					whichPloid = [0]
 					whichAlt   = [0]

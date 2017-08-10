@@ -482,13 +482,20 @@ def main():
 
 				# adjust end-position of window based on inserted structural mutations
 				buffer_added = 0
-				for n in structuralVars:
-					delta = (end-1) - (n[0] + n[1]) - 2
-					if delta <= 0:
-						####print 'DELTA:', delta, 'END:', end, '-->',
-						buffer_added = -delta
-						end += buffer_added
-						####print end
+				keepGoing = True
+				while keepGoing:
+					keepGoing = False
+					for n in structuralVars:
+						# adding "overlap" here to prevent SVs from being introduced in overlap regions
+						# (which can cause problems if random mutations from the previous window land on top of them)
+						delta = (end-1) - (n[0] + n[1]) - 2 - overlap
+						if delta < 0:
+							#print 'DELTA:', delta, 'END:', end, '-->',
+							buffer_added = -delta
+							end += buffer_added
+							####print end
+							keepGoing = True
+							break
 				next_start = end-overlap
 				next_end   = min([next_start+bpd,pf])
 				if next_end-next_start < bpd:
