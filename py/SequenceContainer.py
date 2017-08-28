@@ -425,6 +425,8 @@ class SequenceContainer:
 				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]
 				if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
 					continue
+				if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
+					continue
 				if coords_to_select_from[1] < len(self.sequences[myPloid])-self.readLen:
 					coords_bad = False
 			rPos = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
@@ -442,7 +444,7 @@ class SequenceContainer:
 			while coords_bad:
 				attempts_thus_far += 1
 				if attempts_thus_far > MAX_READPOS_ATTEMPTS:
-					print coords_to_select_from
+					#print coords_to_select_from
 					return None
 				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
 				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
@@ -451,6 +453,8 @@ class SequenceContainer:
 				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
 				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]	# both ends use index of starting position to avoid issues with reads spanning breakpoints of large events
 				if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
+					continue
+				if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
 					continue
 				rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
 				# for PE-reads, flip a coin to decide if R1 or R2 will be the "covering" read
