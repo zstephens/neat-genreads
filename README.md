@@ -52,12 +52,12 @@ Option           |  Description
 -R <int>         |  Read length. Required. 
 -o <str>         |  Output prefix. Use this option to specify where and what to call output files. Required
 -c <float>       |  Average coverage across the entire dataset. Default: 10
--e <str>         |  Sequencing error model.
+-e <str>         |  Sequencing error model pickle file
 -E <float>       |  Average sequencing error rate. The sequencing error rate model is rescaled to make this the average value. 
 -p <int>         |  ploidy [2]
 -t <str>         |  bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
 -to <float>      |  off-target coverage scalar [0.02]
--m <str>         |  mutation model directory
+-m <str>         |  mutation model pickle file
 -M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3. These random mutations are inserted in addition to the once specified in the -v option.
 -s <str>         |  input sample model
 -v <str>         |  Input VCF file. Variants from this VCF will be inserted into the simulated sequence with 100% certainty.
