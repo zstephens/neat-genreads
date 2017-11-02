@@ -124,15 +124,16 @@ def isInBed(track,ind):
 
 
 parser = argparse.ArgumentParser(description='genMutModel.py')
-parser.add_argument('-r',  type=str, required=True,  metavar='<str>',                  help="* ref.fa")
-parser.add_argument('-m',  type=str, required=True,  metavar='<str>',                  help="* mutations.tsv [.vcf]")
-parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                  help="* output.p")
-parser.add_argument('-bi', type=str, required=False, metavar='<str>',   default=None,  help="only_use_these_regions.bed")
-parser.add_argument('-be', type=str, required=False, metavar='<str>',   default=None,  help="exclude_these_regions.bed")
+parser.add_argument('-r',  type=str, required=True,  metavar='<str>',                   help="* ref.fa")
+parser.add_argument('-m',  type=str, required=True,  metavar='<str>',                   help="* mutations.tsv [.vcf]")
+parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                   help="* output.p")
+parser.add_argument('-bi', type=str, required=False, metavar='<str>',    default=None,  help="only_use_these_regions.bed")
+parser.add_argument('-be', type=str, required=False, metavar='<str>',    default=None,  help="exclude_these_regions.bed")
 parser.add_argument('--save-trinuc', required=False,action='store_true', default=False, help='save trinuc counts for ref')
 parser.add_argument('--no-whitelist',required=False,action='store_true', default=False, help='allow any non-standard ref')
+parser.add_argument('--skip-common', required=False,action='store_true', default=False, help='do not save common snps + high mut regions')
 args = parser.parse_args()
-(REF, TSV, OUT_PICKLE, SAVE_TRINUC, NO_WHITELIST) = (args.r, args.m, args.o, args.save_trinuc, args.no_whitelist)
+(REF, TSV, OUT_PICKLE, SAVE_TRINUC, NO_WHITELIST, SKIP_COMMON) = (args.r, args.m, args.o, args.save_trinuc, args.no_whitelist, args.skip_common)
 
 MYBED = None
 if args.bi != None:
@@ -552,14 +553,22 @@ def main():
 	#
 	# save variables to file
 	#
-	OUT_DICT = {'AVG_MUT_RATE':AVG_MUT_RATE,
-	            'SNP_FREQ':SNP_FREQ,
-	            'SNP_TRANS_FREQ':SNP_TRANS_FREQ,
-	            'INDEL_FREQ':INDEL_FREQ,
-	            'TRINUC_MUT_PROB':TRINUC_MUT_PROB,
-	            'TRINUC_TRANS_PROBS':TRINUC_TRANS_PROBS,
-	            'COMMON_VARIANTS':COMMON_VARIANTS,
-	            'HIGH_MUT_REGIONS':HIGH_MUT_REGIONS}
+	if SKIP_COMMON:
+		OUT_DICT = {'AVG_MUT_RATE':AVG_MUT_RATE,
+		            'SNP_FREQ':SNP_FREQ,
+		            'SNP_TRANS_FREQ':SNP_TRANS_FREQ,
+		            'INDEL_FREQ':INDEL_FREQ,
+		            'TRINUC_MUT_PROB':TRINUC_MUT_PROB,
+		            'TRINUC_TRANS_PROBS':TRINUC_TRANS_PROBS}
+	else:
+		OUT_DICT = {'AVG_MUT_RATE':AVG_MUT_RATE,
+		            'SNP_FREQ':SNP_FREQ,
+		            'SNP_TRANS_FREQ':SNP_TRANS_FREQ,
+		            'INDEL_FREQ':INDEL_FREQ,
+		            'TRINUC_MUT_PROB':TRINUC_MUT_PROB,
+		            'TRINUC_TRANS_PROBS':TRINUC_TRANS_PROBS,
+		            'COMMON_VARIANTS':COMMON_VARIANTS,
+		            'HIGH_MUT_REGIONS':HIGH_MUT_REGIONS}
 	pickle.dump( OUT_DICT, open( OUT_PICKLE, "wb" ) )
 
 
