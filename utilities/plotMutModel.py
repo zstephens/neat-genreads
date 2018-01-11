@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #
 #	a quick script for comparing mutation models
 #
