@@ -2,6 +2,7 @@ import random
 import copy
 import re
 import os
+import bisect
 import cPickle as pickle
 import numpy as np
 
@@ -21,14 +22,18 @@ ALL_IND = {ALL_TRI[i]:i for i in xrange(len(ALL_TRI))}
 # DEBUG
 IGNORE_TRINUC = False
 
+# percentile resolution used for fraglen quantizing
+COV_FRAGLEN_PERCENTILE = 10.
+LARGE_NUMBER = 9999999999
+
 #
 #	Container for reference sequences, applies mutations
 #
 class SequenceContainer:
-	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None, onlyVCF=False):
+	def __init__(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, onlyVCF=False):
 		# initialize basic variables
 		self.onlyVCF = onlyVCF
-		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen, coverageDat)
+		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen)
 		# initialize mutation models
 		self.init_mutModels(mutationModels, mutRate)
 		# sample the number of variants that will be inserted into each ploid
@@ -38,7 +43,7 @@ class SequenceContainer:
 		# initialize trinuc snp bias
 		self.init_trinucBias()
 
-	def init_basicVars(self, xOffset, sequence, ploidy, windowOverlap, readLen, coverageDat):
+	def init_basicVars(self, xOffset, sequence, ploidy, windowOverlap, readLen):
 		self.x         = xOffset
 		self.ploidy    = ploidy
 		self.readLen   = readLen
@@ -47,6 +52,8 @@ class SequenceContainer:
 		self.indelList = [[] for n in xrange(self.ploidy)]
 		self.snpList   = [[] for n in xrange(self.ploidy)]
 		self.allCigar  = [[] for n in xrange(self.ploidy)]
+		self.FM_pos    = [[] for n in xrange(self.ploidy)]
+		self.FM_span   = [[] for n in xrange(self.ploidy)]
 		self.adj       = [None for n in xrange(self.ploidy)]
 		# blackList[ploid][pos] = 0		safe to insert variant here
 		# blackList[ploid][pos] = 1		indel inserted here
@@ -59,12 +66,86 @@ class SequenceContainer:
 		for p in xrange(self.ploidy):
 			self.blackList[p][-self.winBuffer]   = 3
 			self.blackList[p][-self.winBuffer-1] = 3
-		
+
+	def init_coverage(self,coverageDat,fragDist=None):
 		# if we're only creating a vcf, skip some expensive initialization related to coverage depth
 		if not self.onlyVCF:
-			(self.windowSize, coverage_vals) = coverageDat
-			self.win_per_read = int(self.readLen/float(self.windowSize)+0.5)
-			self.which_bucket = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
+			(self.windowSize, gc_scalars, targetCov_vals) = coverageDat
+			gcCov_vals = [[] for n in self.sequences]
+			trCov_vals = [[] for n in self.sequences]
+			self.coverage_distribution = []
+			avg_out = []
+			for i in xrange(len(self.sequences)):
+				# compute gc-bias
+				j = 0
+				while j+self.windowSize < len(self.sequences[i]):
+					gc_c = self.sequences[i][j:j+self.windowSize].count('G') + self.sequences[i][j:j+self.windowSize].count('C')
+					gcCov_vals[i].extend([gc_scalars[gc_c]]*self.windowSize)
+					j += self.windowSize
+				gc_c = self.sequences[i][-self.windowSize:].count('G') + self.sequences[i][-self.windowSize:].count('C')
+				gcCov_vals[i].extend([gc_scalars[gc_c]]*(len(self.sequences[i])-len(gcCov_vals[i])))
+				#
+				trCov_vals[i].append(targetCov_vals[0])
+				prevVal = self.FM_pos[i][0]
+				for j in xrange(1,len(self.sequences[i])-self.readLen):
+					if self.FM_pos[i][j] == None:
+						trCov_vals[i].append(targetCov_vals[prevVal])
+					else:
+						trCov_vals[i].append(sum(targetCov_vals[self.FM_pos[i][j]:self.FM_span[i][j]])/float(self.FM_span[i][j]-self.FM_pos[i][j]))
+						prevVal = self.FM_pos[i][j]
+					#print (i,j), self.adj[i][j], self.allCigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
+				trCov_vals[i].extend([0.0]*(len(self.sequences[i])-len(trCov_vals[i])))
+
+				coverage_vals = []
+				for j in xrange(0,len(self.sequences[i])-self.readLen):
+					myList = [trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(j,j+self.readLen)]
+					coverage_vals.append(np.mean(myList))
+					#print (i,j), trCov_vals[i][j], gcCov_vals[i][j], coverage_vals[-1]
+				avg_out.append(np.mean(coverage_vals))
+
+				if fragDist == None:
+					self.coverage_distribution.append(DiscreteDistribution(coverage_vals,range(len(coverage_vals))))
+			
+				# fragment length nightmare
+				else:
+					currentThresh = 0.
+					index_list    = [0]
+					for j in xrange(len(fragDist.cumP)):
+						if fragDist.cumP[j] >= currentThresh + COV_FRAGLEN_PERCENTILE/100.0:
+							currentThresh = fragDist.cumP[j]
+							index_list.append(j)
+					flq = [fragDist.values[nnn] for nnn in index_list]
+					if fragDist.values[-1] not in flq:
+						flq.append(fragDist.values[-1])
+					flq.append(LARGE_NUMBER)
+
+					self.fraglens_indMap = {}
+					for j in fragDist.values:
+						bInd = bisect.bisect(flq,j)
+						if abs(flq[bInd-1] - j) <= abs(flq[bInd] - j):
+							self.fraglens_indMap[j] = flq[bInd-1]
+						else:
+							self.fraglens_indMap[j] = flq[bInd]
+					#for j in sorted(self.fraglens_indMap.keys()):
+					#	print j, self.fraglens_indMap[j]
+
+					self.coverage_distribution.append({})
+					for flv in sorted(list(set(self.fraglens_indMap.values()))):
+						coverage_vals = []
+						for j in xrange(0,len(self.sequences[i])-flv):
+							#
+							#	TO-DO: consider case where readlength is >= 50% of fraglen ??
+							#
+							myList  = [trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(j,j+self.readLen)]
+							myList += [trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(j+flv-self.readLen,j+flv)]
+							coverage_vals.append(np.mean(myList))
+						self.coverage_distribution[i][flv] = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
+
+			#exit(1)
+			#self.win_per_read = int(self.readLen/float(self.windowSize)+0.5)
+			#self.which_bucket = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
+
+			return np.mean(avg_out)
 
 	def init_mutModels(self,mutationModels,mutRate):
 		if mutationModels == []:
@@ -127,7 +208,7 @@ class SequenceContainer:
 				trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[str(self.sequences[p][i-1:i+2])]]
 			self.trinuc_bias[p] = DiscreteDistribution(trinuc_snp_bias[p][self.winBuffer+1:self.seqLen-1],range(self.winBuffer+1,self.seqLen-1))
 
-	def update(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None, coverageDat=None):
+	def update(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None):
 		# if mutation model is changed, we have to reinitialize it...
 		if ploidy != self.ploidy or mutRate != self.mutRescale or mutationModels != []:
 			self.ploidy = ploidy
@@ -138,7 +219,7 @@ class SequenceContainer:
 			self.seqLen = len(sequence)
 			self.init_poisson()
 		# basic vars
-		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen, coverageDat)
+		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen)
 		self.indelsToAdd = [n.sample() for n in self.ind_pois]
 		self.snpsToAdd   = [n.sample() for n in self.snp_pois]
 		#print (self.indelsToAdd,self.snpsToAdd)
@@ -370,7 +451,19 @@ class SequenceContainer:
 
 				for j in xrange(len(tempSymbolString)-self.readLen):
 					self.allCigar[i].append(CigarString(listIn=tempSymbolString[j:j+self.readLen]).getString())
-
+					# pre-compute reference position of first matching base
+					my_fm_pos = None
+					for k in xrange(self.readLen):
+						if 'M' in tempSymbolString[j+k]:
+							my_fm_pos = j+k
+							break
+					if my_fm_pos == None:
+						self.FM_pos[i].append(None)
+						self.FM_span[i].append(None)
+					else:
+						self.FM_pos[i].append(my_fm_pos-self.adj[i][my_fm_pos])
+						span_dif = len([nnn for nnn in tempSymbolString[j:j+self.readLen] if 'M' in nnn])
+						self.FM_span[i].append(self.FM_pos[i][-1] + span_dif)
 
 		# tally up variants implemented
 		countDict = {}
@@ -409,27 +502,28 @@ class SequenceContainer:
 		# choose a random position within the ploid, and generate quality scores / sequencing errors
 		readsToSample = []
 		if fragLen == None:
-			#rPos = random.randint(0,len(self.sequences[myPloid])-self.readLen-1)	# uniform random
-
-			# decide which subsection of the sequence to sample from using coverage probabilities
-			coords_bad = True
-			while coords_bad:
-				attempts_thus_far += 1
-				if attempts_thus_far > MAX_READPOS_ATTEMPTS:
-					return None
-				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
-				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
-				if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
-					continue
-				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
-				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]
-				if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
-					continue
-				if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
-					continue
-				if coords_to_select_from[1] < len(self.sequences[myPloid])-self.readLen:
-					coords_bad = False
-			rPos = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
+			rPos = self.coverage_distribution[myPloid].sample()
+			#####rPos = random.randint(0,len(self.sequences[myPloid])-self.readLen-1)	# uniform random
+			####
+			##### decide which subsection of the sequence to sample from using coverage probabilities
+			####coords_bad = True
+			####while coords_bad:
+			####	attempts_thus_far += 1
+			####	if attempts_thus_far > MAX_READPOS_ATTEMPTS:
+			####		return None
+			####	myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
+			####	coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
+			####	if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
+			####		continue
+			####	coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
+			####	coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]
+			####	if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
+			####		continue
+			####	if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
+			####		continue
+			####	if coords_to_select_from[1] < len(self.sequences[myPloid])-self.readLen:
+			####		coords_bad = False
+			####rPos = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
 
 			# sample read position and call function to compute quality scores / sequencing errors
 			rDat = self.sequences[myPloid][rPos:rPos+self.readLen]
@@ -437,31 +531,32 @@ class SequenceContainer:
 			readsToSample.append([rPos,myQual,myErrors,rDat])
 
 		else:
-			#rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)		# uniform random
-
-			# decide which subsection of the sequence to sample from using coverage probabilities
-			coords_bad = True
-			while coords_bad:
-				attempts_thus_far += 1
-				if attempts_thus_far > MAX_READPOS_ATTEMPTS:
-					#print coords_to_select_from
-					return None
-				myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
-				coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
-				if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
-					continue
-				coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
-				coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]	# both ends use index of starting position to avoid issues with reads spanning breakpoints of large events
-				if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
-					continue
-				if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
-					continue
-				rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
-				# for PE-reads, flip a coin to decide if R1 or R2 will be the "covering" read
-				if random.randint(1,2) == 1 and rPos1 > fragLen - self.readLen:
-					rPos1 -= fragLen - self.readLen
-				if rPos1 < len(self.sequences[myPloid])-fragLen:
-					coords_bad = False
+			rPos1 = self.coverage_distribution[myPloid][self.fraglens_indMap[fragLen]].sample()
+			#####rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)		# uniform random
+			####
+			##### decide which subsection of the sequence to sample from using coverage probabilities
+			####coords_bad = True
+			####while coords_bad:
+			####	attempts_thus_far += 1
+			####	if attempts_thus_far > MAX_READPOS_ATTEMPTS:
+			####		#print coords_to_select_from
+			####		return None
+			####	myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
+			####	coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
+			####	if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
+			####		continue
+			####	coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
+			####	coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]	# both ends use index of starting position to avoid issues with reads spanning breakpoints of large events
+			####	if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
+			####		continue
+			####	if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
+			####		continue
+			####	rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
+			####	# for PE-reads, flip a coin to decide if R1 or R2 will be the "covering" read
+			####	if random.randint(1,2) == 1 and rPos1 > fragLen - self.readLen:
+			####		rPos1 -= fragLen - self.readLen
+			####	if rPos1 < len(self.sequences[myPloid])-fragLen:
+			####		coords_bad = False
 
 			rPos2 = rPos1 + fragLen - self.readLen
 			rDat1 = self.sequences[myPloid][rPos1:rPos1+self.readLen]
@@ -566,7 +661,8 @@ class SequenceContainer:
 				#	print 'AHHHHHH_2'
 				#	exit(1)
 
-			rOut.append([r[0]-self.adj[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
+			#rOut.append([r[0]-self.adj[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
+			rOut.append([self.FM_pos[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
 
 		# rOut[i] = (pos, cigar, read_string, qual_string)
 		return rOut

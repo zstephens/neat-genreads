@@ -54,7 +54,7 @@ parser.add_argument('-e', type=str,   required=False, metavar='<str>',   default
 parser.add_argument('-E', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg sequencing error rate to this")
 parser.add_argument('-p', type=int,   required=False, metavar='<int>',   default=2,     help="ploidy")
 parser.add_argument('-t', type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing targeted regions")
-parser.add_argument('-to',type=float, required=False, metavar='<float>', default=0.02,  help="off-target coverage scalar")
+parser.add_argument('-to',type=float, required=False, metavar='<float>', default=0.00,  help="off-target coverage scalar")
 parser.add_argument('-m', type=str,   required=False, metavar='<str>',   default=None,  help="mutation model pickle file")
 parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg mutation rate to this")
 parser.add_argument('-Mb',type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing positional mut rates")
@@ -360,6 +360,7 @@ def main():
 
 
 	readNameCount = 1	# keep track of the number of reads we've sampled, for read-names
+	unmapped_records = []
 
 	for RI in xrange(len(refIndex)):
 
@@ -514,40 +515,39 @@ def main():
 					if currentPercent == 100:
 						havePrinted100 = True
 
-
-				# if computing only VCF, we can skip this...
-				if ONLY_VCF:
-					coverage_dat = None
-					coverage_avg = None
-				else:
-					# pre-compute gc-bias and targeted sequencing coverage modifiers
-					nSubWindows  = (end-start)/GC_WINDOW_SIZE
-					coverage_dat = (GC_WINDOW_SIZE,[])
-					for j in xrange(nSubWindows):
-						rInd = start + j*GC_WINDOW_SIZE
-						if INPUT_BED == None:
-							tCov = True
-						elif refIndex[RI][0] in inputRegions:
-							tCov = not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd)%2) or not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd+GC_WINDOW_SIZE)%2)
-						else:
-							tCov = False
-						if tCov:
-							tScl = 1.0
-						else:
-							tScl = OFFTARGET_SCALAR
-						gc_v = refSequence[rInd:rInd+GC_WINDOW_SIZE].count('G') + refSequence[rInd:rInd+GC_WINDOW_SIZE].count('C')
-						gScl = GC_SCALE_VAL[gc_v]
-						coverage_dat[1].append(1.0*tScl*gScl)
-					coverage_avg = np.mean(coverage_dat[1])
-
-				# pre-compute mutation rate tracks
-				# PROVIDED MUTATION RATES OVERRIDE AVERAGE VALUE
+				##### if computing only VCF, we can skip this...
+				####if ONLY_VCF:
+				####	coverage_dat = None
+				####	coverage_avg = None
+				####else:
+				####	# pre-compute gc-bias and targeted sequencing coverage modifiers
+				####	nSubWindows  = (end-start)/GC_WINDOW_SIZE
+				####	coverage_dat = (GC_WINDOW_SIZE,[])
+				####	for j in xrange(nSubWindows):
+				####		rInd = start + j*GC_WINDOW_SIZE
+				####		if INPUT_BED == None:
+				####			tCov = True
+				####		elif refIndex[RI][0] in inputRegions:
+				####			tCov = not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd)%2) or not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd+GC_WINDOW_SIZE)%2)
+				####		else:
+				####			tCov = False
+				####		if tCov:
+				####			tScl = 1.0
+				####		else:
+				####			tScl = OFFTARGET_SCALAR
+				####		gc_v = refSequence[rInd:rInd+GC_WINDOW_SIZE].count('G') + refSequence[rInd:rInd+GC_WINDOW_SIZE].count('C')
+				####		gScl = GC_SCALE_VAL[gc_v]
+				####		coverage_dat[1].append(1.0*tScl*gScl)
+				####	coverage_avg = np.mean(coverage_dat[1])
+				####
+				##### pre-compute mutation rate tracks
+				##### PROVIDED MUTATION RATES OVERRIDE AVERAGE VALUE
 
 				# construct sequence data that we will sample reads from
 				if sequences == None:
-					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat,onlyVCF=ONLY_VCF)
+					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,onlyVCF=ONLY_VCF)
 				else:
-					sequences.update(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
+					sequences.update(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE)
 
 				# some inserted variant debugging...
 				####print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
@@ -557,6 +557,24 @@ def main():
 				all_inserted_variants = sequences.random_mutations()
 				#print all_inserted_variants
 
+				# compute coverage modifiers
+				coverage_avg = None
+				if ONLY_VCF == False:
+					coverage_dat = [GC_WINDOW_SIZE,GC_SCALE_VAL,[]]
+					if INPUT_BED == None:
+						coverage_dat[2] = [1.0]*(end-start)
+					else:
+						for j in xrange(start,end):
+							if not(bisect.bisect(inputRegions[refIndex[RI][0]],j)%2):
+								coverage_dat[2].append(1.0)
+							else:
+								coverage_dat[2].append(OFFTARGET_SCALAR)
+					if PAIRED_END:
+						coverage_avg = sequences.init_coverage(tuple(coverage_dat),fragDist=FRAGLEN_DISTRIBUTION)
+					else:
+						coverage_avg = sequences.init_coverage(tuple(coverage_dat))
+
+				# unused cancer stuff
 				if CANCER:
 					tumor_sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[CANCER_MODEL]*PLOIDS,MUT_RATE,coverage_dat)
 					tumor_sequences.insert_mutations(varsCancerFromPrevOverlap + all_inserted_variants)
@@ -595,18 +613,31 @@ def main():
 					# sample reads
 					for i in xrange(readsToSample):
 
+						isUnmapped = []
 						if PAIRED_END:
 							myFraglen = FRAGLEN_DISTRIBUTION.sample()
 							myReadData = sequences.sample_read(SE_CLASS,myFraglen)
 							if myReadData == None:	# skip if we failed to find a valid position to sample read
 								continue
-							myReadData[0][0] += start	# adjust mapping position based on window start
-							myReadData[1][0] += start
+							if myReadData[0][0] == None:
+								isUnmapped.append(True)
+							else:
+								isUnmapped.append(False)
+								myReadData[0][0] += start	# adjust mapping position based on window start
+							if myReadData[1][0] == None:
+								isUnmapped.append(True)
+							else:
+								isUnmapped.append(False)
+								myReadData[1][0] += start
 						else:
 							myReadData = sequences.sample_read(SE_CLASS)
 							if myReadData == None:	# skip if we failed to find a valid position to sample read
 								continue
-							myReadData[0][0] += start	# adjust mapping position based on window start
+							if myReadData[0][0] == None:	# unmapped read (lives in large insertion)
+								isUnmapped = [True]
+							else:
+								isUnmapped = [False]
+								myReadData[0][0] += start	# adjust mapping position based on window start
 					
 						if NJOBS > 1:
 							myReadName = OUT_PREFIX_NAME+'-j'+str(MYJOB)+'-'+refIndex[RI][0]+'-r'+str(readNameCount)
@@ -624,19 +655,35 @@ def main():
 										myReadString[k] = 'N'
 								myReadData[j][2] = ''.join(myReadString)
 
+						# if read (or read + mate for PE) are unmapped, put them at end of bam file
+						if all(isUnmapped):
+							if PAIRED_END:
+								unmapped_records.append((myReadName+'/1',myReadData[0],109))
+								unmapped_records.append((myReadName+'/2',myReadData[1],157))
+							else:
+								unmapped_records.append((myReadName+'/1',myReadData[0],4))
+
 						# write read data out to FASTQ and BAM files, bypass FASTQ if option specified
 						myRefIndex = indices_by_refName[refIndex[RI][0]]
 						if len(myReadData) == 1:
 							if NO_FASTQ != True:
 								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
 							if SAVE_BAM:
-								OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
+								if isUnmapped[0] == False:
+									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
 						elif len(myReadData) == 2:
 							if NO_FASTQ != True:
 								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3])
 							if SAVE_BAM:
-								OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
-								OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])
+								if isUnmapped[0] == False and isUnmapped[1] == False:
+									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
+									OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])
+								elif isUnmapped[0] == False and isUnmapped[1] == True:
+									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=105,  matePos=myReadData[0][0])
+									OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[0][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=149, matePos=myReadData[0][0], alnMapQual=0)
+								elif isUnmapped[0] == True and isUnmapped[1] == False:
+									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[1][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=101,  matePos=myReadData[1][0], alnMapQual=0)
+									OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=153, matePos=myReadData[1][0])
 						else:
 							print '\nError: Unexpected number of reads generated...\n'
 							exit(1)
@@ -680,6 +727,15 @@ def main():
 				OFW.writeVCFRecord(currentRef, str(int(k[0])+1), myID, k[1], k[2], myQual, myFilt, k[4])
 
 		#break
+
+	# write unmapped reads to bam file
+	if SAVE_BAM and len(unmapped_records):
+		print 'writing unmapped reads to bam file...'
+		for umr in unmapped_records:
+			if PAIRED_END:
+				OFW.writeBAMRecord(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], samFlag=umr[2], matePos=0, alnMapQual=0)
+			else:
+				OFW.writeBAMRecord(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], samFlag=umr[2], alnMapQual=0)
 
 	# close output files
 	OFW.closeFiles()

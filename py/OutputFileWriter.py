@@ -135,12 +135,12 @@ class OutputFileWriter:
 	def writeVCFRecord(self, chrom, pos, idStr, ref, alt, qual, filt, info):
 		self.vcf_file.write(str(chrom)+'\t'+str(pos)+'\t'+str(idStr)+'\t'+str(ref)+'\t'+str(alt)+'\t'+str(qual)+'\t'+str(filt)+'\t'+str(info)+'\n')
 
-	def writeBAMRecord(self, refID, readName, pos_0, cigar, seq, qual, samFlag, matePos=None):
+	def writeBAMRecord(self, refID, readName, pos_0, cigar, seq, qual, samFlag, matePos=None, alnMapQual=70):
 
 		myBin     = reg2bin(pos_0,pos_0+len(seq))
 		#myBin     = 0	# or just use a dummy value, does this actually matter?
 
-		myMapQual = 70
+		myMapQual = alnMapQual
 		cig_letters = re.split(r"\d+",cigar)[1:]
 		cig_numbers = [int(n) for n in re.findall(r"\d+",cigar)]
 		cig_ops     = len(cig_letters)
