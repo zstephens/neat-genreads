@@ -96,11 +96,11 @@ class SequenceContainer:
 					#print (i,j), self.adj[i][j], self.allCigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
 				trCov_vals[i].extend([0.0]*(len(self.sequences[i])-len(trCov_vals[i])))
 
+				#
+				covvec = np.cumsum([trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(len(trCov_vals[i]))])
 				coverage_vals = []
 				for j in xrange(0,len(self.sequences[i])-self.readLen):
-					myList = [trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(j,j+self.readLen)]
-					coverage_vals.append(np.mean(myList))
-					#print (i,j), trCov_vals[i][j], gcCov_vals[i][j], coverage_vals[-1]
+					coverage_vals.append(covvec[j+self.readLen] - covvec[j])
 				avg_out.append(np.mean(coverage_vals))
 
 				if fragDist == None:
@@ -126,24 +126,13 @@ class SequenceContainer:
 							self.fraglens_indMap[j] = flq[bInd-1]
 						else:
 							self.fraglens_indMap[j] = flq[bInd]
-					#for j in sorted(self.fraglens_indMap.keys()):
-					#	print j, self.fraglens_indMap[j]
 
 					self.coverage_distribution.append({})
 					for flv in sorted(list(set(self.fraglens_indMap.values()))):
 						coverage_vals = []
-						for j in xrange(0,len(self.sequences[i])-flv):
-							#
-							#	TO-DO: consider case where readlength is >= 50% of fraglen ??
-							#
-							myList  = [trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(j,j+self.readLen)]
-							myList += [trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(j+flv-self.readLen,j+flv)]
-							coverage_vals.append(np.mean(myList))
+						for j in xrange(len(self.sequences[i])-flv):
+							coverage_vals.append(covvec[j+self.readLen] - covvec[j] + covvec[j+flv] - covvec[j+flv-self.readLen])
 						self.coverage_distribution[i][flv] = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
-
-			#exit(1)
-			#self.win_per_read = int(self.readLen/float(self.windowSize)+0.5)
-			#self.which_bucket = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
 
 			return np.mean(avg_out)
 
