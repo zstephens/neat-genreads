@@ -129,8 +129,12 @@ class SequenceContainer:
 
 					self.coverage_distribution.append({})
 					for flv in sorted(list(set(self.fraglens_indMap.values()))):
+						buffer_val = self.readLen
+						for j in fragDist.values:
+							if self.fraglens_indMap[j] == flv and j > buffer_val:
+								buffer_val = j
 						coverage_vals = []
-						for j in xrange(len(self.sequences[i])-flv):
+						for j in xrange(len(self.sequences[i])-buffer_val):
 							coverage_vals.append(covvec[j+self.readLen] - covvec[j] + covvec[j+flv] - covvec[j+flv-self.readLen])
 						self.coverage_distribution[i][flv] = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
 
@@ -564,7 +568,15 @@ class SequenceContainer:
 		# if error is valid, make the changes to the read data
 		rOut = []
 		for r in readsToSample:
-			myCigar = self.allCigar[myPloid][r[0]]
+			try:
+				myCigar = self.allCigar[myPloid][r[0]]
+			except IndexError:
+				print 'Index error when attempting to find cigar string.'
+				print len(self.allCigar[myPloid]), r[0]
+				if fragLen != None:
+					print (rPos1, rPos2)
+				print myPloid, fragLen, self.fraglens_indMap[fragLen]
+				exit(1)
 			totalD  = sum([error[1] for error in r[2] if error[0] == 'D'])
 			totalI  = sum([error[1] for error in r[2] if error[0] == 'I'])
 			availB  = len(self.sequences[myPloid]) - r[0] - self.readLen - 1
