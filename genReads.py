@@ -569,10 +569,12 @@ def main():
 								coverage_dat[2].append(1.0)
 							else:
 								coverage_dat[2].append(OFFTARGET_SCALAR)
+					ASDF_TT = time.time()
 					if PAIRED_END:
 						coverage_avg = sequences.init_coverage(tuple(coverage_dat),fragDist=FRAGLEN_DISTRIBUTION)
 					else:
 						coverage_avg = sequences.init_coverage(tuple(coverage_dat))
+					#print 'COV:',time.time()-ASDF_TT
 
 				# unused cancer stuff
 				if CANCER:
@@ -611,6 +613,7 @@ def main():
 						readsToSample = 0
 
 					# sample reads
+					ASDF2_TT = time.time()
 					for i in xrange(readsToSample):
 
 						isUnmapped = []
@@ -687,6 +690,7 @@ def main():
 						else:
 							print '\nError: Unexpected number of reads generated...\n'
 							exit(1)
+					#print 'READS:',time.time()-ASDF2_TT
 
 					if not isLastTime:
 						OFW.flushBuffers(bamMax=next_start)

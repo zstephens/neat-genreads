@@ -112,3 +112,34 @@ def poisson_list(k_range,l):
 		return DiscreteDistribution([1],[0],degenerateVal=0)
 	return DiscreteDistribution(w_range,k_range[:len(w_range)])
 
+# quantize a list of values into blocks
+MIN_PROB = 1e-12
+QUANT_BLOCKS = 10
+def quantize_list(l):
+	suml = float(sum(l))
+	ls = sorted([n for n in l if n >= MIN_PROB*suml])
+	if len(ls) == 0:
+		return None
+	qi = []
+	for i in xrange(QUANT_BLOCKS):
+		#qi.append(ls[int((i)*(len(ls)/float(QUANT_BLOCKS)))])
+		qi.append(ls[0]+(i/float(QUANT_BLOCKS))*(ls[-1]-ls[0]))
+	qi.append(1e12)
+	runningList = []
+	prevBi = None
+	previ  = None
+	for i in xrange(len(l)):
+		if l[i] >= MIN_PROB*suml:
+			bi = bisect.bisect(qi,l[i])
+			#print i, l[i], qi[bi-1]
+			if prevBi != None:
+				if bi == prevBi and previ == i-1:
+					runningList[-1][1] += 1
+				else:
+					runningList.append([i,i,qi[bi-1]])
+			else:
+				runningList.append([i,i,qi[bi-1]])
+			prevBi = bi
+			previ  = i
+	return runningList
+

@@ -6,7 +6,7 @@ import bisect
 import cPickle as pickle
 import numpy as np
 
-from probability import DiscreteDistribution, poisson_list
+from probability import DiscreteDistribution, poisson_list, quantize_list
 from cigar import CigarString
 
 MAX_ATTEMPTS = 100	# max attempts to insert a mutation into a valid position
@@ -101,7 +101,7 @@ class SequenceContainer:
 				coverage_vals = []
 				for j in xrange(0,len(self.sequences[i])-self.readLen):
 					coverage_vals.append(covvec[j+self.readLen] - covvec[j])
-				avg_out.append(np.mean(coverage_vals))
+				avg_out.append(np.mean(coverage_vals)/float(self.readLen))
 
 				if fragDist == None:
 					self.coverage_distribution.append(DiscreteDistribution(coverage_vals,range(len(coverage_vals))))
@@ -136,6 +136,21 @@ class SequenceContainer:
 						coverage_vals = []
 						for j in xrange(len(self.sequences[i])-buffer_val):
 							coverage_vals.append(covvec[j+self.readLen] - covvec[j] + covvec[j+flv] - covvec[j+flv-self.readLen])
+
+						# EXPERIMENTAL
+						#quantized_covVals = quantize_list(coverage_vals)
+						#self.coverage_distribution[i][flv] = DiscreteDistribution([n[2] for n in quantized_covVals],[(n[0],n[1]) for n in quantized_covVals])
+
+						# TESTING
+						#import matplotlib.pyplot as mpl
+						#print len(coverage_vals),'-->',len(quantized_covVals)
+						#mpl.figure(0)
+						#mpl.plot(range(len(coverage_vals)),coverage_vals)
+						#for qcv in quantized_covVals:
+						#	mpl.plot([qcv[0],qcv[1]+1],[qcv[2],qcv[2]],'r')
+						#mpl.show()
+						#exit(1)
+
 						self.coverage_distribution[i][flv] = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
 
 			return np.mean(avg_out)
@@ -525,6 +540,11 @@ class SequenceContainer:
 
 		else:
 			rPos1 = self.coverage_distribution[myPloid][self.fraglens_indMap[fragLen]].sample()
+			
+			# EXPERIMENTAL
+			#coords_to_select_from = self.coverage_distribution[myPloid][self.fraglens_indMap[fragLen]].sample()
+			#rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1])
+
 			#####rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)		# uniform random
 			####
 			##### decide which subsection of the sequence to sample from using coverage probabilities
