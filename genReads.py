@@ -641,7 +641,7 @@ def main():
 							else:
 								isUnmapped = [False]
 								myReadData[0][0] += start	# adjust mapping position based on window start
-					
+
 						if NJOBS > 1:
 							myReadName = OUT_PREFIX_NAME+'-j'+str(MYJOB)+'-'+refIndex[RI][0]+'-r'+str(readNameCount)
 						else:

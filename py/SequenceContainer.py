@@ -605,7 +605,7 @@ class SequenceContainer:
 			expandedCigar = []
 			extraCigar    = []
 			adj           = 0
-			sse_adj       = [0 for n in xrange(self.readLen)]
+			sse_adj       = [0 for n in xrange(self.readLen + max(sequencingModel.errP[3]))]
 			anyIndelErr   = False
 
 			# sort by letter (D > I > S) such that we introduce all indel errors before substitution errors
@@ -618,7 +618,8 @@ class SequenceContainer:
 				sortedErrors.extend([n[1] for n in sorted(arrangedErrors[k])])
 
 			for error in sortedErrors:
-				#print r[0], error
+				#print '-se-',r[0], error
+				#print sse_adj
 				eLen = error[1]
 				ePos = error[2]
 				if error[0] == 'D' or error[0] == 'I':
@@ -629,17 +630,20 @@ class SequenceContainer:
 					if expandedCigar == []:
 						expandedCigar = CigarString(stringIn=myCigar).getList()
 
-						fillToGo = totalD - totalI
+						fillToGo = totalD - totalI + 1
 						if fillToGo > 0:
 							extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
 
 					# insert deletion error into read and update cigar string accordingly
 					if error[0] == 'D':
-						pi = ePos+adj
-						pf = ePos+adj+eLen+1
+						myadj = sse_adj[ePos]
+						pi = ePos+myadj
+						pf = ePos+myadj+eLen+1
 						if str(r[3][pi:pf]) == str(error[3]):
 							r[3] = r[3][:pi+1] + r[3][pf:]
 							expandedCigar = expandedCigar[:pi+1] + expandedCigar[pf:]
+							if pi+1 == len(expandedCigar):	# weird edge case with del at very end of region. Make a guess and add a "M"
+								expandedCigar.append('M')
 							expandedCigar[pi+1] = 'D'*eLen + expandedCigar[pi+1]
 						else:
 							print '\nError, ref does not match alt while attempting to insert deletion error!\n'
@@ -650,11 +654,13 @@ class SequenceContainer:
 
 					# insert insertion error into read and update cigar string accordingly
 					else:
-						if chr(r[3][ePos+adj]) == error[3]:
-							r[3] = r[3][:ePos+adj] + error[4] + r[3][ePos+adj+1:]
-							expandedCigar = expandedCigar[:ePos+adj] + ['I']*eLen + expandedCigar[ePos+adj+1:]
+						myadj = sse_adj[ePos]
+						if chr(r[3][ePos+myadj]) == error[3]:
+							r[3] = r[3][:ePos+myadj] + error[4] + r[3][ePos+myadj+1:]
+							expandedCigar = expandedCigar[:ePos+myadj] + ['I']*eLen + expandedCigar[ePos+myadj:]
 						else:
 							print '\nError, ref does not match alt while attempting to insert insertion error!\n'
+							print '---',chr(r[3][ePos+myadj]), '!=', error[3]
 							exit(1)
 						adj += eLen
 						for i in xrange(ePos,len(sse_adj)):
@@ -669,20 +675,11 @@ class SequenceContainer:
 
 			if anyIndelErr:
 				if len(expandedCigar):
-					#print myCigar,'-->',
 					relevantCigar = (expandedCigar+extraCigarVal)[:self.readLen]
 					myCigar = CigarString(listIn=relevantCigar).getString()
-					#print myCigar
 
 				r[3] = r[3][:self.readLen]
-				#if len(r[3]) != self.readLen:
-				#	print 'AHHHHHH_1'
-				#	exit(1)
-				#if len(expandedCigar+extraCigarVal) != self.readLen:
-				#	print 'AHHHHHH_2'
-				#	exit(1)
 
-			#rOut.append([r[0]-self.adj[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
 			rOut.append([self.FM_pos[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
 
 		# rOut[i] = (pos, cigar, read_string, qual_string)
@@ -698,6 +695,12 @@ class ReadContainer:
 		self.readLen = readLen
 
 		errorDat = pickle.load(open(errorModel,'rb'))
+		self.UNIFORM = False
+		if len(errorDat) == 4:		# uniform-error SE reads (e.g. PacBio)
+			self.UNIFORM = True
+			[Qscores,offQ,avgError,errorParams] = errorDat
+			self.uniform_qscore = int(-10.*np.log10(avgError)+0.5)
+			print 'Using uniform sequencing error model. (q='+str(self.uniform_qscore)+'+'+str(offQ)+', p(err)={0:0.2f}%)'.format(100.*avgError)
 		if len(errorDat) == 6:		# only 1 q-score model present, use same model for both strands
 			[initQ1,probQ1,Qscores,offQ,avgError,errorParams] = errorDat
 			self.PE_MODELS = False
@@ -708,6 +711,7 @@ class ReadContainer:
 			if len(initQ1) != len(initQ2) or len(probQ1) != len(probQ2):
 				print '\nError: R1 and R2 quality score models are of different length.\n'
 				exit(1)
+
 
 		self.qErrRate = [0.]*(max(Qscores)+1)
 		for q in Qscores:
@@ -720,13 +724,6 @@ class ReadContainer:
 		self.errSIE = DiscreteDistribution(self.errP[2],self.errP[3])
 		self.errSIN = DiscreteDistribution(self.errP[5],NUCL)
 
-		# adjust length to match desired read length
-		if self.readLen == len(initQ1):
-			self.qIndRemap = range(self.readLen)
-		else:
-			print 'Warning: Read length of error model ('+str(len(initQ1))+') does not match -R value ('+str(self.readLen)+'), rescaling model...'
-			self.qIndRemap = [max([1,len(initQ1)*n/readLen]) for n in xrange(readLen)]
-
 		# adjust sequencing error frequency to match desired rate
 		if reScaledError == None:
 			self.errorScale = 1.0
@@ -734,52 +731,67 @@ class ReadContainer:
 			self.errorScale = reScaledError/avgError
 			print 'Warning: Quality scores no longer exactly representative of error probability. Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale)
 
-		# initialize probability distributions
-		self.initDistByPos1        = [DiscreteDistribution(initQ1[i],Qscores) for i in xrange(len(initQ1))]
-		self.probDistByPosByPrevQ1 = [None]
-		for i in xrange(1,len(initQ1)):
-			self.probDistByPosByPrevQ1.append([])
-			for j in xrange(len(initQ1[0])):
-				if np.sum(probQ1[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
-					self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution([1],[Qscores[j]],degenerateVal=Qscores[j]))
-				else:
-					self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(probQ1[i][j],Qscores))
+		if self.UNIFORM == False:
+			# adjust length to match desired read length
+			if self.readLen == len(initQ1):
+				self.qIndRemap = range(self.readLen)
+			else:
+				print 'Warning: Read length of error model ('+str(len(initQ1))+') does not match -R value ('+str(self.readLen)+'), rescaling model...'
+				self.qIndRemap = [max([1,len(initQ1)*n/readLen]) for n in xrange(readLen)]
 
-		if self.PE_MODELS:
-			self.initDistByPos2        = [DiscreteDistribution(initQ2[i],Qscores) for i in xrange(len(initQ2))]
-			self.probDistByPosByPrevQ2 = [None]
-			for i in xrange(1,len(initQ2)):
-				self.probDistByPosByPrevQ2.append([])
-				for j in xrange(len(initQ2[0])):
-					if np.sum(probQ2[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
-						self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution([1],[Qscores[j]],degenerateVal=Qscores[j]))
+			# initialize probability distributions
+			self.initDistByPos1        = [DiscreteDistribution(initQ1[i],Qscores) for i in xrange(len(initQ1))]
+			self.probDistByPosByPrevQ1 = [None]
+			for i in xrange(1,len(initQ1)):
+				self.probDistByPosByPrevQ1.append([])
+				for j in xrange(len(initQ1[0])):
+					if np.sum(probQ1[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
+						self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution([1],[Qscores[j]],degenerateVal=Qscores[j]))
 					else:
-						self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(probQ2[i][j],Qscores))
+						self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(probQ1[i][j],Qscores))
+
+			if self.PE_MODELS:
+				self.initDistByPos2        = [DiscreteDistribution(initQ2[i],Qscores) for i in xrange(len(initQ2))]
+				self.probDistByPosByPrevQ2 = [None]
+				for i in xrange(1,len(initQ2)):
+					self.probDistByPosByPrevQ2.append([])
+					for j in xrange(len(initQ2[0])):
+						if np.sum(probQ2[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
+							self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution([1],[Qscores[j]],degenerateVal=Qscores[j]))
+						else:
+							self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(probQ2[i][j],Qscores))
 
 	def getSequencingErrors(self, readData, isReverseStrand=False):
 
 		qOut = [0]*self.readLen
 		sErr = []
 
-		if self.PE_MODELS and isReverseStrand:
-			myQ = self.initDistByPos2[0].sample()
+		if self.UNIFORM:
+			myQ  = [self.uniform_qscore + self.offQ for n in xrange(self.readLen)]
+			qOut = ''.join([chr(n) for n in myQ])
+			for i in xrange(self.readLen):
+				if random.random() < self.errorScale*self.qErrRate[self.uniform_qscore]:
+					sErr.append(i)
 		else:
-			myQ = self.initDistByPos1[0].sample()
-
-		if random.random() < self.qErrRate[myQ]:
-			sErr.append(0)
-		qOut[0] = myQ + self.offQ
-		for i in xrange(1,self.readLen):
-
 			if self.PE_MODELS and isReverseStrand:
-				myQ = self.probDistByPosByPrevQ2[self.qIndRemap[i]][myQ].sample()
+				myQ = self.initDistByPos2[0].sample()
 			else:
-				myQ = self.probDistByPosByPrevQ1[self.qIndRemap[i]][myQ].sample()
+				myQ = self.initDistByPos1[0].sample()
 
-			if random.random() < self.errorScale*self.qErrRate[myQ]:
-				sErr.append(i)
-			qOut[i] = myQ + self.offQ
-		qOut = ''.join([chr(n) for n in qOut])
+			if random.random() < self.qErrRate[myQ]:
+				sErr.append(0)
+			qOut[0] = myQ + self.offQ
+			for i in xrange(1,self.readLen):
+
+				if self.PE_MODELS and isReverseStrand:
+					myQ = self.probDistByPosByPrevQ2[self.qIndRemap[i]][myQ].sample()
+				else:
+					myQ = self.probDistByPosByPrevQ1[self.qIndRemap[i]][myQ].sample()
+
+				if random.random() < self.errorScale*self.qErrRate[myQ]:
+					sErr.append(i)
+				qOut[i] = myQ + self.offQ
+			qOut = ''.join([chr(n) for n in qOut])
 
 		if self.errorScale == 0.0:
 			return (qOut,[])
@@ -795,7 +807,7 @@ class ReadContainer:
 
 			# determine error type
 			isSub = True
-			if ind != 0 and ind != self.readLen-1-max(self.errP[3]) and ind > prevIndel+1:
+			if ind != 0 and ind != self.readLen-1-max(self.errP[3]) and abs(ind-prevIndel) > 1:
 				if random.random() < self.errP[1]:
 					isSub = False
 
