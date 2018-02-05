@@ -38,7 +38,7 @@ from probability		import DiscreteDistribution, mean_ind_of_weighted_list
 from SequenceContainer	import SequenceContainer, ReadContainer, parseInputMutationModel
 
 # if coverage val for a given window/position is below this value, consider it effectively zero.
-LOW_COV_THRESH = 1e-6
+LOW_COV_THRESH = 50
 
 """//////////////////////////////////////////////////
 ////////////    PARSE INPUT ARGUMENTS    ////////////
@@ -570,10 +570,13 @@ def main():
 							else:
 								coverage_dat[2].append(OFFTARGET_SCALAR)
 					ASDF_TT = time.time()
-					if PAIRED_END:
-						coverage_avg = sequences.init_coverage(tuple(coverage_dat),fragDist=FRAGLEN_DISTRIBUTION)
+					if sum(coverage_dat[2]) < LOW_COV_THRESH:
+						coverage_avg = 0.0
 					else:
-						coverage_avg = sequences.init_coverage(tuple(coverage_dat))
+						if PAIRED_END:
+							coverage_avg = sequences.init_coverage(tuple(coverage_dat),fragDist=FRAGLEN_DISTRIBUTION)
+						else:
+							coverage_avg = sequences.init_coverage(tuple(coverage_dat))
 					#print 'COV:',time.time()-ASDF_TT
 
 				# unused cancer stuff
@@ -597,19 +600,14 @@ def main():
 				if ONLY_VCF:
 					pass
 				else:
-					# for each sampling window, construct sub-windows with coverage information
-					covWindows = [COVERAGE for n in xrange((end-start)/SMALL_WINDOW)]
-					if (end-start)%SMALL_WINDOW:
-						covWindows.append(COVERAGE)
-					meanCov = sum(covWindows)/float(len(covWindows))
 					if PAIRED_END:
-						readsToSample = int(((end-start)*meanCov*coverage_avg)/(2*READLEN))+1
+						readsToSample = int(((end-start)*float(COVERAGE)*coverage_avg)/(2*READLEN))+1
 					else:
-						readsToSample = int(((end-start)*meanCov*coverage_avg)/(READLEN))+1
+						readsToSample = int(((end-start)*float(COVERAGE)*coverage_avg)/(READLEN))+1
 
 					# if coverage is so low such that no reads are to be sampled, skip region
 					#      (i.e., remove buffer of +1 reads we add to every window)
-					if readsToSample == 1 and coverage_avg < LOW_COV_THRESH:
+					if readsToSample == 1 and sum(coverage_dat[2]) < LOW_COV_THRESH:
 						readsToSample = 0
 
 					# sample reads
