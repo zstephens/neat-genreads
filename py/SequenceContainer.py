@@ -620,6 +620,8 @@ class SequenceContainer:
 			for k in sorted(arrangedErrors.keys()):
 				sortedErrors.extend([n[1] for n in sorted(arrangedErrors[k])])
 
+			skipIndels = False
+
 			for error in sortedErrors:
 				#print '-se-',r[0], error
 				#print sse_adj
@@ -632,10 +634,15 @@ class SequenceContainer:
 						continue
 					if expandedCigar == []:
 						expandedCigar = CigarString(stringIn=myCigar).getList()
-
 						fillToGo = totalD - totalI + 1
 						if fillToGo > 0:
-							extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
+							try:
+								extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
+							except IndexError:	# applying the deletions we want requires going beyond region boundaries. skip all indel errors
+								skipIndels = True
+
+					if skipIndels:
+						continue
 
 					# insert deletion error into read and update cigar string accordingly
 					if error[0] == 'D':
