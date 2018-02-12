@@ -17,6 +17,7 @@ Table of Contents
       * [Targeted region simulation](#targeted-region-simulation)
       * [Insert specific variants](#insert-specific-variants)
       * [Single end reads](#single-end-reads)
+      * [Large single end reads](#large-single-end-reads)
       * [Parallelizing simulation](#parallelizing-simulation)
   * [Utilities](#utilities)
     * [computeGC.py](#computegcpy)
@@ -87,11 +88,12 @@ Features:
   - Supported mutation types include SNPs, indels (of any length), inversions, translocations, duplications
   - Can emulate multi-ploid heterozygosity for SNPs and small indels
 - Can simulate targeted sequencing via BED input specifying regions to sample from
+- Can accurately simulate large, single-end reads with high indel error rates (PacBio-like) given a model
 - Specify simple fragment length model with mean and standard deviation or an empirically learned fragment distribution using utilities/computeFraglen.py
 - Simulates quality scores using either the default model or empirically learned quality scores using utilities/fastq_to_qscoreModel.py
 - Introduces sequencing substitution errors using either the default model or empirically learned from utilities/
 - Accounts for GC% coverage bias using model learned from utilities/computeGC.py
-- Output a VCF file with the 'golden' set of true positive variants. These can be compared to bioinformatics workflow output (includes coverage and allele balance information).
+- Output a VCF file with the 'golden' set of true positive variants. These can be compared to bioinformatics workflow output (includes coverage and allele balance information)
 - Output a BAM file with the 'golden' set of aligned reads. These indicate where each read originated and how it should be aligned with the reference
 - Create paired tumour/normal datasets using characteristics learned from real tumour data
 - Parallelized. Can run multiple "partial" simulations in parallel and merge results
@@ -155,7 +157,17 @@ python genReads.py                  \
         --vcf                       
 ```
 
+### Large single end reads
+Simulate PacBio-like reads by providing an error model.
 
+```
+python genReads.py                         \
+	-r hg19.fa                         \
+	-R 5000                            \
+	-e models/errorModel_pacbio_toy.p  \
+	-E 0.10                            \
+	-o /home/me/simulated_reads        
+```
 
 ### Parallelizing simulation
 When possible, simulation can be done in parallel via multiple executions with different --job options. The resultant files will then need to be merged using utilities/mergeJobs.py. The following example shows splitting a simulation into 4 separate jobs (which can be run independently):
