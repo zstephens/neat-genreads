@@ -25,41 +25,16 @@ sys.path.append(SIM_PATH)
 
 from probability		import DiscreteDistribution
 
-parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
-parser.add_argument('-i',  type=str, required=True,  metavar='<str>',                      help="* input_read1.fq (.gz) / input_read1.sam")
-parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                      help="* output.p")
-parser.add_argument('-i2', type=str, required=False, metavar='<str>',     default=None,    help="input_read2.fq (.gz) / input_read2.sam")
-parser.add_argument('-p',  type=str, required=False, metavar='<str>',     default=None,    help="input_alignment.pileup")
-parser.add_argument('-q',  type=int, required=False, metavar='<int>',     default=33,      help="quality score offset [33]")
-parser.add_argument('-Q',  type=int, required=False, metavar='<int>',     default=41,      help="maximum quality score [41]")
-parser.add_argument('-n',  type=int, required=False, metavar='<int>',     default=-1,      help="maximum number of reads to process [all]")
-parser.add_argument('-s',  type=int, required=False, metavar='<int>',     default=1000000, help="number of simulation iterations [1000000]")
-parser.add_argument('--plot',        required=False, action='store_true', default=False,   help='perform some optional plotting')
-args = parser.parse_args()
-
-(INF, OUF, offQ, maxQ, MAX_READS, N_SAMP) = (args.i, args.o, args.q, args.Q, args.n, args.s)
-(INF2, PILEUP) = (args.i2, args.p)
-
-RQ = maxQ+1
-
-INIT_SMOOTH = 0.
-PROB_SMOOTH = 0.
-PRINT_EVERY = 10000
-PLOT_STUFF  = args.plot
-if PLOT_STUFF:
-	print 'plotting is desired, lets import matplotlib...'
-	import matplotlib.pyplot as mpl
-
 def parseFQ(inf):
-	print 'reading '+INF+'...'
-	if INF[-3:] == '.gz':
+	print 'reading '+inf+'...'
+	if inf[-3:] == '.gz':
 		print 'detected gzip suffix...'
-		f = gzip.open(INF,'r')
+		f = gzip.open(inf,'r')
 	else:
-		f = open(INF,'r')
+		f = open(inf,'r')
 
 	IS_SAM = False
-	if INF[-4:] == '.sam':
+	if inf[-4:] == '.sam':
 		print 'detected sam input...'
 		IS_SAM = True
 
@@ -86,8 +61,8 @@ def parseFQ(inf):
 				break
 
 		if actual_readlen == 0:
-			if INF[-3:] != '.gz' and not IS_SAM:
-				totalSize = os.path.getsize(INF)
+			if inf[-3:] != '.gz' and not IS_SAM:
+				totalSize = os.path.getsize(inf)
 				entrySize = sum([len(n) for n in [data1,data2,data3,data4]])
 				print 'estimated number of reads in file:',int(float(totalSize)/entrySize)
 			actual_readlen = len(data4)-1
@@ -245,6 +220,31 @@ def parseFQ(inf):
 	print 'AVG ERROR RATE:',avgError
 
 	return (initQ, probQ, avgError)
+
+parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
+parser.add_argument('-i',  type=str, required=True,  metavar='<str>',                      help="* input_read1.fq (.gz) / input_read1.sam")
+parser.add_argument('-o',  type=str, required=True,  metavar='<str>',                      help="* output.p")
+parser.add_argument('-i2', type=str, required=False, metavar='<str>',     default=None,    help="input_read2.fq (.gz) / input_read2.sam")
+parser.add_argument('-p',  type=str, required=False, metavar='<str>',     default=None,    help="input_alignment.pileup")
+parser.add_argument('-q',  type=int, required=False, metavar='<int>',     default=33,      help="quality score offset [33]")
+parser.add_argument('-Q',  type=int, required=False, metavar='<int>',     default=41,      help="maximum quality score [41]")
+parser.add_argument('-n',  type=int, required=False, metavar='<int>',     default=-1,      help="maximum number of reads to process [all]")
+parser.add_argument('-s',  type=int, required=False, metavar='<int>',     default=1000000, help="number of simulation iterations [1000000]")
+parser.add_argument('--plot',        required=False, action='store_true', default=False,   help='perform some optional plotting')
+args = parser.parse_args()
+
+(INF, OUF, offQ, maxQ, MAX_READS, N_SAMP) = (args.i, args.o, args.q, args.Q, args.n, args.s)
+(INF2, PILEUP) = (args.i2, args.p)
+
+RQ = maxQ+1
+
+INIT_SMOOTH = 0.
+PROB_SMOOTH = 0.
+PRINT_EVERY = 10000
+PLOT_STUFF  = args.plot
+if PLOT_STUFF:
+	print 'plotting is desired, lets import matplotlib...'
+	import matplotlib.pyplot as mpl
 
 def main():
 
