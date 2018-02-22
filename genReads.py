@@ -441,19 +441,19 @@ def main():
 			(pi,pf) = N_regions['non_N'][i]
 			nTargWindows = max([1,(pf-pi)/targSize])
 			bpd = int((pf-pi)/float(nTargWindows))
-			bpd += GC_WINDOW_SIZE - bpd%GC_WINDOW_SIZE
+			#bpd += GC_WINDOW_SIZE - bpd%GC_WINDOW_SIZE
 
 			#print len(refSequence), (pi,pf), nTargWindows
 			#print structuralVars
 
 			# if for some reason our region is too small to process, skip it! (sorry)
-			if nTargWindows == 1 and (pf-pi) < overlap-1:
+			if nTargWindows == 1 and (pf-pi) < overlap:
 				#print 'Does this ever happen?'
 				continue
 
 			start = pi
 			end   = min([start+bpd,pf])
-			####print '------------------RAWR:', (pi,pf), bpd
+			#print '------------------RAWR:', (pi,pf), nTargWindows, bpd
 			varsFromPrevOverlap = []
 			varsCancerFromPrevOverlap = []
 			vindFromPrev = 0
@@ -515,6 +515,61 @@ def main():
 					if currentPercent == 100:
 						havePrinted100 = True
 
+				skip_this_window = False
+
+				# compute coverage modifiers
+				coverage_avg = None
+				if ONLY_VCF == False:
+
+					coverage_dat = [GC_WINDOW_SIZE,GC_SCALE_VAL,[]]
+					if INPUT_BED == None:
+						coverage_dat[2] = [1.0]*(end-start)
+					else:
+						if refIndex[RI][0] not in inputRegions:
+							coverage_dat[2] = [OFFTARGET_SCALAR]*(end-start)
+						else:
+							for j in xrange(start,end):
+								if not(bisect.bisect(inputRegions[refIndex[RI][0]],j)%2):
+									coverage_dat[2].append(1.0)
+								else:
+									coverage_dat[2].append(OFFTARGET_SCALAR)
+
+					if sum(coverage_dat[2]) < LOW_COV_THRESH:
+						coverage_avg = 0.0
+						skip_this_window = True
+
+				# check for small window sizes
+				if (end-start) < overlap:
+					skip_this_window = True
+
+				if skip_this_window:
+					# skip window, save cpu time
+					start = next_start
+					end   = next_end
+					if isLastTime:
+						break
+					if end >= pf:
+						isLastTime = True
+					continue
+
+				##### skip windows if we can
+				####skip_this_window = False
+				####if INPUT_BED != None and OFFTARGET_SCALAR < 1.0e-12:
+				####	if refIndex[RI][0] in inputRegions:
+				####		skip_this_window = True
+				####	else:
+				####		skip_this_window = True
+				####if skip_this_window:
+				####	# prepare indices of next window
+				####	start = next_start
+				####	end   = next_end
+				####	if isLastTime:
+				####		break
+				####	if end >= pf:
+				####		isLastTime = True
+				####	continue
+
+
 				##### if computing only VCF, we can skip this...
 				####if ONLY_VCF:
 				####	coverage_dat = None
@@ -557,27 +612,12 @@ def main():
 				all_inserted_variants = sequences.random_mutations()
 				#print all_inserted_variants
 
-				# compute coverage modifiers
-				coverage_avg = None
-				if ONLY_VCF == False:
-					coverage_dat = [GC_WINDOW_SIZE,GC_SCALE_VAL,[]]
-					if INPUT_BED == None:
-						coverage_dat[2] = [1.0]*(end-start)
+				# init coverage
+				if sum(coverage_dat[2]) >= LOW_COV_THRESH:
+					if PAIRED_END:
+						coverage_avg = sequences.init_coverage(tuple(coverage_dat),fragDist=FRAGLEN_DISTRIBUTION)
 					else:
-						for j in xrange(start,end):
-							if not(bisect.bisect(inputRegions[refIndex[RI][0]],j)%2):
-								coverage_dat[2].append(1.0)
-							else:
-								coverage_dat[2].append(OFFTARGET_SCALAR)
-					ASDF_TT = time.time()
-					if sum(coverage_dat[2]) < LOW_COV_THRESH:
-						coverage_avg = 0.0
-					else:
-						if PAIRED_END:
-							coverage_avg = sequences.init_coverage(tuple(coverage_dat),fragDist=FRAGLEN_DISTRIBUTION)
-						else:
-							coverage_avg = sequences.init_coverage(tuple(coverage_dat))
-					#print 'COV:',time.time()-ASDF_TT
+						coverage_avg = sequences.init_coverage(tuple(coverage_dat))
 
 				# unused cancer stuff
 				if CANCER:
