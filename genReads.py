@@ -519,24 +519,22 @@ def main():
 
 				# compute coverage modifiers
 				coverage_avg = None
-				if ONLY_VCF == False:
-
-					coverage_dat = [GC_WINDOW_SIZE,GC_SCALE_VAL,[]]
-					if INPUT_BED == None:
-						coverage_dat[2] = [1.0]*(end-start)
+				coverage_dat = [GC_WINDOW_SIZE,GC_SCALE_VAL,[]]
+				if INPUT_BED == None:
+					coverage_dat[2] = [1.0]*(end-start)
+				else:
+					if refIndex[RI][0] not in inputRegions:
+						coverage_dat[2] = [OFFTARGET_SCALAR]*(end-start)
 					else:
-						if refIndex[RI][0] not in inputRegions:
-							coverage_dat[2] = [OFFTARGET_SCALAR]*(end-start)
-						else:
-							for j in xrange(start,end):
-								if not(bisect.bisect(inputRegions[refIndex[RI][0]],j)%2):
-									coverage_dat[2].append(1.0)
-								else:
-									coverage_dat[2].append(OFFTARGET_SCALAR)
+						for j in xrange(start,end):
+							if not(bisect.bisect(inputRegions[refIndex[RI][0]],j)%2):
+								coverage_dat[2].append(1.0)
+							else:
+								coverage_dat[2].append(OFFTARGET_SCALAR)
 
-					if sum(coverage_dat[2]) < LOW_COV_THRESH:
-						coverage_avg = 0.0
-						skip_this_window = True
+				if sum(coverage_dat[2]) < LOW_COV_THRESH:
+					coverage_avg = 0.0
+					skip_this_window = True
 
 				# check for small window sizes
 				if (end-start) < overlap:
