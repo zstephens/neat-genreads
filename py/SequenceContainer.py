@@ -783,25 +783,28 @@ class ReadContainer:
 				if random.random() < self.errorScale*self.qErrRate[self.uniform_qscore]:
 					sErr.append(i)
 		else:
+
 			if self.PE_MODELS and isReverseStrand:
 				myQ = self.initDistByPos2[0].sample()
 			else:
 				myQ = self.initDistByPos1[0].sample()
+			qOut[0] = myQ
 
-			if random.random() < self.qErrRate[myQ]:
-				sErr.append(0)
-			qOut[0] = myQ + self.offQ
 			for i in xrange(1,self.readLen):
-
 				if self.PE_MODELS and isReverseStrand:
 					myQ = self.probDistByPosByPrevQ2[self.qIndRemap[i]][myQ].sample()
 				else:
 					myQ = self.probDistByPosByPrevQ1[self.qIndRemap[i]][myQ].sample()
+				qOut[i] = myQ
 
-				if random.random() < self.errorScale*self.qErrRate[myQ]:
+			if isReverseStrand:
+				qOut = qOut[::-1]
+
+			for i in xrange(self.readLen):
+				if random.random() < self.errorScale * self.qErrRate[qOut[i]]:
 					sErr.append(i)
-				qOut[i] = myQ + self.offQ
-			qOut = ''.join([chr(n) for n in qOut])
+
+			qOut = ''.join([chr(n + self.offQ) for n in qOut])
 
 		if self.errorScale == 0.0:
 			return (qOut,[])
