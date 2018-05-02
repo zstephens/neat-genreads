@@ -107,7 +107,7 @@ class OutputFileWriter:
 				header = '@HD\tVN:1.5\tSO:coordinate\n'
 				for n in BAM_header[0]:
 					header += '@SQ\tSN:'+n[0]+'\tLN:'+str(n[3])+'\n'
-				header += '@RG\tID:NEAT\n'
+				header += '@RG\tID:NEAT\tSM:NEAT\tLB:NEAT\tPL:NEAT\n'
 				headerBytes = len(header)
 				numRefs     = len(BAM_header[0])
 				self.bam_file.write(pack('<i',headerBytes))

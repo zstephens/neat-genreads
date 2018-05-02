@@ -532,6 +532,7 @@ def main():
 							else:
 								coverage_dat[2].append(OFFTARGET_SCALAR)
 
+				#print len(coverage_dat[2]), sum(coverage_dat[2])
 				if sum(coverage_dat[2]) < LOW_COV_THRESH:
 					coverage_avg = 0.0
 					skip_this_window = True

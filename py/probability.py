@@ -20,6 +20,7 @@ class DiscreteDistribution:
 		# some sanity checking
 		if not len(weights) or not len(values):
 			print '\nError: weight or value vector given to DiscreteDistribution() are 0-length.\n'
+			asdf = intentional_crash[0]
 			exit(1)
 
 		self.method  = method
