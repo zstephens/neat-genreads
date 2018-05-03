@@ -426,9 +426,11 @@ def main():
 		if PAIRED_END:
 			targSize = WINDOW_TARGET_SCALE*FRAGMENT_SIZE
 			overlap  = FRAGMENT_SIZE
+			overlap_minWindowSize = max(FRAGLEN_DISTRIBUTION.values) + 10
 		else:
 			targSize = WINDOW_TARGET_SCALE*READLEN
 			overlap  = READLEN
+			overlap_minWindowSize = READLEN + 10
 
 		print '--------------------------------'
 		if ONLY_VCF:
@@ -447,7 +449,7 @@ def main():
 			#print structuralVars
 
 			# if for some reason our region is too small to process, skip it! (sorry)
-			if nTargWindows == 1 and (pf-pi) < overlap:
+			if nTargWindows == 1 and (pf-pi) < overlap_minWindowSize:
 				#print 'Does this ever happen?'
 				continue
 
@@ -538,7 +540,7 @@ def main():
 					skip_this_window = True
 
 				# check for small window sizes
-				if (end-start) < overlap:
+				if (end-start) < overlap_minWindowSize:
 					skip_this_window = True
 
 				if skip_this_window:
