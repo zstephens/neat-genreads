@@ -551,6 +551,7 @@ def main():
 						break
 					if end >= pf:
 						isLastTime = True
+					varsFromPrevOverlap = []
 					continue
 
 				##### skip windows if we can
