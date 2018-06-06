@@ -628,12 +628,6 @@ class SequenceContainer:
 			#END FIXED TdB
 			
 			for error in sortedErrors:
-				#DEBUG
-				if self.FM_pos[myPloid][r[0]] == 52:
-					print '-se-',r[0], error
-					print sse_adj
-					print sse_adj[error[2]]
-				#END DEBUG
 				eLen = error[1]
 				ePos = error[2]
 				if error[0] == 'D' or error[0] == 'I':
