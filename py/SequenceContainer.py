@@ -475,7 +475,6 @@ class SequenceContainer:
 						self.FM_pos[i].append(my_fm_pos-self.adj[i][my_fm_pos])
 						span_dif = len([nnn for nnn in tempSymbolString[j:j+self.readLen] if 'M' in nnn])
 						self.FM_span[i].append(self.FM_pos[i][-1] + span_dif)
-
 		# tally up variants implemented
 		countDict = {}
 		all_variants = [sorted(all_snps[i]+all_indels[i]) for i in xrange(self.ploidy)]
@@ -622,14 +621,29 @@ class SequenceContainer:
 
 			skipIndels = False
 
+
+			#FIXED TdB 05JUN2018
+			#Moved this outside the for error loop, since it messes up the CIGAR string when more than one deletion is in the same read
+			extraCigarVal = []
+			#END FIXED TdB
+			
 			for error in sortedErrors:
-				#print '-se-',r[0], error
-				#print sse_adj
+				#DEBUG
+				if self.FM_pos[myPloid][r[0]] == 52:
+					print '-se-',r[0], error
+					print sse_adj
+					print sse_adj[error[2]]
+				#END DEBUG
 				eLen = error[1]
 				ePos = error[2]
 				if error[0] == 'D' or error[0] == 'I':
 					anyIndelErr   = True
-					extraCigarVal = []
+					
+					#FIXED TdB 05JUN2018
+					#Moved this OUTSIDE the for error loop, since it messes up the CIGAR string when more than one deletion is in the same read
+					#extraCigarVal = []
+					#END FIXED TdB
+					
 					if totalD > availB:	# if not enough bases to fill-in deletions, skip all indel erors
 						continue
 					if expandedCigar == []:
@@ -640,6 +654,7 @@ class SequenceContainer:
 								extraCigarVal = CigarString(stringIn=self.allCigar[myPloid][r[0]+fillToGo]).getList()[-fillToGo:]
 							except IndexError:	# applying the deletions we want requires going beyond region boundaries. skip all indel errors
 								skipIndels = True
+								
 
 					if skipIndels:
 						continue
