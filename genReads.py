@@ -72,6 +72,7 @@ parser.add_argument('--job',      nargs=2, type=int,   required=False, metavar=(
 parser.add_argument('--nnr',                           required=False, action='store_true',       default=False, help='save non-N ref regions (for parallel jobs)')
 parser.add_argument('--bam',                           required=False, action='store_true',       default=False, help='output golden BAM file')
 parser.add_argument('--vcf',                           required=False, action='store_true',       default=False, help='output golden VCF file')
+parser.add_argument('--fa',                            required=False, action='store_true',       default=False, help='output FASTA instead of FASTQ')
 parser.add_argument('--rng',               type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value; identical RNG value should produce identical runs of the program, so things like read locations, variant positions, error positions, etc, should all be the same.')
 parser.add_argument('--gz',                            required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
 parser.add_argument('--no-fastq',                      required=False, action='store_true',       default=False, help='bypass fastq generation')
@@ -86,7 +87,7 @@ args = parser.parse_args()
 (CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
 (OFFTARGET_SCALAR) = (args.to)
 # important flags
-(SAVE_BAM, SAVE_VCF, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.gz, args.no_fastq)
+(SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
 
 ONLY_VCF = (NO_FASTQ and SAVE_VCF and not(SAVE_BAM))
 if ONLY_VCF:
@@ -347,10 +348,10 @@ def main():
 
 	# initialize output files (part II)
 	if CANCER:
-		OFW = OutputFileWriter(OUT_PREFIX+'_normal',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,noFASTQ=NO_FASTQ)
-		OFW_CANCER = OutputFileWriter(OUT_PREFIX+'_tumor',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs),noFASTQ=NO_FASTQ)
+		OFW = OutputFileWriter(OUT_PREFIX+'_normal',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,noFASTQ=NO_FASTQ,FASTA_instead=FASTA_INSTEAD)
+		OFW_CANCER = OutputFileWriter(OUT_PREFIX+'_tumor',paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs),noFASTQ=NO_FASTQ,FASTA_instead=FASTA_INSTEAD)
 	else:
-		OFW = OutputFileWriter(OUT_PREFIX,paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs),noFASTQ=NO_FASTQ)
+		OFW = OutputFileWriter(OUT_PREFIX,paired=PAIRED_END,BAM_header=bamHeader,VCF_header=vcfHeader,gzipped=GZIPPED_OUT,jobTuple=(MYJOB,corrected_nJobs),noFASTQ=NO_FASTQ,FASTA_instead=FASTA_INSTEAD)
 	OUT_PREFIX_NAME = OUT_PREFIX.split('/')[-1]
 
 

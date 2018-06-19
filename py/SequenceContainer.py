@@ -95,7 +95,8 @@ class SequenceContainer:
 						prevVal = self.FM_pos[i][j]
 					#print (i,j), self.adj[i][j], self.allCigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
 				# shift by half of read length
-				trCov_vals[i] = [0.0]*int(self.readLen/2) + trCov_vals[i][:-int(self.readLen/2.)]
+				if len(trCov_vals[i]) > int(self.readLen/2.):
+					trCov_vals[i] = [0.0]*int(self.readLen/2) + trCov_vals[i][:-int(self.readLen/2.)]
 				# fill in missing indices
 				trCov_vals[i].extend([0.0]*(len(self.sequences[i])-len(trCov_vals[i])))
 

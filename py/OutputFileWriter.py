@@ -37,7 +37,7 @@ BUFFER_BATCH_SIZE = 1000		# write out to file after this many reads
 #	gzipped    = True for compressed FASTQ/VCF, False for uncompressed
 #
 class OutputFileWriter:
-	def __init__(self, outPrefix, paired=False, BAM_header=None, VCF_header=None, gzipped=False, jobTuple=(1,1), noFASTQ=False):
+	def __init__(self, outPrefix, paired=False, BAM_header=None, VCF_header=None, gzipped=False, jobTuple=(1,1), noFASTQ=False, FASTA_instead=False):
 		
 		jobSuffix = ''
 		if jobTuple[1] > 1:
@@ -45,8 +45,13 @@ class OutputFileWriter:
 			jsb = '0'*(jsl-len(str(jobTuple[0])))
 			jobSuffix = '.job'+jsb+str(jobTuple[0])+'of'+str(jobTuple[1])
 
-		fq1 = outPrefix+'_read1.fq'+jobSuffix
-		fq2 = outPrefix+'_read2.fq'+jobSuffix
+		self.FASTA_instead = FASTA_instead
+		if FASTA_instead:
+			fq1 = outPrefix+'_read1.fa'+jobSuffix
+			fq2 = outPrefix+'_read2.fa'+jobSuffix
+		else:
+			fq1 = outPrefix+'_read1.fq'+jobSuffix
+			fq2 = outPrefix+'_read2.fq'+jobSuffix
 		bam = outPrefix+'_golden.bam'+jobSuffix
 		vcf = outPrefix+'_golden.vcf'+jobSuffix
 
@@ -126,11 +131,14 @@ class OutputFileWriter:
 		self.bam_buffer = []
 
 	def writeFASTQRecord(self,readName,read1,qual1,read2=None,qual2=None):
-		###self.fq1_file.write('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
-		self.fq1_buffer.append('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
-		if read2 != None:
-			####self.fq2_file.write('@'+readName+'/2\n'+RC(read2)+'\n+\n'+qual2[::-1]+'\n')
-			self.fq2_buffer.append('@'+readName+'/2\n'+RC(read2)+'\n+\n'+qual2[::-1]+'\n')
+		if self.FASTA_instead:
+			self.fq1_buffer.append('>'+readName+'/1\n'+read1+'\n')
+			if read2 != None:
+				self.fq2_buffer.append('>'+readName+'/2\n'+RC(read2)+'\n')
+		else:
+			self.fq1_buffer.append('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
+			if read2 != None:
+				self.fq2_buffer.append('@'+readName+'/2\n'+RC(read2)+'\n+\n'+qual2[::-1]+'\n')
 
 	def writeVCFRecord(self, chrom, pos, idStr, ref, alt, qual, filt, info):
 		self.vcf_file.write(str(chrom)+'\t'+str(pos)+'\t'+str(idStr)+'\t'+str(ref)+'\t'+str(alt)+'\t'+str(qual)+'\t'+str(filt)+'\t'+str(info)+'\n')
