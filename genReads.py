@@ -23,7 +23,6 @@ import time
 import bisect
 import cPickle as pickle
 import numpy as np
-#import matplotlib.pyplot as mpl
 import argparse
 
 # absolute path to this script

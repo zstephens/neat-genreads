@@ -7,7 +7,6 @@ import bisect
 import pickle
 import argparse
 import numpy as np
-import matplotlib.pyplot as mpl
 
 # absolute path to the directory above this script
 SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2])
