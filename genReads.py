@@ -377,6 +377,7 @@ def main():
 		total_bp_span   = sum([n[1]-n[0] for n in N_regions['non_N']])
 		currentProgress = 0
 		currentPercent  = 0
+		havePrinted100  = False
 
 		# prune invalid input variants, e.g variants that:
 		#		- try to delete or alter any N characters
