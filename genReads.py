@@ -555,60 +555,11 @@ def main():
 					varsFromPrevOverlap = []
 					continue
 
-				##### skip windows if we can
-				####skip_this_window = False
-				####if INPUT_BED != None and OFFTARGET_SCALAR < 1.0e-12:
-				####	if refIndex[RI][0] in inputRegions:
-				####		skip_this_window = True
-				####	else:
-				####		skip_this_window = True
-				####if skip_this_window:
-				####	# prepare indices of next window
-				####	start = next_start
-				####	end   = next_end
-				####	if isLastTime:
-				####		break
-				####	if end >= pf:
-				####		isLastTime = True
-				####	continue
-
-
-				##### if computing only VCF, we can skip this...
-				####if ONLY_VCF:
-				####	coverage_dat = None
-				####	coverage_avg = None
-				####else:
-				####	# pre-compute gc-bias and targeted sequencing coverage modifiers
-				####	nSubWindows  = (end-start)/GC_WINDOW_SIZE
-				####	coverage_dat = (GC_WINDOW_SIZE,[])
-				####	for j in xrange(nSubWindows):
-				####		rInd = start + j*GC_WINDOW_SIZE
-				####		if INPUT_BED == None:
-				####			tCov = True
-				####		elif refIndex[RI][0] in inputRegions:
-				####			tCov = not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd)%2) or not(bisect.bisect(inputRegions[refIndex[RI][0]],rInd+GC_WINDOW_SIZE)%2)
-				####		else:
-				####			tCov = False
-				####		if tCov:
-				####			tScl = 1.0
-				####		else:
-				####			tScl = OFFTARGET_SCALAR
-				####		gc_v = refSequence[rInd:rInd+GC_WINDOW_SIZE].count('G') + refSequence[rInd:rInd+GC_WINDOW_SIZE].count('C')
-				####		gScl = GC_SCALE_VAL[gc_v]
-				####		coverage_dat[1].append(1.0*tScl*gScl)
-				####	coverage_avg = np.mean(coverage_dat[1])
-				####
-				##### pre-compute mutation rate tracks
-				##### PROVIDED MUTATION RATES OVERRIDE AVERAGE VALUE
-
 				# construct sequence data that we will sample reads from
 				if sequences == None:
 					sequences = SequenceContainer(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE,onlyVCF=ONLY_VCF)
 				else:
 					sequences.update(start,refSequence[start:end],PLOIDS,overlap,READLEN,[MUT_MODEL]*PLOIDS,MUT_RATE)
-
-				# some inserted variant debugging...
-				####print '\n',start,end,end-overlap,'\n',varsFromPrevOverlap,'\n',varsInWindow,'\n'
 
 				# insert variants
 				sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)

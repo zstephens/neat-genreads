@@ -54,7 +54,6 @@ class SequenceContainer:
 		self.allCigar  = [[] for n in xrange(self.ploidy)]
 		self.FM_pos    = [[] for n in xrange(self.ploidy)]
 		self.FM_span   = [[] for n in xrange(self.ploidy)]
-		self.adj       = [None for n in xrange(self.ploidy)]
 		# blackList[ploid][pos] = 0		safe to insert variant here
 		# blackList[ploid][pos] = 1		indel inserted here
 		# blackList[ploid][pos] = 2		snp inserted here
@@ -234,15 +233,11 @@ class SequenceContainer:
 		self.init_basicVars(xOffset, sequence, ploidy, windowOverlap, readLen)
 		self.indelsToAdd = [n.sample() for n in self.ind_pois]
 		self.snpsToAdd   = [n.sample() for n in self.snp_pois]
-		#print (self.indelsToAdd,self.snpsToAdd)
 		# initialize trinuc snp bias
 		if not IGNORE_TRINUC:
 			self.init_trinucBias()
 
 	def insert_mutations(self, inputList):
-		#
-		#	TODO!!!!!! user-input variants, determine which ploid to put it on, etc..
-		#
 		for inpV in inputList:
 			whichPloid = []
 			wps = inpV[4][0]
@@ -250,11 +245,6 @@ class SequenceContainer:
 				whichPloid.append(self.ploidMutPrior.sample())
 				whichAlt = [0]
 			else:
-				#if 'WP=' in wps:
-				#	whichPloid = [int(n) for n in inpV[-1][3:].split(',') if n == '1']
-				#	print 'WHICH:', whichPloid
-				#	whichAlt   = [0]*len(whichPloid)
-				#elif '/' in wps or '|' in wps:
 				if '/' in wps or '|' in wps:
 					if '/' in wps:
 						splt = wps.split('/')
@@ -265,7 +255,6 @@ class SequenceContainer:
 					for i in xrange(len(splt)):
 						if splt[i] == '1':
 							whichPloid.append(i)
-						#whichAlt.append(int(splt[i])-1)
 					# assume we're just using first alt for inserted variants?
 					whichAlt = [0 for n in whichPloid]
 				else:	# otherwise assume monoploidy
@@ -282,7 +271,7 @@ class SequenceContainer:
 				myAlt = inpV[2][whichAlt[i]]
 				myVar = (inpV[0]-self.x,inpV[1],myAlt)
 				inLen = max([len(inpV[1]),len(myAlt)])
-				#print myVar, chr(self.sequences[p][myVar[0]])
+
 				if myVar[0] < 0 or myVar[0] >= len(self.blackList[p]):
 					print '\nError: Attempting to insert variant out of window bounds:'
 					print myVar, '--> blackList[0:'+str(len(self.blackList[p]))+']\n'
@@ -325,7 +314,7 @@ class SequenceContainer:
 
 				if random.random() <= self.models[i][3]:	# insertion
 					inLen   = self.models[i][4].sample()
-					# sequence content of random insertions is uniformly random (change this later)
+					# sequence content of random insertions is uniformly random (change this later, maybe)
 					inSeq   = ''.join([random.choice(NUCL) for n in xrange(inLen)])
 					refNucl = chr(self.sequences[i][eventPos])
 					myIndel = (eventPos,refNucl,refNucl+inSeq)
@@ -441,10 +430,6 @@ class SequenceContainer:
 						cigar_entries[all_indels_ins[i][j][0]+2] = ['D'*abs(d)+'M']
 						adj_entries[all_indels_ins[i][j][0]+1-rollingAdj]   = rollingAdj
 
-			#if len(all_indels_ins[i]):
-			#	print adj_entries
-			#	print cigar_entries
-
 			# from the indels we inserted, precompute cigar string for all positions
 			tempSymbolString = []
 			for j in xrange(len(self.sequences[i])):
@@ -452,9 +437,6 @@ class SequenceContainer:
 					tempSymbolString.extend(cigar_entries[j])
 				else:
 					tempSymbolString.append('M')
-
-			#if len(all_indels_ins[i]):
-			#	print tempSymbolString
 
 			# create some data structures we will need later:
 			# --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e. corresponding to the unmodified reference genome)
@@ -480,54 +462,6 @@ class SequenceContainer:
 					span_dif = len([nnn for nnn in tempSymbolString[j:j+self.readLen] if 'M' in nnn])
 					self.FM_span[i].append(self.FM_pos[i][-1] + span_dif)
 
-			#if len(all_indels_ins[i]):
-			#	for j in xrange(23800,24200):
-			#		print (i,j), self.allCigar[i][j], j,'-->',self.FM_pos[i][j]
-			#	#exit(1)
-
-			#self.adj[i] = np.zeros(len(self.sequences[i]),dtype='<i4')
-			#indSoFar = 0
-			#valSoFar = 0
-			#for j in xrange(len(self.adj[i])):
-			#	if indSoFar < len(adjToAdd[i]) and j >= adjToAdd[i][indSoFar][0]+1:
-			#		valSoFar += adjToAdd[i][indSoFar][1]
-			#		indSoFar += 1
-			#	self.adj[i][j] = valSoFar
-			#
-			## precompute cigar strings (we can skip this if we only want vcf output)
-			#if not self.onlyVCF:
-			#	tempSymbolString = ['M']
-			#	prevVal = self.adj[i][0]
-			#	j = 1
-			#	while j < len(self.adj[i]):
-			#		diff = self.adj[i][j] - prevVal
-			#		prevVal = self.adj[i][j]
-			#		if diff > 0:	# insertion
-			#			tempSymbolString.extend(['I']*abs(diff))
-			#			j += abs(diff)
-			#		elif diff < 0:	# deletion
-			#			tempSymbolString.append('D'*abs(diff)+'M')
-			#			j += 1
-			#		else:
-			#			tempSymbolString.append('M')
-			#			j += 1
-			#
-			#	for j in xrange(len(tempSymbolString)-self.readLen):
-			#		self.allCigar[i].append(CigarString(listIn=tempSymbolString[j:j+self.readLen]).getString())
-			#		# pre-compute reference position of first matching base
-			#		my_fm_pos = None
-			#		for k in xrange(self.readLen):
-			#			if 'M' in tempSymbolString[j+k]:
-			#				my_fm_pos = j+k
-			#				break
-			#		if my_fm_pos == None:
-			#			self.FM_pos[i].append(None)
-			#			self.FM_span[i].append(None)
-			#		else:
-			#			self.FM_pos[i].append(my_fm_pos-self.adj[i][my_fm_pos])
-			#			span_dif = len([nnn for nnn in tempSymbolString[j:j+self.readLen] if 'M' in nnn])
-			#			self.FM_span[i].append(self.FM_pos[i][-1] + span_dif)
-
 		# tally up all the variants we handled...
 		countDict = {}
 		all_variants = [sorted(all_snps[i]+all_indels[i]) for i in xrange(self.ploidy)]
@@ -540,7 +474,7 @@ class SequenceContainer:
 				countDict[t].append(i)
 
 		#
-		#	TODO: combine multiple variants that happened to occur at same position into single vcf entry
+		#	TODO: combine multiple variants that happened to occur at same position into single vcf entry?
 		#
 
 		output_variants = []
@@ -566,27 +500,6 @@ class SequenceContainer:
 		readsToSample = []
 		if fragLen == None:
 			rPos = self.coverage_distribution[myPloid].sample()
-			#####rPos = random.randint(0,len(self.sequences[myPloid])-self.readLen-1)	# uniform random
-			####
-			##### decide which subsection of the sequence to sample from using coverage probabilities
-			####coords_bad = True
-			####while coords_bad:
-			####	attempts_thus_far += 1
-			####	if attempts_thus_far > MAX_READPOS_ATTEMPTS:
-			####		return None
-			####	myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
-			####	coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
-			####	if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
-			####		continue
-			####	coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
-			####	coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]
-			####	if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
-			####		continue
-			####	if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
-			####		continue
-			####	if coords_to_select_from[1] < len(self.sequences[myPloid])-self.readLen:
-			####		coords_bad = False
-			####rPos = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
 
 			# sample read position and call function to compute quality scores / sequencing errors
 			rDat = self.sequences[myPloid][rPos:rPos+self.readLen]
@@ -600,36 +513,9 @@ class SequenceContainer:
 			#coords_to_select_from = self.coverage_distribution[myPloid][self.fraglens_indMap[fragLen]].sample()
 			#rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1])
 
-			#####rPos1 = random.randint(0,len(self.sequences[myPloid])-fragLen-1)		# uniform random
-			####
-			##### decide which subsection of the sequence to sample from using coverage probabilities
-			####coords_bad = True
-			####while coords_bad:
-			####	attempts_thus_far += 1
-			####	if attempts_thus_far > MAX_READPOS_ATTEMPTS:
-			####		#print coords_to_select_from
-			####		return None
-			####	myBucket = max([self.which_bucket.sample() - self.win_per_read, 0])
-			####	coords_to_select_from = [myBucket*self.windowSize,(myBucket+1)*self.windowSize]
-			####	if coords_to_select_from[0] >= len(self.adj[myPloid]):	# prevent going beyond region boundaries
-			####		continue
-			####	coords_to_select_from[0] += self.adj[myPloid][coords_to_select_from[0]]
-			####	coords_to_select_from[1] += self.adj[myPloid][coords_to_select_from[0]]	# both ends use index of starting position to avoid issues with reads spanning breakpoints of large events
-			####	if max(coords_to_select_from) <= 0: # prevent invalid negative coords due to adj
-			####		continue
-			####	if coords_to_select_from[1] - coords_to_select_from[0] <= 2:	# we don't span enough coords to sample
-			####		continue
-			####	rPos1 = random.randint(coords_to_select_from[0],coords_to_select_from[1]-1)
-			####	# for PE-reads, flip a coin to decide if R1 or R2 will be the "covering" read
-			####	if random.randint(1,2) == 1 and rPos1 > fragLen - self.readLen:
-			####		rPos1 -= fragLen - self.readLen
-			####	if rPos1 < len(self.sequences[myPloid])-fragLen:
-			####		coords_bad = False
-
 			rPos2 = rPos1 + fragLen - self.readLen
 			rDat1 = self.sequences[myPloid][rPos1:rPos1+self.readLen]
 			rDat2 = self.sequences[myPloid][rPos2:rPos2+self.readLen]
-			#print len(rDat1), rPos1, len(self.sequences[myPloid])
 			(myQual1, myErrors1) = sequencingModel.getSequencingErrors(rDat1)
 			(myQual2, myErrors2) = sequencingModel.getSequencingErrors(rDat2,isReverseStrand=True)
 			readsToSample.append([rPos1,myQual1,myErrors1,rDat1])
