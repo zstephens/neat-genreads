@@ -432,11 +432,18 @@ class SequenceContainer:
 
 			# from the indels we inserted, precompute cigar string for all positions
 			tempSymbolString = []
+			delCountDown     = 0
 			for j in xrange(len(self.sequences[i])):
-				if j in cigar_entries:
-					tempSymbolString.extend(cigar_entries[j])
-				else:
-					tempSymbolString.append('M')
+				delCountDown -= 1
+				if delCountDown <= 0:
+					if j in cigar_entries:
+						tempSymbolString.extend(cigar_entries[j])
+						delCountDown = sum([1*(n=='D') for n in ''.join(cigar_entries[j])])
+					else:
+						tempSymbolString.append('M')
+			# clamp cigar ops to expected length (kinda hacky if there are SVs on window boundary?)
+			tempSymbolString = tempSymbolString[:len(self.sequences[i])]
+			tempSymbolString += ['M']*(len(self.sequences[i])-len(tempSymbolString))
 
 			# create some data structures we will need later:
 			# --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e. corresponding to the unmodified reference genome)
