@@ -1,12 +1,13 @@
 #
 #
-#            computeGC.py
-#            Compute GC and coverage model for genReads.py
+#   computeGC.py
+#   Compute GC and coverage model for genReads.py
 #
-#            Takes output file from bedtools genomecov to generate GC/coverage model
+#   Takes output file from bedtools genomecov to generate GC/coverage model
 #
-#            Usage: bedtools genomecov -d -ibam normal.bam -g reference.fa 
-#                   python computeGC.py -r reference.fa -i genomecovfile -W [sliding window length] -o path/to/output_name.p
+#   Usage: bedtools genomecov -d -ibam input.bam -g reference.fa > genomeCov.dat
+#          python computeGC.py -r reference.fa -i genomeCov.dat -W [sliding window length] -o output_name.p
+#
 #
 #
 
@@ -63,6 +64,9 @@ for line in f:
 		print linesProcessed
 	linesProcessed += 1
 
+	#if linesProcessed > STOP_AFTER:
+	#	break
+
 	if currentLine == 0:
 		currentRef = splt[0]
 		sPos       = int(splt[1])-1
@@ -80,9 +84,6 @@ for line in f:
 			gc_count = seq.count('G') + seq.count('C')
 			GC_BINS[gc_count].append(currentCov)
 		currentCov = 0
-
-	#if linesProcessed >= STOP_AFTER:
-	#	break
 
 f.close()
 
