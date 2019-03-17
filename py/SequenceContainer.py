@@ -409,8 +409,7 @@ class SequenceContainer:
 		adjToAdd = [[] for n in xrange(self.ploidy)]
 		for i in xrange(len(all_indels_ins)):
 			rollingAdj = 0
-			cigar_entries = {}
-			adj_entries   = {}
+			tempSymbolString = ['M' for n in self.sequences[i]]
 			for j in xrange(len(all_indels_ins[i])):
 				vPos        = all_indels_ins[i][j][0] + rollingAdj
 				vPos2       = vPos + len(all_indels_ins[i][j][1])
@@ -420,54 +419,32 @@ class SequenceContainer:
 					print '\nError: Something went wrong!\n', all_indels_ins[i][j], [vPos,vPos2], str(self.sequences[i][vPos:vPos2]),'\n'
 					exit(1)
 				else:
+					# alter reference sequence
 					self.sequences[i] = self.sequences[i][:vPos] + bytearray(all_indels_ins[i][j][2]) + self.sequences[i][vPos2:]
-					
+					# notate indel positions for cigar computation
 					d = len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])
 					if d > 0:
-						cigar_entries[all_indels_ins[i][j][0]+1] = ['I']*d
-						adj_entries[all_indels_ins[i][j][0]+1]   = rollingAdj
+						tempSymbolString = tempSymbolString[:vPos+1] + ['I']*d + tempSymbolString[vPos2+1:]
 					elif d < 0:
-						cigar_entries[all_indels_ins[i][j][0]+2] = ['D'*abs(d)+'M']
-						adj_entries[all_indels_ins[i][j][0]+1-rollingAdj]   = rollingAdj
+						tempSymbolString[vPos+1] = 'D'*abs(d)+'M'
 
-			# from the indels we inserted, precompute cigar string for all positions
-			tempSymbolString = []
-			delCountDown     = 0
-			for j in xrange(len(self.sequences[i])):
-				delCountDown -= 1
-				if delCountDown <= 0:
-					if j in cigar_entries:
-						tempSymbolString.extend(cigar_entries[j])
-						delCountDown = sum([1*(n=='D') for n in ''.join(cigar_entries[j])])
-					else:
-						tempSymbolString.append('M')
-			# clamp cigar ops to expected length (kinda hacky if there are SVs on window boundary?)
-			tempSymbolString = tempSymbolString[:len(self.sequences[i])]
-			tempSymbolString += ['M']*(len(self.sequences[i])-len(tempSymbolString))
+			# precompute cigar strings
+			for j in xrange(len(tempSymbolString)-self.readLen):
+				self.allCigar[i].append(CigarString(listIn=tempSymbolString[j:j+self.readLen]).getString())
 
 			# create some data structures we will need later:
 			# --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e. corresponding to the unmodified reference genome)
 			# --- self.FM_span[ploid][pos]: number of reference positions spanned by a read originating from this coordinate
-			adj_list_i = [0]
-			for j in xrange(1,len(self.sequences[i])):
-				if j in adj_entries:
-					adj_list_i.append(adj_entries[j])
-				else:
-					adj_list_i.append(adj_list_i[-1])
-			for j in xrange(len(tempSymbolString)-self.readLen):
-				self.allCigar[i].append(CigarString(listIn=tempSymbolString[j:j+self.readLen]).getString())
-				my_fm_pos = None
-				for k in xrange(self.readLen):	# for correctly mapping reads that begin in an inserted sequence
-					if 'M' in tempSymbolString[j+k]:
-						my_fm_pos = j+k
-						break
-				if my_fm_pos == None:
-					self.FM_pos[i].append(None)
-					self.FM_span[i].append(None)
-				else:
-					self.FM_pos[i].append(my_fm_pos - adj_list_i[my_fm_pos])
-					span_dif = len([nnn for nnn in tempSymbolString[j:j+self.readLen] if 'M' in nnn])
-					self.FM_span[i].append(self.FM_pos[i][-1] + span_dif)
+			MD_soFar = 0
+			for j in xrange(len(tempSymbolString)):
+				self.FM_pos[i].append(MD_soFar)
+				# fix an edge case with deletions
+				if 'D' in tempSymbolString[j]:
+					self.FM_pos[i][-1] += tempSymbolString[j].count('D')
+				# compute number of ref matches for each read
+				span_dif = len([n for n in tempSymbolString[j:j+self.readLen] if 'M' in n])
+				self.FM_span[i].append(self.FM_pos[i][-1] + span_dif)
+				MD_soFar += tempSymbolString[j].count('M') + tempSymbolString[j].count('D')
 
 		# tally up all the variants we handled...
 		countDict = {}
