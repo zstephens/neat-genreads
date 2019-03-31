@@ -410,6 +410,8 @@ class SequenceContainer:
 		for i in xrange(len(all_indels_ins)):
 			rollingAdj = 0
 			tempSymbolString = ['M' for n in self.sequences[i]]
+			# there's an off-by-one error somewhere in the position sampling routines.. this might fix it
+			tempSymbolString.append('M')
 			for j in xrange(len(all_indels_ins[i])):
 				vPos        = all_indels_ins[i][j][0] + rollingAdj
 				vPos2       = vPos + len(all_indels_ins[i][j][1])
