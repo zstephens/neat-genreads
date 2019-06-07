@@ -102,7 +102,8 @@ class SequenceContainer:
 				#
 				covvec = np.cumsum([trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(len(trCov_vals[i]))])
 				coverage_vals = []
-				for j in xrange(0,len(self.sequences[i])-self.readLen):
+				max_coord = len(self.sequences[i])-self.readLen
+				for j in xrange(0,max_coord):
 					coverage_vals.append(covvec[j+self.readLen] - covvec[j])
 				avg_out.append(np.mean(coverage_vals)/float(self.readLen))
 
@@ -136,8 +137,12 @@ class SequenceContainer:
 						for j in fragDist.values:
 							if self.fraglens_indMap[j] == flv and j > buffer_val:
 								buffer_val = j
+						max_coord = min([len(self.sequences[i])-buffer_val-1, len(self.allCigar[i])-buffer_val+self.readLen-2])
+						#print 'BEFORE:', len(self.sequences[i])-buffer_val
+						#print 'AFTER: ', len(self.allCigar[i])-buffer_val+self.readLen-2
+						#print 'AFTER2:', max_coord
 						coverage_vals = []
-						for j in xrange(len(self.sequences[i])-buffer_val):
+						for j in xrange(0,max_coord):
 							coverage_vals.append(covvec[j+self.readLen] - covvec[j] + covvec[j+flv] - covvec[j+flv-self.readLen])
 
 						# EXPERIMENTAL
