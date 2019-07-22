@@ -89,6 +89,8 @@ class SequenceContainer:
 				for j in xrange(1,len(self.sequences[i])-self.readLen):
 					if self.FM_pos[i][j] == None:
 						trCov_vals[i].append(targetCov_vals[prevVal])
+					elif self.FM_span[i][j]-self.FM_pos[i][j] <= 1:
+						trCov_vals[i].append(targetCov_vals[prevVal])
 					else:
 						trCov_vals[i].append(sum(targetCov_vals[self.FM_pos[i][j]:self.FM_span[i][j]])/float(self.FM_span[i][j]-self.FM_pos[i][j]))
 						prevVal = self.FM_pos[i][j]
