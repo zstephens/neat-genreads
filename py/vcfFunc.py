@@ -170,7 +170,13 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 
 	varsOut = {}
 	for r in allVars.keys():
-		varsOut[r] = [allVars[r][k] for k in sorted(allVars[r].keys())]
+		varsOut[r] = [list(allVars[r][k]) for k in sorted(allVars[r].keys())]
+		# prune unnecessary sequence from ref/alt alleles
+		for i in xrange(len(varsOut[r])):
+			while len(varsOut[r][i][1]) > 1 and all([n[-1] == varsOut[r][i][1][-1] for n in varsOut[r][i][2]]):
+				varsOut[r][i][1] = varsOut[r][i][1][:-1]
+				varsOut[r][i][2] = [n[:-1] for n in varsOut[r][i][2]]
+			varsOut[r][i] = tuple(varsOut[r][i])
 	
 	print 'found',sum([len(n) for n in allVars.values()]),'valid variants in input vcf.'
 	print ' *',nSkipped,'variants skipped: (qual filtered / ref genotypes / invalid syntax)'
