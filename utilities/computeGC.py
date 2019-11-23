@@ -11,7 +11,6 @@
 #
 #
 
-
 import time
 import sys
 import argparse
@@ -19,10 +18,10 @@ import numpy as np
 import cPickle as pickle
 
 parser = argparse.ArgumentParser(description='computeGC.py')
-parser.add_argument('-i', type=str, required=True, metavar='<str>', help="input.genomecov")
-parser.add_argument('-r', type=str, required=True, metavar='<str>', help="reference.fa")
-parser.add_argument('-w', type=int, required=True, metavar='<int>', help="sliding window length")
-parser.add_argument('-o', type=str, required=True, metavar='<str>', help="output.p")
+parser.add_argument('-i', type=str, required=True,  metavar='<str>', help="* input.genomecov")
+parser.add_argument('-r', type=str, required=True,  metavar='<str>', help="* reference.fa")
+parser.add_argument('-o', type=str, required=True,  metavar='<str>', help="* output.p")
+parser.add_argument('-w', type=int, required=False, metavar='<int>', help="sliding window length [50]", default=50)
 args = parser.parse_args()
 
 (IN_GCB, REF_FILE, WINDOW_SIZE, OUT_P) = (args.i, args.r, args.w, args.o)
@@ -75,7 +74,7 @@ for line in f:
 		continue
 
 	currentLine += 1
-	currentCov  += int(splt[2])
+	currentCov  += float(splt[2])
 
 	if currentLine == WINDOW_SIZE:
 		currentLine = 0
