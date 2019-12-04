@@ -75,6 +75,7 @@ class SequenceContainer:
 			self.coverage_distribution = []
 			avg_out = []
 			for i in xrange(len(self.sequences)):
+				max_coord = min([len(self.sequences[i])-self.readLen, len(self.allCigar[i])-self.readLen])
 				# compute gc-bias
 				j = 0
 				while j+self.windowSize < len(self.sequences[i]):
@@ -86,7 +87,7 @@ class SequenceContainer:
 				#
 				trCov_vals[i].append(targetCov_vals[0])
 				prevVal = self.FM_pos[i][0]
-				for j in xrange(1,len(self.sequences[i])-self.readLen):
+				for j in xrange(1,max_coord):
 					if self.FM_pos[i][j] == None:
 						trCov_vals[i].append(targetCov_vals[prevVal])
 					elif self.FM_span[i][j]-self.FM_pos[i][j] <= 1:
@@ -104,7 +105,6 @@ class SequenceContainer:
 				#
 				covvec = np.cumsum([trCov_vals[i][nnn]*gcCov_vals[i][nnn] for nnn in xrange(len(trCov_vals[i]))])
 				coverage_vals = []
-				max_coord = len(self.sequences[i])-self.readLen
 				for j in xrange(0,max_coord):
 					coverage_vals.append(covvec[j+self.readLen] - covvec[j])
 				avg_out.append(np.mean(coverage_vals)/float(self.readLen))
@@ -526,10 +526,10 @@ class SequenceContainer:
 				myCigar = self.allCigar[myPloid][r[0]]
 			except IndexError:
 				print 'Index error when attempting to find cigar string.'
-				print len(self.allCigar[myPloid]), r[0]
+				print myPloid, len(self.allCigar[myPloid]), r[0]
 				if fragLen != None:
 					print (rPos1, rPos2)
-				print myPloid, fragLen, self.fraglens_indMap[fragLen]
+					print fragLen, self.fraglens_indMap[fragLen]
 				exit(1)
 			totalD  = sum([error[1] for error in r[2] if error[0] == 'D'])
 			totalI  = sum([error[1] for error in r[2] if error[0] == 'I'])
