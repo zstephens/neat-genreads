@@ -289,9 +289,16 @@ class SequenceContainer:
 					self.snpList[p].append(myVar)
 					self.blackList[p][myVar[0]] = 2
 				else:
+					indel_failed = False
 					for k in xrange(myVar[0],myVar[0]+inLen+1):
-						if self.blackList[p][k]:
+						if k >= len(self.blackList[p]):
+							indel_failed = True
 							continue
+						if self.blackList[p][k]:
+							indel_failed = True
+							continue
+					if indel_failed:
+						continue
 					for k in xrange(myVar[0],myVar[0]+inLen+1):
 						self.blackList[p][k] = 1
 					self.indelList[p].append(myVar)
