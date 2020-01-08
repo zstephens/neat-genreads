@@ -26,8 +26,7 @@ class BgzfWriter:
             assert filename is None
             handle = fileobj
         else:
-            if "w" not in mode.lower() \
-                    and "a" not in mode.lower():
+            if "w" not in mode.lower() and "a" not in mode.lower():
                 raise ValueError("Must use write or append mode, not %r" % mode)
             if "a" in mode.lower():
                 handle = open(filename, "ab")
