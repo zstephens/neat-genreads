@@ -17,7 +17,7 @@ TRI_IND = {'AA':0,  'AC':1,  'AG':2,   'AT':3,  'CA':4,  'CC':5,  'CG':6,  'CT':
            'GA':8,  'GC':9,  'GG':10,  'GT':11, 'TA':12, 'TC':13, 'TG':14, 'TT':15}
 NUC_IND = {'A':0, 'C':1, 'G':2, 'T':3}
 ALL_TRI = [NUCL[i]+NUCL[j]+NUCL[k] for i in range(len(NUCL)) for j in range(len(NUCL)) for k in range(len(NUCL))]
-ALL_IND = {ALL_TRI[i]:i for i in range(len(ALL_TRI))}
+ALL_IND = {ALL_TRI[i]: i for i in range(len(ALL_TRI))}
 
 # DEBUG
 IGNORE_TRINUC = False
@@ -161,7 +161,8 @@ class SequenceContainer:
                         #mpl.show()
                         #exit(1)
 
-                        self.coverage_distribution[i][flv] = DiscreteDistribution(coverage_vals,range(len(coverage_vals)))
+                        self.coverage_distribution[i][flv] = DiscreteDistribution(coverage_vals,
+                                                                                  range(len(coverage_vals)))
 
             return np.mean(avg_out)
 
