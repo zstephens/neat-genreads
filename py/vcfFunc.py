@@ -173,7 +173,7 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 		varsOut[r] = [list(allVars[r][k]) for k in sorted(allVars[r].keys())]
 		# prune unnecessary sequence from ref/alt alleles
 		for i in xrange(len(varsOut[r])):
-			while len(varsOut[r][i][1]) > 1 and all([n[-1] == varsOut[r][i][1][-1] for n in varsOut[r][i][2]]):
+			while len(varsOut[r][i][1]) > 1 and all([n[-1] == varsOut[r][i][1][-1] for n in varsOut[r][i][2]]) and all([len(n) > 1 for n in varsOut[r][i][2]]):
 				varsOut[r][i][1] = varsOut[r][i][1][:-1]
 				varsOut[r][i][2] = [n[:-1] for n in varsOut[r][i][2]]
 			varsOut[r][i] = tuple(varsOut[r][i])
