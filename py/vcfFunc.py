@@ -93,7 +93,7 @@ def parseVCF(vcfPath,tumorNormal=False,ploidy=2):
 				print '\n\nERROR: VCF has no header?\n'+VCF_FILENAME+'\n\n'
 				f.close()
 				exit(1)
-			splt = line[:-1].split('\t')
+			splt = line.strip().split('\t')
 			plOut = parseLine(splt,colDict,colSamp)
 			if plOut == None:
 				nSkipped += 1
