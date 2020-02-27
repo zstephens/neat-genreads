@@ -654,7 +654,7 @@ class ReadContainer:
 
         self.readLen = readLen
 
-        errorDat = pickle.load(open(errorModel,'rb'))
+        errorDat = pickle.load(open(errorModel,'rb'), encoding='bytes')
         self.UNIFORM = False
         if len(errorDat) == 4:		# uniform-error SE reads (e.g. PacBio)
             self.UNIFORM = True
