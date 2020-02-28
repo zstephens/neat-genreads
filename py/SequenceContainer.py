@@ -79,7 +79,7 @@ class SequenceContainer:
                 # compute gc-bias
                 j = 0
                 while j+self.windowSize < len(self.sequences[i]):
-                    gc_c = self.sequences[i][j:j+self.windowSize].count('G') + self.sequences[i][j:j+self.windowSize].count('C')
+                    gc_c = self.sequences[i][j:j+self.windowSize].count(ord('G')) + self.sequences[i][j:j+self.windowSize].count(ord('C'))
                     gcCov_vals[i].extend([gc_scalars[gc_c]]*self.windowSize)
                     j += self.windowSize
                 gc_c = self.sequences[i][-self.windowSize:].count('G') + self.sequences[i][-self.windowSize:].count('C')
@@ -413,7 +413,7 @@ class SequenceContainer:
                     print('\nError: Something went wrong!\n', all_snps[i][j], chr(self.sequences[i][vPos]), '\n')
                     exit(1)
                 else:
-                    self.sequences[i][vPos] = all_snps[i][j][2]
+                    self.sequences[i][vPos] = ord(all_snps[i][j][2])
 
         # organize the indels we want to insert
         for i in range(len(all_indels)):
