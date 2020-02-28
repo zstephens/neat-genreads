@@ -224,7 +224,7 @@ class SequenceContainer:
         self.trinuc_bias = [None for n in range(self.ploidy)]
         for p in range(self.ploidy):
             for i in range(self.winBuffer+1,self.seqLen-1):
-                trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[str(self.sequences[p][i-1:i+2])]]
+                trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[self.sequences[p][i-1:i+2].decode()]]
             self.trinuc_bias[p] = DiscreteDistribution(trinuc_snp_bias[p][self.winBuffer+1:self.seqLen-1],range(self.winBuffer+1,self.seqLen-1))
 
     def update(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None):

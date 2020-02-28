@@ -79,7 +79,7 @@ def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
     refFile = open(refPath, 'r')
     refFile.seek(ref_inds_i[1])
     myDat = ''.join(refFile.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
-    myDat = bytearray(myDat.upper())
+    myDat = bytearray(myDat.upper(), 'utf8')
 
     # find N regions
     # data explanation: myDat[N_atlas[0][0]:N_atlas[0][1]] = solid block of Ns
