@@ -24,7 +24,7 @@ def indexRef(refPath):
             seqLen = int(splt[1])
             offset = int(splt[2])
             lineLn = int(splt[3])
-            nLines = seqLen / lineLn
+            nLines = seqLen // lineLn
             if seqLen % lineLn != 0:
                 nLines += 1
             ref_inds.append((splt[0], offset, offset + seqLen + nLines, seqLen))

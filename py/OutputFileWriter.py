@@ -20,11 +20,11 @@ def RC(s):
 # SAMtools reg2bin function
 def reg2bin(a, b):
     b -= 1
-    if (a >> 14 == b >> 14): return ((1 << 15) - 1) / 7 + (a >> 14)
-    if (a >> 17 == b >> 17): return ((1 << 12) - 1) / 7 + (a >> 17)
-    if (a >> 20 == b >> 20): return ((1 << 9) - 1) / 7 + (a >> 20)
-    if (a >> 23 == b >> 23): return ((1 << 6) - 1) / 7 + (a >> 23)
-    if (a >> 26 == b >> 26): return ((1 << 3) - 1) / 7 + (a >> 26)
+    if (a >> 14 == b >> 14): return ((1 << 15) - 1) // 7 + (a >> 14)
+    if (a >> 17 == b >> 17): return ((1 << 12) - 1) // 7 + (a >> 17)
+    if (a >> 20 == b >> 20): return ((1 << 9) - 1) // 7 + (a >> 20)
+    if (a >> 23 == b >> 23): return ((1 << 6) - 1) // 7 + (a >> 23)
+    if (a >> 26 == b >> 26): return ((1 << 3) - 1) // 7 + (a >> 26)
     return 0
 
 
@@ -180,7 +180,7 @@ class OutputFileWriter:
         for i in range(cig_ops):
             encodedCig += pack('<I', (cig_numbers[i] << 4) + CIGAR_PACKED[cig_letters[i]])
         encodedSeq = ''
-        encodedLen = (len(seq) + 1) / 2
+        encodedLen = (len(seq) + 1) // 2
         seqLen = len(seq)
         if seqLen & 1:
             seq += '='

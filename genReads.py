@@ -728,9 +728,9 @@ def main():
         else:
             print('')
         if ONLY_VCF:
-            print('VCF generation completed in', end=' ')
+            print('VCF generation completed in', end='')
         else:
-            print('Read sampling completed in', end=' ')
+            print('Read sampling completed in', end='')
         print(int(time.time() - tt), '(sec)')
 
         # write all output variants for this reference

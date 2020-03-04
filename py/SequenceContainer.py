@@ -98,7 +98,7 @@ class SequenceContainer:
                     #print (i,j), self.adj[i][j], self.allCigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
                 # shift by half of read length
                 if len(trCov_vals[i]) > int(self.readLen/2.):
-                    trCov_vals[i] = [0.0]*int(self.readLen/2) + trCov_vals[i][:-int(self.readLen/2.)]
+                    trCov_vals[i] = [0.0]*int(self.readLen//2) + trCov_vals[i][:-int(self.readLen/2.)]
                 # fill in missing indices
                 trCov_vals[i].extend([0.0]*(len(self.sequences[i])-len(trCov_vals[i])))
 
@@ -182,7 +182,7 @@ class SequenceContainer:
         if self.mutRescale == None:
             self.mutScalar = 1.0
         else:
-            self.mutScalar = float(self.mutRescale)/(mutRateSum/float(len(self.modelData)))
+            self.mutScalar = float(self.mutRescale)//(mutRateSum/float(len(self.modelData)))
 
         # how are mutations spread to each ploid, based on their specified mut rates?
         self.ploidMutFrac  = [float(n[0])/mutRateSum for n in self.modelData]
@@ -700,7 +700,7 @@ class ReadContainer:
             else:
                 print('Warning: Read length of error model (' + str(len(initQ1)) + ') does not match -R value (' + str(
                     self.readLen) + '), rescaling model...')
-                self.qIndRemap = [max([1,len(initQ1)*n/readLen]) for n in range(readLen)]
+                self.qIndRemap = [max([1,len(initQ1)*n//readLen]) for n in range(readLen)]
 
             # initialize probability distributions
             self.initDistByPos1        = [DiscreteDistribution(initQ1[i],Qscores) for i in range(len(initQ1))]
