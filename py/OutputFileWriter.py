@@ -88,26 +88,27 @@ class OutputFileWriter:
 
             # WRITE VCF HEADER (if parallel: only for first job)
             if jobTuple[0] == 1:
-                self.vcf_file.write('##fileformat=VCFv4.1\n')
-                self.vcf_file.write('##reference=' + VCF_header[0] + '\n')
-                self.vcf_file.write('##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">\n')
-                self.vcf_file.write('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">\n')
+                self.vcf_file.write('##fileformat=VCFv4.1\n'.encode('utf-8'))
+                reference = '##reference=' + VCF_header[0] + '\n'
+                self.vcf_file.write(reference.encode('utf-8'))
+                self.vcf_file.write('##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">\n'.encode('utf-8'))
+                self.vcf_file.write('##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">\n'.encode('utf-8'))
                 # self.vcf_file.write('##INFO=<ID=READS,Number=1,Type=String,Description="Names of Reads Covering this Variant">\n')
                 self.vcf_file.write(
-                    '##INFO=<ID=VMX,Number=1,Type=String,Description="SNP is Missense in these Read Frames">\n')
+                    '##INFO=<ID=VMX,Number=1,Type=String,Description="SNP is Missense in these Read Frames">\n'.encode('utf-8'))
                 self.vcf_file.write(
-                    '##INFO=<ID=VNX,Number=1,Type=String,Description="SNP is Nonsense in these Read Frames">\n')
-                self.vcf_file.write('##INFO=<ID=VFX,Number=1,Type=String,Description="Indel Causes Frameshift">\n')
+                    '##INFO=<ID=VNX,Number=1,Type=String,Description="SNP is Nonsense in these Read Frames">\n'.encode('utf-8'))
+                self.vcf_file.write('##INFO=<ID=VFX,Number=1,Type=String,Description="Indel Causes Frameshift">\n'.encode('utf-8'))
                 self.vcf_file.write(
-                    '##INFO=<ID=WP,Number=A,Type=Integer,Description="NEAT-GenReads ploidy indicator">\n')
-                self.vcf_file.write('##ALT=<ID=DEL,Description="Deletion">\n')
-                self.vcf_file.write('##ALT=<ID=DUP,Description="Duplication">\n')
-                self.vcf_file.write('##ALT=<ID=INS,Description="Insertion of novel sequence">\n')
-                self.vcf_file.write('##ALT=<ID=INV,Description="Inversion">\n')
-                self.vcf_file.write('##ALT=<ID=CNV,Description="Copy number variable region">\n')
-                self.vcf_file.write('##ALT=<ID=TRANS,Description="Translocation">\n')
-                self.vcf_file.write('##ALT=<ID=INV-TRANS,Description="Inverted translocation">\n')
-                self.vcf_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n')
+                    '##INFO=<ID=WP,Number=A,Type=Integer,Description="NEAT-GenReads ploidy indicator">\n'.encode('utf-8'))
+                self.vcf_file.write('##ALT=<ID=DEL,Description="Deletion">\n'.encode('utf-8'))
+                self.vcf_file.write('##ALT=<ID=DUP,Description="Duplication">\n'.encode('utf-8'))
+                self.vcf_file.write('##ALT=<ID=INS,Description="Insertion of novel sequence">\n'.encode('utf-8'))
+                self.vcf_file.write('##ALT=<ID=INV,Description="Inversion">\n'.encode('utf-8'))
+                self.vcf_file.write('##ALT=<ID=CNV,Description="Copy number variable region">\n'.encode('utf-8'))
+                self.vcf_file.write('##ALT=<ID=TRANS,Description="Translocation">\n'.encode('utf-8'))
+                self.vcf_file.write('##ALT=<ID=INV-TRANS,Description="Inverted translocation">\n'.encode('utf-8'))
+                self.vcf_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n'.encode('utf-8'))
 
         #
         #	BAM OUTPUT

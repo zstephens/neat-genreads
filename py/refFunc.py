@@ -108,7 +108,7 @@ def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
             N_info['all'].extend(region)
             if region[1] - region[0] <= N_handling[1]:
                 for i in range(region[0], region[1]):
-                    myDat[i] = random.choice(ALLOWED_NUCL)
+                    myDat[i] = ord(random.choice(ALLOWED_NUCL))
             else:
                 N_info['big'].extend(region)
     elif N_handling[0] == 'allChr' and N_handling[2] in OK_CHR_ORD:

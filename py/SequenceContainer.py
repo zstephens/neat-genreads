@@ -66,7 +66,7 @@ class SequenceContainer:
             self.blackList[p][-self.winBuffer]   = 3
             self.blackList[p][-self.winBuffer-1] = 3
 
-    def init_coverage(self,coverageDat,fragDist=None):
+    def init_coverage(self, coverageDat, fragDist=None):
         # if we're only creating a vcf, skip some expensive initialization related to coverage depth
         if not self.onlyVCF:
             (self.windowSize, gc_scalars, targetCov_vals) = coverageDat
@@ -82,7 +82,7 @@ class SequenceContainer:
                     gc_c = self.sequences[i][j:j+self.windowSize].count(ord('G')) + self.sequences[i][j:j+self.windowSize].count(ord('C'))
                     gcCov_vals[i].extend([gc_scalars[gc_c]]*self.windowSize)
                     j += self.windowSize
-                gc_c = self.sequences[i][-self.windowSize:].count('G') + self.sequences[i][-self.windowSize:].count('C')
+                gc_c = self.sequences[i][-self.windowSize:].count(ord('G')) + self.sequences[i][-self.windowSize:].count(ord('C'))
                 gcCov_vals[i].extend([gc_scalars[gc_c]]*(len(self.sequences[i])-len(gcCov_vals[i])))
                 #
                 trCov_vals[i].append(targetCov_vals[0])
@@ -743,7 +743,7 @@ class ReadContainer:
                 myQ = self.initDistByPos1[0].sample()
             qOut[0] = myQ
 
-            for i in range(1,self.readLen):
+            for i in range(1, self.readLen):
                 if self.PE_MODELS and isReverseStrand:
                     myQ = self.probDistByPosByPrevQ2[self.qIndRemap[i]][myQ].sample()
                 else:
