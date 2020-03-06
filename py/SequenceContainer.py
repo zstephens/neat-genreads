@@ -410,6 +410,8 @@ class SequenceContainer:
                 vPos = all_snps[i][j][0]
 
                 if all_snps[i][j][1] != chr(self.sequences[i][vPos]):
+                    print(all_snps[i][j])
+                    print(self.sequences[i][vPos])
                     print('\nError: Something went wrong!\n', all_snps[i][j], chr(self.sequences[i][vPos]), '\n')
                     exit(1)
                 else:
@@ -628,7 +630,7 @@ class SequenceContainer:
 
                 else:	# substitution errors, much easier by comparison...
                     if chr(r[3][ePos+sse_adj[ePos]]) == error[3]:
-                        r[3][ePos+sse_adj[ePos]] = error[4]
+                        r[3][ePos+sse_adj[ePos]] = ord(error[4])
                     else:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
                         exit(1)
@@ -640,7 +642,7 @@ class SequenceContainer:
 
                 r[3] = r[3][:self.readLen]
 
-            rOut.append([self.FM_pos[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
+            rOut.append([self.FM_pos[myPloid][r[0]], myCigar, r[3].decode(), str(r[1])])
 
         # rOut[i] = (pos, cigar, read_string, qual_string)
         return rOut

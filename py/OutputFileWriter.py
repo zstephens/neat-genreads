@@ -176,16 +176,17 @@ class OutputFileWriter:
             else:
                 my_tlen = -pos_0 - len(seq) + next_pos
 
-        encodedCig = ''
+        encodedCig = bytearray()
         for i in range(cig_ops):
-            encodedCig += pack('<I', (cig_numbers[i] << 4) + CIGAR_PACKED[cig_letters[i]])
-        encodedSeq = ''
+            encodedCig.extend(pack('<I', (cig_numbers[i] << 4) + CIGAR_PACKED[cig_letters[i]]))
+        encodedSeq = bytearray()
         encodedLen = (len(seq) + 1) // 2
         seqLen = len(seq)
         if seqLen & 1:
             seq += '='
         for i in range(encodedLen):
-            encodedSeq += pack('<B', (SEQ_PACKED[seq[2 * i]] << 4) + SEQ_PACKED[seq[2 * i + 1]])
+            print(seq[2*i], seq[2*i+1])
+            encodedSeq.extend(pack('<B', (SEQ_PACKED[seq[2 * i].capitalize()] << 4) + SEQ_PACKED[seq[2 * i + 1].capitalize()]))
 
         # apparently samtools automatically adds 33 to the quality score string...
         encodedQual = ''.join([chr(ord(n) - 33) for n in qual])
