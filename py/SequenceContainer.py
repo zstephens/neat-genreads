@@ -1,10 +1,14 @@
 import random
 import copy
-import re
 import os
 import bisect
 import pickle
 import numpy as np
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
+from Bio import SeqIO
+import gzip
+from Bio.bgzf import *
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
@@ -47,7 +51,7 @@ class SequenceContainer:
         self.x         = xOffset
         self.ploidy    = ploidy
         self.readLen   = readLen
-        self.sequences = [bytearray(sequence) for n in range(self.ploidy)]
+        self.sequences = [Seq(sequence).tomutable() for n in range(self.ploidy)]
         self.seqLen    = len(sequence)
         self.indelList = [[] for n in range(self.ploidy)]
         self.snpList   = [[] for n in range(self.ploidy)]
@@ -79,10 +83,10 @@ class SequenceContainer:
                 # compute gc-bias
                 j = 0
                 while j+self.windowSize < len(self.sequences[i]):
-                    gc_c = self.sequences[i][j:j+self.windowSize].count(ord('G')) + self.sequences[i][j:j+self.windowSize].count(ord('C'))
+                    gc_c = self.sequences[i][j:j+self.windowSize].count('G') + self.sequences[i][j:j+self.windowSize].count('C')
                     gcCov_vals[i].extend([gc_scalars[gc_c]]*self.windowSize)
                     j += self.windowSize
-                gc_c = self.sequences[i][-self.windowSize:].count(ord('G')) + self.sequences[i][-self.windowSize:].count(ord('C'))
+                gc_c = self.sequences[i][-self.windowSize:].count('G') + self.sequences[i][-self.windowSize:].count('C')
                 gcCov_vals[i].extend([gc_scalars[gc_c]]*(len(self.sequences[i])-len(gcCov_vals[i])))
                 #
                 trCov_vals[i].append(targetCov_vals[0])
@@ -415,7 +419,7 @@ class SequenceContainer:
                     print('\nError: Something went wrong!\n', all_snps[i][j], chr(self.sequences[i][vPos]), '\n')
                     exit(1)
                 else:
-                    self.sequences[i][vPos] = ord(all_snps[i][j][2])
+                    self.sequences[i][vPos] = all_snps[i][j][2]
 
         # organize the indels we want to insert
         for i in range(len(all_indels)):
@@ -440,7 +444,9 @@ class SequenceContainer:
                     exit(1)
                 else:
                     # alter reference sequence
-                    self.sequences[i] = self.sequences[i][:vPos] + bytearray(all_indels_ins[i][j][2]) + self.sequences[i][vPos2:]
+                    self.sequences[i] = self.sequences[i][:vPos] + Seq(all_indels_ins[i][j][2],
+                                                                       IUPAC.unambiguous_dna).tomutable() + \
+                                        self.sequences[i][vPos2:]
                     # notate indel positions for cigar computation
                     d = len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])
                     if d > 0:
@@ -630,7 +636,7 @@ class SequenceContainer:
 
                 else:	# substitution errors, much easier by comparison...
                     if chr(r[3][ePos+sse_adj[ePos]]) == error[3]:
-                        r[3][ePos+sse_adj[ePos]] = ord(error[4])
+                        r[3][ePos+sse_adj[ePos]] = error[4]
                     else:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
                         exit(1)
