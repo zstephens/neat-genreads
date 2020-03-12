@@ -657,8 +657,8 @@ class ReadContainer:
 		if len(errorDat) == 4:		# uniform-error SE reads (e.g. PacBio)
 			self.UNIFORM = True
 			[Qscores,offQ,avgError,errorParams] = errorDat
-			self.uniform_qscore = int(-10.*np.log10(avgError)+0.5)
-			print 'Using uniform sequencing error model. (q='+str(self.uniform_qscore)+'+'+str(offQ)+', p(err)={0:0.2f}%)'.format(100.*avgError)
+			self.uniform_qscore = min([max(Qscores), int(-10.*np.log10(avgError)+0.5)])
+			print 'Reading in uniform sequencing error model... (q='+str(self.uniform_qscore)+'+'+str(offQ)+', p(err)={0:0.2f}%)'.format(100.*avgError)
 		if len(errorDat) == 6:		# only 1 q-score model present, use same model for both strands
 			[initQ1,probQ1,Qscores,offQ,avgError,errorParams] = errorDat
 			self.PE_MODELS = False
@@ -688,6 +688,12 @@ class ReadContainer:
 		else:
 			self.errorScale = reScaledError/avgError
 			print 'Warning: Quality scores no longer exactly representative of error probability. Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale)
+			if self.UNIFORM:
+				if reScaledError <= 0.:
+					self.uniform_qscore = max(Qscores)
+				else:
+					self.uniform_qscore = min([max(Qscores), int(-10.*np.log10(reScaledError)+0.5)])
+				print ' - Uniform quality score scaled to match specified error rate (q='+str(self.uniform_qscore)+'+'+str(self.offQ)+', p(err)={0:0.2f}%)'.format(100.*reScaledError)
 
 		if self.UNIFORM == False:
 			# adjust length to match desired read length
