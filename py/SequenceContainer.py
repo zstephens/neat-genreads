@@ -5,6 +5,8 @@ import os
 import bisect
 import pickle
 import numpy as np
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
@@ -47,7 +49,7 @@ class SequenceContainer:
         self.x         = xOffset
         self.ploidy    = ploidy
         self.readLen   = readLen
-        self.sequences = [bytearray(sequence) for n in range(self.ploidy)]
+        self.sequences = [Seq(sequence, IUPAC.unambiguous_dna).tomutable() for n in range(self.ploidy)]
         self.seqLen    = len(sequence)
         self.indelList = [[] for n in range(self.ploidy)]
         self.snpList   = [[] for n in range(self.ploidy)]
@@ -79,7 +81,7 @@ class SequenceContainer:
                 # compute gc-bias
                 j = 0
                 while j+self.windowSize < len(self.sequences[i]):
-                    gc_c = self.sequences[i][j:j+self.windowSize].count(ord('G')) + self.sequences[i][j:j+self.windowSize].count(ord('C'))
+                    gc_c = self.sequences[i][j:j+self.windowSize].count('G') + self.sequences[i][j:j+self.windowSize].count('C')
                     gcCov_vals[i].extend([gc_scalars[gc_c]]*self.windowSize)
                     j += self.windowSize
                 gc_c = self.sequences[i][-self.windowSize:].count('G') + self.sequences[i][-self.windowSize:].count('C')
@@ -331,17 +333,17 @@ class SequenceContainer:
                     inLen   = self.models[i][4].sample()
                     # sequence content of random insertions is uniformly random (change this later, maybe)
                     inSeq   = ''.join([random.choice(NUCL) for n in range(inLen)])
-                    refNucl = chr(self.sequences[i][eventPos])
+                    refNucl = self.sequences[i][eventPos]
                     myIndel = (eventPos,refNucl,refNucl+inSeq)
                 else:										# deletion
                     inLen   = self.models[i][5].sample()
                     if eventPos+inLen+1 >= len(self.sequences[i]):	# skip if deletion too close to boundary
                         continue
                     if inLen == 1:
-                        inSeq = chr(self.sequences[i][eventPos+1])
+                        inSeq = self.sequences[i][eventPos+1]
                     else:
                         inSeq = str(self.sequences[i][eventPos+1:eventPos+inLen+1])
-                    refNucl = chr(self.sequences[i][eventPos])
+                    refNucl = self.sequences[i][eventPos]
                     myIndel = (eventPos,refNucl+inSeq,refNucl)
 
                 # if event too close to boundary, skip. if event conflicts with other indel, skip.
@@ -389,8 +391,8 @@ class SequenceContainer:
                 if eventPos == -1:
                     continue
 
-                refNucl = chr(self.sequences[i][eventPos])
-                context = str(chr(self.sequences[i][eventPos-1])+chr(self.sequences[i][eventPos+1]))
+                refNucl = self.sequences[i][eventPos]
+                context = str(self.sequences[i][eventPos-1])+chr(self.sequences[i][eventPos+1])
                 # sample from tri-nucleotide substitution matrices to get SNP alt allele
                 newNucl = self.models[i][6][TRI_IND[context]][NUC_IND[refNucl]].sample()
                 mySNP   = (eventPos,refNucl,newNucl)
@@ -409,11 +411,11 @@ class SequenceContainer:
             for j in range(len(all_snps[i])):
                 vPos = all_snps[i][j][0]
 
-                if all_snps[i][j][1] != chr(self.sequences[i][vPos]):
-                    print('\nError: Something went wrong!\n', all_snps[i][j], chr(self.sequences[i][vPos]), '\n')
+                if all_snps[i][j][1] != self.sequences[i][vPos]:
+                    print('\nError: Something went wrong!\n', all_snps[i][j], self.sequences[i][vPos], '\n')
                     exit(1)
                 else:
-                    self.sequences[i][vPos] = ord(all_snps[i][j][2])
+                    self.sequences[i][vPos] = all_snps[i][j][2]
 
         # organize the indels we want to insert
         for i in range(len(all_indels)):
