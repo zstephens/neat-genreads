@@ -63,6 +63,8 @@ class BgzfWriter:
         self._handle.write(data)
 
     def write(self, data):
+        if type(data) is str:
+            data = data.encode('utf-8')
         data_len = len(data)
         if len(self._buffer) + data_len < 65536:
             self._buffer += data

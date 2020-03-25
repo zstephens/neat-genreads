@@ -1,12 +1,17 @@
 import random
 import copy
-import re
 import os
 import bisect
 import pickle
 import numpy as np
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
+<<<<<<< HEAD
+=======
+from Bio import SeqIO
+import gzip
+from Bio.bgzf import *
+>>>>>>> 90f96d0f63b7bc485f6739690e6d8aa9680902e1
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
@@ -49,7 +54,11 @@ class SequenceContainer:
         self.x         = xOffset
         self.ploidy    = ploidy
         self.readLen   = readLen
+<<<<<<< HEAD
         self.sequences = [Seq(sequence, IUPAC.unambiguous_dna).tomutable() for n in range(self.ploidy)]
+=======
+        self.sequences = [Seq(sequence).tomutable() for n in range(self.ploidy)]
+>>>>>>> 90f96d0f63b7bc485f6739690e6d8aa9680902e1
         self.seqLen    = len(sequence)
         self.indelList = [[] for n in range(self.ploidy)]
         self.snpList   = [[] for n in range(self.ploidy)]
@@ -68,7 +77,7 @@ class SequenceContainer:
             self.blackList[p][-self.winBuffer]   = 3
             self.blackList[p][-self.winBuffer-1] = 3
 
-    def init_coverage(self,coverageDat,fragDist=None):
+    def init_coverage(self, coverageDat, fragDist=None):
         # if we're only creating a vcf, skip some expensive initialization related to coverage depth
         if not self.onlyVCF:
             (self.windowSize, gc_scalars, targetCov_vals) = coverageDat
@@ -100,7 +109,7 @@ class SequenceContainer:
                     #print (i,j), self.adj[i][j], self.allCigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
                 # shift by half of read length
                 if len(trCov_vals[i]) > int(self.readLen/2.):
-                    trCov_vals[i] = [0.0]*int(self.readLen/2) + trCov_vals[i][:-int(self.readLen/2.)]
+                    trCov_vals[i] = [0.0]*int(self.readLen//2) + trCov_vals[i][:-int(self.readLen/2.)]
                 # fill in missing indices
                 trCov_vals[i].extend([0.0]*(len(self.sequences[i])-len(trCov_vals[i])))
 
@@ -184,7 +193,7 @@ class SequenceContainer:
         if self.mutRescale == None:
             self.mutScalar = 1.0
         else:
-            self.mutScalar = float(self.mutRescale)/(mutRateSum/float(len(self.modelData)))
+            self.mutScalar = float(self.mutRescale)//(mutRateSum/float(len(self.modelData)))
 
         # how are mutations spread to each ploid, based on their specified mut rates?
         self.ploidMutFrac  = [float(n[0])/mutRateSum for n in self.modelData]
@@ -411,8 +420,15 @@ class SequenceContainer:
             for j in range(len(all_snps[i])):
                 vPos = all_snps[i][j][0]
 
+<<<<<<< HEAD
                 if all_snps[i][j][1] != self.sequences[i][vPos]:
                     print('\nError: Something went wrong!\n', all_snps[i][j], self.sequences[i][vPos], '\n')
+=======
+                if all_snps[i][j][1] != chr(self.sequences[i][vPos]):
+                    print(all_snps[i][j])
+                    print(self.sequences[i][vPos])
+                    print('\nError: Something went wrong!\n', all_snps[i][j], chr(self.sequences[i][vPos]), '\n')
+>>>>>>> 90f96d0f63b7bc485f6739690e6d8aa9680902e1
                     exit(1)
                 else:
                     self.sequences[i][vPos] = all_snps[i][j][2]
@@ -440,7 +456,9 @@ class SequenceContainer:
                     exit(1)
                 else:
                     # alter reference sequence
-                    self.sequences[i] = self.sequences[i][:vPos] + bytearray(all_indels_ins[i][j][2]) + self.sequences[i][vPos2:]
+                    self.sequences[i] = self.sequences[i][:vPos] + Seq(all_indels_ins[i][j][2],
+                                                                       IUPAC.unambiguous_dna).tomutable() + \
+                                        self.sequences[i][vPos2:]
                     # notate indel positions for cigar computation
                     d = len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])
                     if d > 0:
@@ -642,7 +660,7 @@ class SequenceContainer:
 
                 r[3] = r[3][:self.readLen]
 
-            rOut.append([self.FM_pos[myPloid][r[0]],myCigar,str(r[3]),str(r[1])])
+            rOut.append([self.FM_pos[myPloid][r[0]], myCigar, r[3].decode(), str(r[1])])
 
         # rOut[i] = (pos, cigar, read_string, qual_string)
         return rOut
@@ -702,7 +720,7 @@ class ReadContainer:
             else:
                 print('Warning: Read length of error model (' + str(len(initQ1)) + ') does not match -R value (' + str(
                     self.readLen) + '), rescaling model...')
-                self.qIndRemap = [max([1,len(initQ1)*n/readLen]) for n in range(readLen)]
+                self.qIndRemap = [max([1,len(initQ1)*n//readLen]) for n in range(readLen)]
 
             # initialize probability distributions
             self.initDistByPos1        = [DiscreteDistribution(initQ1[i],Qscores) for i in range(len(initQ1))]
@@ -745,7 +763,7 @@ class ReadContainer:
                 myQ = self.initDistByPos1[0].sample()
             qOut[0] = myQ
 
-            for i in range(1,self.readLen):
+            for i in range(1, self.readLen):
                 if self.PE_MODELS and isReverseStrand:
                     myQ = self.probDistByPosByPrevQ2[self.qIndRemap[i]][myQ].sample()
                 else:

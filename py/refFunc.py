@@ -2,6 +2,9 @@ import sys
 import time
 import os
 import random
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
+from Bio.bgzf import *
 
 
 #	Index reference fasta
@@ -24,7 +27,7 @@ def indexRef(refPath):
             seqLen = int(splt[1])
             offset = int(splt[2])
             lineLn = int(splt[3])
-            nLines = seqLen / lineLn
+            nLines = seqLen // lineLn
             if seqLen % lineLn != 0:
                 nLines += 1
             ref_inds.append((splt[0], offset, offset + seqLen + nLines, seqLen))
@@ -69,7 +72,7 @@ def indexRef(refPath):
 #		- ('ignore')                    --> do not alter nucleotides in N regions
 #
 def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
-    OK_CHR_ORD = {ord('A'): True, ord('C'): True, ord('G'): True, ord('T'): True, ord('U'): True}
+    OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
     ALLOWED_NUCL = ['A', 'C', 'G', 'T']
     tt = time.time()
     if not quiet:
@@ -79,7 +82,8 @@ def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
     refFile = open(refPath, 'r')
     refFile.seek(ref_inds_i[1])
     myDat = ''.join(refFile.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
-    myDat = bytearray(myDat.upper(), 'utf8')
+    myDat = Seq(myDat.upper(), IUPAC.unambiguous_dna)
+    myDat = myDat.tomutable()
 
     # find N regions
     # data explanation: myDat[N_atlas[0][0]:N_atlas[0][1]] = solid block of Ns
@@ -87,7 +91,7 @@ def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
     nCount = 0
     N_atlas = []
     for i in range(len(myDat)):
-        if myDat[i] == ord('N') or (N_unknowns and myDat[i] not in OK_CHR_ORD):
+        if myDat[i] == 'N' or (N_unknowns and myDat[i] not in OK_CHR_ORD):
             if nCount == 0:
                 prevNI = i
             nCount += 1

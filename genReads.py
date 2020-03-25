@@ -25,10 +25,6 @@ import pickle
 import numpy as np
 import argparse
 
-# absolute path to this script
-SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-1])
-sys.path.append(SIM_PATH + '/py/')
-
 from py.inputChecking import requiredField, checkFileOpen, checkDir, isInRange
 from py.refFunc import indexRef, readRef, getAllRefRegions, partitionRefRegions
 from py.vcfFunc import parseVCF
@@ -36,229 +32,235 @@ from py.OutputFileWriter import OutputFileWriter
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
 from py.SequenceContainer import SequenceContainer, ReadContainer, parseInputMutationModel
 
-# if coverage val for a given window/position is below this value, consider it effectively zero.
-LOW_COV_THRESH = 50
-
 """//////////////////////////////////////////////////
 ////////////    PARSE INPUT ARGUMENTS    ////////////
 //////////////////////////////////////////////////"""
 
-parser = argparse.ArgumentParser(description='NEAT-genReads V2.0')
-parser.add_argument('-r', type=str, required=True, metavar='<str>', help="* ref.fa")
-parser.add_argument('-R', type=int, required=True, metavar='<int>', help="* read length")
-parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output prefix")
-parser.add_argument('-c', type=float, required=False, metavar='<float>', default=10., help="average coverage")
-parser.add_argument('-e', type=str, required=False, metavar='<str>', default=None, help="sequencing error model")
-parser.add_argument('-E', type=float, required=False, metavar='<float>', default=-1,
-                    help="rescale avg sequencing error rate to this")
-parser.add_argument('-p', type=int, required=False, metavar='<int>', default=2, help="ploidy")
-parser.add_argument('-t', type=str, required=False, metavar='<str>', default=None,
-                    help="bed file containing targeted regions")
-parser.add_argument('-to', type=float, required=False, metavar='<float>', default=0.00,
-                    help="off-target coverage scalar")
-parser.add_argument('-m', type=str, required=False, metavar='<str>', default=None, help="mutation model pickle file")
-parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,
-                    help="rescale avg mutation rate to this")
-parser.add_argument('-Mb', type=str, required=False, metavar='<str>', default=None,
-                    help="bed file containing positional mut rates")
-parser.add_argument('-N', type=int, required=False, metavar='<int>', default=-1,
-                    help="below this qual, replace base-calls with 'N's")
-# parser.add_argument('-s', type=str,   required=False, metavar='<str>',   default=None,  help="input sample model")
-parser.add_argument('-v', type=str, required=False, metavar='<str>', default=None, help="input VCF file")
 
-parser.add_argument('--pe', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(None, None),
-                    help='paired-end fragment length mean and std')
-parser.add_argument('--pe-model', type=str, required=False, metavar='<str>', default=None,
-                    help='empirical fragment length distribution')
-# parser.add_argument('--cancer',                        required=False, action='store_true',       default=False, help='produce tumor/normal datasets')
-# parser.add_argument('-cm',                 type=str,   required=False, metavar='<str>',           default=None,  help="cancer mutation model directory")
-# parser.add_argument('-cp',                 type=float, required=False, metavar='<float>',         default=0.8,   help="tumor sample purity")
-parser.add_argument('--gc-model', type=str, required=False, metavar='<str>', default=None,
-                    help='empirical GC coverage bias distribution')
-parser.add_argument('--job', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(0, 0),
-                    help='jobs IDs for generating reads in parallel')
-parser.add_argument('--nnr', required=False, action='store_true', default=False,
-                    help='save non-N ref regions (for parallel jobs)')
-parser.add_argument('--bam', required=False, action='store_true', default=False, help='output golden BAM file')
-parser.add_argument('--vcf', required=False, action='store_true', default=False, help='output golden VCF file')
-parser.add_argument('--fa', required=False, action='store_true', default=False, help='output FASTA instead of FASTQ')
-parser.add_argument('--rng', type=int, required=False, metavar='<int>', default=-1,
-                    help='rng seed value; identical RNG value should produce identical runs of the program, so things like read locations, variant positions, error positions, etc, should all be the same.')
-parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
-parser.add_argument('--no-fastq', required=False, action='store_true', default=False, help='bypass fastq generation')
-args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser(description='NEAT-genReads V2.0')
+    parser.add_argument('-r', type=str, required=True, metavar='<str>', help="* ref.fa")
+    parser.add_argument('-R', type=int, required=True, metavar='<int>', help="* read length")
+    parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output prefix")
+    parser.add_argument('-c', type=float, required=False, metavar='<float>', default=10., help="average coverage")
+    parser.add_argument('-e', type=str, required=False, metavar='<str>', default=None, help="sequencing error model")
+    parser.add_argument('-E', type=float, required=False, metavar='<float>', default=-1,
+                        help="rescale avg sequencing error rate to this")
+    parser.add_argument('-p', type=int, required=False, metavar='<int>', default=2, help="ploidy")
+    parser.add_argument('-t', type=str, required=False, metavar='<str>', default=None,
+                        help="bed file containing targeted regions")
+    parser.add_argument('-to', type=float, required=False, metavar='<float>', default=0.00,
+                        help="off-target coverage scalar")
+    parser.add_argument('-m', type=str, required=False, metavar='<str>', default=None,
+                        help="mutation model pickle file")
+    parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,
+                        help="rescale avg mutation rate to this")
+    parser.add_argument('-Mb', type=str, required=False, metavar='<str>', default=None,
+                        help="bed file containing positional mut rates")
+    parser.add_argument('-N', type=int, required=False, metavar='<int>', default=-1,
+                        help="below this qual, replace base-calls with 'N's")
+    parser.add_argument('-v', type=str, required=False, metavar='<str>', default=None, help="input VCF file")
 
-# required args
-(REFERENCE, READLEN, OUT_PREFIX) = (args.r, args.R, args.o)
-# various dataset parameters
-(COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = (
-args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.Mb, args.v)
-# cancer params (disabled currently)
-# (CANCER, CANCER_MODEL, CANCER_PURITY) = (args.cancer, args.cm, args.cp)
-(CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
-(OFFTARGET_SCALAR) = (args.to)
-# important flags
-(SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
+    parser.add_argument('--pe', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(None, None),
+                        help='paired-end fragment length mean and std')
+    parser.add_argument('--pe-model', type=str, required=False, metavar='<str>', default=None,
+                        help='empirical fragment length distribution')
+    parser.add_argument('--gc-model', type=str, required=False, metavar='<str>', default=None,
+                        help='empirical GC coverage bias distribution')
+    parser.add_argument('--job', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(0, 0),
+                        help='jobs IDs for generating reads in parallel')
+    parser.add_argument('--nnr', required=False, action='store_true', default=False,
+                        help='save non-N ref regions (for parallel jobs)')
+    parser.add_argument('--bam', required=False, action='store_true', default=False, help='output golden BAM file')
+    parser.add_argument('--vcf', required=False, action='store_true', default=False, help='output golden VCF file')
+    parser.add_argument('--fa', required=False, action='store_true', default=False,
+                        help='output FASTA instead of FASTQ')
+    parser.add_argument('--rng', type=int, required=False, metavar='<int>', default=-1,
+                        help='rng seed value; identical RNG value should produce identical runs of the program, so '
+                             'things like read locations, variant positions, error positions, etc, '
+                             'should all be the same.')
+    parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
+    parser.add_argument('--no-fastq', required=False, action='store_true', default=False,
+                        help='bypass fastq generation')
+    args = parser.parse_args()
 
-ONLY_VCF = (NO_FASTQ and SAVE_VCF and not (SAVE_BAM))
-if ONLY_VCF:
-    print('Only producing VCF output, that should speed things up a bit...')
 
-# sequencing model parameters
-(FRAGMENT_SIZE, FRAGMENT_STD) = args.pe
-FRAGLEN_MODEL = args.pe_model
-GC_BIAS_MODEL = args.gc_model
-N_MAX_QUAL = args.N
+    """
+    Set variables for processing
+    """
+    # absolute path to this script
+    SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-1])
+    sys.path.append(SIM_PATH + '/py/')
 
-# if user specified no fastq, no bam, no vcf, then inform them of their wasteful ways and exit
-if NO_FASTQ == True and SAVE_BAM == False and SAVE_VCF == False:
-    print('\nError: No files will be written when --no-fastq is specified without --vcf or --bam.')
-    exit(1)
+    # if coverage val for a given window/position is below this value, consider it effectively zero.
+    LOW_COV_THRESH = 50
 
-# if user specified mean/std, use artificial fragment length distribution, otherwise use
-# the empirical model specified. If neither, then we're doing single-end reads.
-PAIRED_END = False
-PAIRED_END_ARTIFICIAL = False
-if FRAGMENT_SIZE != None and FRAGMENT_STD != None:
-    PAIRED_END = True
-    PAIRED_END_ARTIFICIAL = True
-elif FRAGLEN_MODEL != None:
-    PAIRED_END = True
+
+    # required args
+    (REFERENCE, READLEN, OUT_PREFIX) = (args.r, args.R, args.o)
+    # various dataset parameters
+    (COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = \
+        (args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.Mb, args.v)
+    (OFFTARGET_SCALAR) = (args.to)
+    # important flags
+    (SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = \
+        (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
+
+    ONLY_VCF = (NO_FASTQ and SAVE_VCF and not (SAVE_BAM))
+    if ONLY_VCF:
+        print('Only producing VCF output, that should speed things up a bit...')
+
+    # sequencing model parameters
+    (FRAGMENT_SIZE, FRAGMENT_STD) = args.pe
+    FRAGLEN_MODEL = args.pe_model
+    GC_BIAS_MODEL = args.gc_model
+    N_MAX_QUAL = args.N
+
+    # if user specified no fastq, no bam, no vcf, then inform them of their wasteful ways and exit
+    if NO_FASTQ is True and SAVE_BAM is False and SAVE_VCF is False:
+        print('\nError: No files will be written when --no-fastq is specified without --vcf or --bam.')
+        exit(1)
+
+    # if user specified mean/std, use artificial fragment length distribution, otherwise use
+    # the empirical model specified. If neither, then we're doing single-end reads.
+    PAIRED_END = False
     PAIRED_END_ARTIFICIAL = False
+    if FRAGMENT_SIZE is not None and FRAGMENT_STD is not None:
+        PAIRED_END = True
+        PAIRED_END_ARTIFICIAL = True
+    elif FRAGLEN_MODEL is not None:
+        PAIRED_END = True
+        PAIRED_END_ARTIFICIAL = False
 
-(MYJOB, NJOBS) = args.job
-if MYJOB == 0:
-    MYJOB = 1
-    NJOBS = 1
-SAVE_NON_N = args.nnr
+    (MYJOB, NJOBS) = args.job
+    if MYJOB == 0:
+        MYJOB = 1
+        NJOBS = 1
+    SAVE_NON_N = args.nnr
 
-RNG_SEED = args.rng
-if RNG_SEED == -1:
-    RNG_SEED = random.randint(1, 99999999)
-random.seed(RNG_SEED)
+    RNG_SEED = args.rng
+    if RNG_SEED == -1:
+        RNG_SEED = random.randint(1, 99999999)
+    random.seed(RNG_SEED)
 
-"""************************************************
-****            INPUT ERROR CHECKING
-************************************************"""
+    """************************************************
+    ****            INPUT ERROR CHECKING
+    ************************************************"""
 
-checkFileOpen(REFERENCE, 'ERROR: could not open reference', required=True)
-checkFileOpen(INPUT_VCF, 'ERROR: could not open input VCF', required=False)
-checkFileOpen(INPUT_BED, 'ERROR: could not open input BED', required=False)
-requiredField(OUT_PREFIX, 'ERROR: no output prefix provided')
-if (FRAGMENT_SIZE == None and FRAGMENT_STD != None) or (FRAGMENT_SIZE != None and FRAGMENT_STD == None):
-    print('\nError: --pe argument takes 2 space-separated arguments.\n')
-    exit(1)
+    checkFileOpen(REFERENCE, 'ERROR: could not open reference', required=True)
+    checkFileOpen(INPUT_VCF, 'ERROR: could not open input VCF', required=False)
+    checkFileOpen(INPUT_BED, 'ERROR: could not open input BED', required=False)
+    requiredField(OUT_PREFIX, 'ERROR: no output prefix provided')
+    if (FRAGMENT_SIZE is None and FRAGMENT_STD is not None) or (FRAGMENT_SIZE is not None and FRAGMENT_STD is None):
+        print('\nError: --pe argument takes 2 space-separated arguments.\n')
+        exit(1)
 
-"""************************************************
-****             LOAD INPUT MODELS
-************************************************"""
+    """************************************************
+    ****             LOAD INPUT MODELS
+    ************************************************"""
 
-#	mutation models
-#
-MUT_MODEL = parseInputMutationModel(MUT_MODEL, 1)
-if CANCER:
-    CANCER_MODEL = parseInputMutationModel(CANCER_MODEL, 2)
-if MUT_RATE < 0.:
-    MUT_RATE = None
+    #	mutation models
+    #
+    MUT_MODEL = parseInputMutationModel(MUT_MODEL, 1)
+    if MUT_RATE < 0.:
+        MUT_RATE = None
 
-#	sequencing error model
-#
-if SE_RATE < 0.:
-    SE_RATE = None
-if SE_MODEL == None:
-    print('Using default sequencing error model.')
-    SE_MODEL = SIM_PATH + '/models/errorModel_toy.p'
-    SE_CLASS = ReadContainer(READLEN, SE_MODEL, SE_RATE)
-else:
-    # probably need to do some sanity checking
-    SE_CLASS = ReadContainer(READLEN, SE_MODEL, SE_RATE)
-
-#	GC-bias model
-#
-if GC_BIAS_MODEL == None:
-    print('Using default gc-bias model.')
-    GC_BIAS_MODEL = SIM_PATH + '/models/gcBias_toy.p'
-    [GC_SCALE_COUNT, GC_SCALE_VAL] = pickle.load(open(GC_BIAS_MODEL, 'rb'))
-    GC_WINDOW_SIZE = GC_SCALE_COUNT[-1]
-else:
-    [GC_SCALE_COUNT, GC_SCALE_VAL] = pickle.load(open(GC_BIAS_MODEL, 'rb'))
-    GC_WINDOW_SIZE = GC_SCALE_COUNT[-1]
-
-#	fragment length distribution
-#
-if PAIRED_END and not (PAIRED_END_ARTIFICIAL):
-    print('Using empirical fragment length distribution.')
-    [potential_vals, potential_prob] = pickle.load(open(FRAGLEN_MODEL, 'rb'))
-    FRAGLEN_VALS = []
-    FRAGLEN_PROB = []
-    for i in range(len(potential_vals)):
-        if potential_vals[i] > READLEN:
-            FRAGLEN_VALS.append(potential_vals[i])
-            FRAGLEN_PROB.append(potential_prob[i])
-    # should probably add some validation and sanity-checking code here...
-    FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB, FRAGLEN_VALS)
-    FRAGMENT_SIZE = FRAGLEN_VALS[mean_ind_of_weighted_list(FRAGLEN_PROB)]
-
-#	Indicate not writing FASTQ reads
-#
-if NO_FASTQ:
-    print('Bypassing FASTQ generation...')
-
-"""************************************************
-****            HARD-CODED CONSTANTS
-************************************************"""
-
-# target window size for read sampling. how many times bigger than read/frag length
-WINDOW_TARGET_SCALE = 100
-# sub-window size for read sampling windows. this is basically the finest resolution
-# that can be obtained for targeted region boundaries and GC% bias
-SMALL_WINDOW = 20
-# is the mutation model constant throughout the simulation? If so we can save a lot of time
-CONSTANT_MUT_MODEL = True
-
-"""************************************************
-****               DEFAULT MODELS
-************************************************"""
-
-# fragment length distribution: normal distribution that goes out to +- 6 standard deviations
-if PAIRED_END and PAIRED_END_ARTIFICIAL:
-    print('Using artificial fragment length distribution. mean=' + str(FRAGMENT_SIZE) + ', std=' + str(FRAGMENT_STD))
-    if FRAGMENT_STD == 0:
-        FRAGLEN_DISTRIBUTION = DiscreteDistribution([1], [FRAGMENT_SIZE], degenerateVal=FRAGMENT_SIZE)
+    #	sequencing error model
+    #
+    if SE_RATE < 0.:
+        SE_RATE = None
+    if SE_MODEL is None:
+        print('Using default sequencing error model.')
+        SE_MODEL = SIM_PATH + '/models/errorModel_toy.p'
+        SE_CLASS = ReadContainer(READLEN, SE_MODEL, SE_RATE)
     else:
-        potential_vals = range(FRAGMENT_SIZE - 6 * FRAGMENT_STD, FRAGMENT_SIZE + 6 * FRAGMENT_STD + 1)
+        # probably need to do some sanity checking
+        SE_CLASS = ReadContainer(READLEN, SE_MODEL, SE_RATE)
+
+    #	GC-bias model
+    #
+    if GC_BIAS_MODEL is None:
+        print('Using default gc-bias model.')
+        GC_BIAS_MODEL = SIM_PATH + '/models/gcBias_toy.p'
+        [GC_SCALE_COUNT, GC_SCALE_VAL] = pickle.load(open(GC_BIAS_MODEL, 'rb'))
+        GC_WINDOW_SIZE = GC_SCALE_COUNT[-1]
+    else:
+        [GC_SCALE_COUNT, GC_SCALE_VAL] = pickle.load(open(GC_BIAS_MODEL, 'rb'))
+        GC_WINDOW_SIZE = GC_SCALE_COUNT[-1]
+
+    #	fragment length distribution
+    #
+    if PAIRED_END and not (PAIRED_END_ARTIFICIAL):
+        print('Using empirical fragment length distribution.')
+        [potential_vals, potential_prob] = pickle.load(open(FRAGLEN_MODEL, 'rb'))
         FRAGLEN_VALS = []
+        FRAGLEN_PROB = []
         for i in range(len(potential_vals)):
             if potential_vals[i] > READLEN:
                 FRAGLEN_VALS.append(potential_vals[i])
-        FRAGLEN_PROB = [np.exp(-(((n - float(FRAGMENT_SIZE)) ** 2) / (2 * (FRAGMENT_STD ** 2)))) for n in FRAGLEN_VALS]
+                FRAGLEN_PROB.append(potential_prob[i])
+        # should probably add some validation and sanity-checking code here...
         FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB, FRAGLEN_VALS)
+        FRAGMENT_SIZE = FRAGLEN_VALS[mean_ind_of_weighted_list(FRAGLEN_PROB)]
 
-"""************************************************
-****          MORE INPUT ERROR CHECKING
-************************************************"""
+    #	Indicate not writing FASTQ reads
+    #
+    if NO_FASTQ:
+        print('Bypassing FASTQ generation...')
 
-isInRange(READLEN, 10, 1000000, 'Error: -R must be between 10 and 1,000,000')
-isInRange(COVERAGE, 0, 1000000, 'Error: -c must be between 0 and 1,000,000')
-isInRange(PLOIDS, 1, 100, 'Error: -p must be between 1 and 100')
-isInRange(OFFTARGET_SCALAR, 0, 1, 'Error: -to must be between 0 and 1')
-if MUT_RATE != -1 and MUT_RATE != None:
-    isInRange(MUT_RATE, 0, 0.3, 'Error: -M must be between 0 and 0.3')
-if SE_RATE != -1 and SE_RATE != None:
-    isInRange(SE_RATE, 0, 0.3, 'Error: -E must be between 0 and 0.3')
-if NJOBS != 1:
-    isInRange(NJOBS, 1, 1000, 'Error: --job must be between 1 and 1,000')
-    isInRange(MYJOB, 1, 1000, 'Error: --job must be between 1 and 1,000')
-    isInRange(MYJOB, 1, NJOBS, 'Error: job id must be less than or equal to number of jobs')
-if N_MAX_QUAL != -1:
-    isInRange(N_MAX_QUAL, 1, 40, 'Error: -N must be between 1 and 40')
+    """************************************************
+    ****            HARD-CODED CONSTANTS
+    ************************************************"""
 
-"""************************************************
-****                   MAIN()
-************************************************"""
+    # target window size for read sampling. how many times bigger than read/frag length
+    WINDOW_TARGET_SCALE = 100
+    # sub-window size for read sampling windows. this is basically the finest resolution
+    # that can be obtained for targeted region boundaries and GC% bias
+    SMALL_WINDOW = 20
+    # is the mutation model constant throughout the simulation? If so we can save a lot of time
+    CONSTANT_MUT_MODEL = True
 
+    """************************************************
+    ****               DEFAULT MODELS
+    ************************************************"""
 
-def main():
+    # fragment length distribution: normal distribution that goes out to +- 6 standard deviations
+    if PAIRED_END and PAIRED_END_ARTIFICIAL:
+        print('Using artificial fragment length distribution. mean=' + str(FRAGMENT_SIZE) + ', std=' + str(FRAGMENT_STD))
+        if FRAGMENT_STD == 0:
+            FRAGLEN_DISTRIBUTION = DiscreteDistribution([1], [FRAGMENT_SIZE], degenerateVal=FRAGMENT_SIZE)
+        else:
+            potential_vals = range(FRAGMENT_SIZE - 6 * FRAGMENT_STD, FRAGMENT_SIZE + 6 * FRAGMENT_STD + 1)
+            FRAGLEN_VALS = []
+            for i in range(len(potential_vals)):
+                if potential_vals[i] > READLEN:
+                    FRAGLEN_VALS.append(potential_vals[i])
+            FRAGLEN_PROB = [np.exp(-(((n - float(FRAGMENT_SIZE)) ** 2) / (2 * (FRAGMENT_STD ** 2)))) for n in FRAGLEN_VALS]
+            FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB, FRAGLEN_VALS)
+
+    """************************************************
+    ****          MORE INPUT ERROR CHECKING
+    ************************************************"""
+
+    isInRange(READLEN, 10, 1000000, 'Error: -R must be between 10 and 1,000,000')
+    isInRange(COVERAGE, 0, 1000000, 'Error: -c must be between 0 and 1,000,000')
+    isInRange(PLOIDS, 1, 100, 'Error: -p must be between 1 and 100')
+    isInRange(OFFTARGET_SCALAR, 0, 1, 'Error: -to must be between 0 and 1')
+    if MUT_RATE != -1 and MUT_RATE is not None:
+        isInRange(MUT_RATE, 0, 0.3, 'Error: -M must be between 0 and 0.3')
+    if SE_RATE != -1 and SE_RATE is not None:
+        isInRange(SE_RATE, 0, 0.3, 'Error: -E must be between 0 and 0.3')
+    if NJOBS != 1:
+        isInRange(NJOBS, 1, 1000, 'Error: --job must be between 1 and 1,000')
+        isInRange(MYJOB, 1, 1000, 'Error: --job must be between 1 and 1,000')
+        isInRange(MYJOB, 1, NJOBS, 'Error: job id must be less than or equal to number of jobs')
+    if N_MAX_QUAL != -1:
+        isInRange(N_MAX_QUAL, 1, 40, 'Error: -N must be between 1 and 40')
+
+    """************************************************
+    ****   Process Inputs
+    ************************************************"""
+
     ALLOWED_NUCL = ['A', 'C', 'G', 'T']
     # index reference
     refIndex = indexRef(REFERENCE)
@@ -270,20 +272,15 @@ def main():
 
     # parse input variants, if present
     inputVariants = []
-    if INPUT_VCF != None:
-        if CANCER:
-            (sampNames, inputVariants) = parseVCF(INPUT_VCF, tumorNormal=True, ploidy=PLOIDS)
-            tumorInd = sampNames.index('TUMOR')
-            normalInd = sampNames.index('NORMAL')
-        else:
-            (sampNames, inputVariants) = parseVCF(INPUT_VCF, ploidy=PLOIDS)
+    if INPUT_VCF is not None:
+        (sampNames, inputVariants) = parseVCF(INPUT_VCF, ploidy=PLOIDS)
         for k in sorted(inputVariants.keys()):
             inputVariants[k].sort()
 
     # parse input targeted regions, if present
     inputRegions = {}
     refList = [n[0] for n in refIndex]
-    if INPUT_BED != None:
+    if INPUT_BED is not None:
         with open(INPUT_BED, 'r') as f:
             for line in f:
                 [myChr, pos1, pos2] = line.strip().split('\t')[:3]
@@ -309,7 +306,7 @@ def main():
     # parse input mutation rate rescaling regions, if present
     mutRateRegions = {}
     mutRateValues = {}
-    if MUT_BED != None:
+    if MUT_BED is not None:
         with open(MUT_BED, 'r') as f:
             for line in f:
                 [myChr, pos1, pos2, metaData] = line.strip().split('\t')[:4]
@@ -348,16 +345,9 @@ def main():
         corrected_nJobs = 1
 
     # initialize output files (part II)
-    if CANCER:
-        OFW = OutputFileWriter(OUT_PREFIX + '_normal', paired=PAIRED_END, BAM_header=bamHeader, VCF_header=vcfHeader,
-                               gzipped=GZIPPED_OUT, noFASTQ=NO_FASTQ, FASTA_instead=FASTA_INSTEAD)
-        OFW_CANCER = OutputFileWriter(OUT_PREFIX + '_tumor', paired=PAIRED_END, BAM_header=bamHeader,
-                                      VCF_header=vcfHeader, gzipped=GZIPPED_OUT, jobTuple=(MYJOB, corrected_nJobs),
-                                      noFASTQ=NO_FASTQ, FASTA_instead=FASTA_INSTEAD)
-    else:
-        OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, BAM_header=bamHeader, VCF_header=vcfHeader,
-                               gzipped=GZIPPED_OUT, jobTuple=(MYJOB, corrected_nJobs), noFASTQ=NO_FASTQ,
-                               FASTA_instead=FASTA_INSTEAD)
+    OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, BAM_header=bamHeader, VCF_header=vcfHeader,
+                           gzipped=GZIPPED_OUT, jobTuple=(MYJOB, corrected_nJobs), noFASTQ=NO_FASTQ,
+                           FASTA_instead=FASTA_INSTEAD)
     OUT_PREFIX_NAME = OUT_PREFIX.split('/')[-1]
 
     """************************************************
@@ -461,7 +451,6 @@ def main():
             end = min([start + bpd, pf])
             # print '------------------RAWR:', (pi,pf), nTargWindows, bpd
             varsFromPrevOverlap = []
-            varsCancerFromPrevOverlap = []
             vindFromPrev = 0
             isLastTime = False
             havePrinted100 = False
@@ -527,7 +516,7 @@ def main():
                 # compute coverage modifiers
                 coverage_avg = None
                 coverage_dat = [GC_WINDOW_SIZE, GC_SCALE_VAL, []]
-                if INPUT_BED == None:
+                if INPUT_BED is None:
                     coverage_dat[2] = [1.0] * (end - start)
                 else:
                     if refIndex[RI][0] not in inputRegions:
@@ -560,7 +549,7 @@ def main():
                     continue
 
                 # construct sequence data that we will sample reads from
-                if sequences == None:
+                if sequences is None:
                     sequences = SequenceContainer(start, refSequence[start:end], PLOIDS, overlap, READLEN,
                                                   [MUT_MODEL] * PLOIDS, MUT_RATE, onlyVCF=ONLY_VCF)
                 else:
@@ -579,23 +568,11 @@ def main():
                     else:
                         coverage_avg = sequences.init_coverage(tuple(coverage_dat))
 
-                # unused cancer stuff
-                if CANCER:
-                    tumor_sequences = SequenceContainer(start, refSequence[start:end], PLOIDS, overlap, READLEN,
-                                                        [CANCER_MODEL] * PLOIDS, MUT_RATE, coverage_dat)
-                    tumor_sequences.insert_mutations(varsCancerFromPrevOverlap + all_inserted_variants)
-                    all_cancer_variants = tumor_sequences.random_mutations()
-
                 # which variants do we need to keep for next time (because of window overlap)?
                 varsFromPrevOverlap = []
-                varsCancerFromPrevOverlap = []
                 for n in all_inserted_variants:
                     if n[0] >= end - overlap - 1:
                         varsFromPrevOverlap.append(n)
-                if CANCER:
-                    for n in all_cancer_variants:
-                        if n[0] >= end - overlap - 1:
-                            varsCancerFromPrevOverlap.append(n)
 
                 # if we're only producing VCF, no need to go through the hassle of generating reads
                 if ONLY_VCF:
@@ -619,23 +596,23 @@ def main():
                         if PAIRED_END:
                             myFraglen = FRAGLEN_DISTRIBUTION.sample()
                             myReadData = sequences.sample_read(SE_CLASS, myFraglen)
-                            if myReadData == None:  # skip if we failed to find a valid position to sample read
+                            if myReadData is None:  # skip if we failed to find a valid position to sample read
                                 continue
-                            if myReadData[0][0] == None:
+                            if myReadData[0][0] is None:
                                 isUnmapped.append(True)
                             else:
                                 isUnmapped.append(False)
                                 myReadData[0][0] += start  # adjust mapping position based on window start
-                            if myReadData[1][0] == None:
+                            if myReadData[1][0] is None:
                                 isUnmapped.append(True)
                             else:
                                 isUnmapped.append(False)
                                 myReadData[1][0] += start
                         else:
                             myReadData = sequences.sample_read(SE_CLASS)
-                            if myReadData == None:  # skip if we failed to find a valid position to sample read
+                            if myReadData is None:  # skip if we failed to find a valid position to sample read
                                 continue
-                            if myReadData[0][0] == None:  # unmapped read (lives in large insertion)
+                            if myReadData[0][0] is None:  # unmapped read (lives in large insertion)
                                 isUnmapped = [True]
                             else:
                                 isUnmapped = [False]
@@ -728,9 +705,9 @@ def main():
         else:
             print('')
         if ONLY_VCF:
-            print('VCF generation completed in', end=' ')
+            print('VCF generation completed in', end='')
         else:
-            print('Read sampling completed in', end=' ')
+            print('Read sampling completed in', end='')
         print(int(time.time() - tt), '(sec)')
 
         # write all output variants for this reference
@@ -758,9 +735,6 @@ def main():
 
     # close output files
     OFW.closeFiles()
-    if CANCER:
-        OFW_CANCER.closeFiles()
-
 
 if __name__ == '__main__':
     main()
