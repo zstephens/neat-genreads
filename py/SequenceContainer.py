@@ -6,12 +6,9 @@ import pickle
 import numpy as np
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
-<<<<<<< HEAD
-=======
 from Bio import SeqIO
 import gzip
 from Bio.bgzf import *
->>>>>>> 90f96d0f63b7bc485f6739690e6d8aa9680902e1
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
@@ -54,11 +51,7 @@ class SequenceContainer:
         self.x         = xOffset
         self.ploidy    = ploidy
         self.readLen   = readLen
-<<<<<<< HEAD
         self.sequences = [Seq(sequence, IUPAC.unambiguous_dna).tomutable() for n in range(self.ploidy)]
-=======
-        self.sequences = [Seq(sequence).tomutable() for n in range(self.ploidy)]
->>>>>>> 90f96d0f63b7bc485f6739690e6d8aa9680902e1
         self.seqLen    = len(sequence)
         self.indelList = [[] for n in range(self.ploidy)]
         self.snpList   = [[] for n in range(self.ploidy)]
@@ -420,15 +413,10 @@ class SequenceContainer:
             for j in range(len(all_snps[i])):
                 vPos = all_snps[i][j][0]
 
-<<<<<<< HEAD
                 if all_snps[i][j][1] != self.sequences[i][vPos]:
                     print('\nError: Something went wrong!\n', all_snps[i][j], self.sequences[i][vPos], '\n')
-=======
-                if all_snps[i][j][1] != chr(self.sequences[i][vPos]):
                     print(all_snps[i][j])
                     print(self.sequences[i][vPos])
-                    print('\nError: Something went wrong!\n', all_snps[i][j], chr(self.sequences[i][vPos]), '\n')
->>>>>>> 90f96d0f63b7bc485f6739690e6d8aa9680902e1
                     exit(1)
                 else:
                     self.sequences[i][vPos] = all_snps[i][j][2]
