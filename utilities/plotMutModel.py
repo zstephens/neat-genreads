@@ -5,6 +5,7 @@
 #
 #	python plotMutModel.py -i model1.p [model2.p] [model3.p]... -l legend_label1 [legend_label2] [legend_label3]... -o path/to/pdf_plot_prefix 
 #
+# Python 3 ready
 
 import sys
 import pickle
@@ -90,7 +91,7 @@ colorInd = 0
 for fn in INP:
     myCol = getColor(colorInd, N_FILES)
     colorInd += 1
-    DATA_DICT = pickle.load(open(fn, "rb"))
+    DATA_DICT = pickle.load(open(fn, "rb"), encoding="utf-8")
     [AVG_MUT_RATE, SNP_FREQ, INDEL_FREQ] = [DATA_DICT['AVG_MUT_RATE'], DATA_DICT['SNP_FREQ'], DATA_DICT['INDEL_FREQ']]
     mpl.bar([colorInd - 1], [AVG_MUT_RATE], 1., color=myCol)
 mpl.xlim([-1, N_FILES + 1])
@@ -104,7 +105,7 @@ colorInd = 0
 for fn in INP:
     myCol = getColor(colorInd, N_FILES)
     colorInd += 1
-    DATA_DICT = pickle.load(open(fn, "rb"))
+    DATA_DICT = pickle.load(open(fn, "rb"), encoding='utf-8')
     [AVG_MUT_RATE, SNP_FREQ, INDEL_FREQ] = [DATA_DICT['AVG_MUT_RATE'], DATA_DICT['SNP_FREQ'], DATA_DICT['INDEL_FREQ']]
     mpl.bar([colorInd - 1], [SNP_FREQ], 1., color=myCol)
     mpl.bar([colorInd - 1], [1. - SNP_FREQ], 1., color=myCol, bottom=[SNP_FREQ], hatch='/')

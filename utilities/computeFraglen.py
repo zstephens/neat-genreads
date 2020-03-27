@@ -7,6 +7,7 @@
 #      Usage: samtools view normal.bam | python computeFraglen.py
 #
 #
+# Python 3 ready
 
 import sys
 import fileinput

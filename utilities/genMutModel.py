@@ -12,7 +12,7 @@ import numpy as np
 SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2])
 sys.path.append(SIM_PATH+'/py/')
 
-from py.refFunc import indexRef
+from refFunc import indexRef
 
 REF_WHITELIST =  [str(n) for n in range(1,30)] + ['x','y','X','Y','mt','Mt','MT']
 REF_WHITELIST += ['chr'+n for n in REF_WHITELIST]
@@ -38,6 +38,7 @@ def getChrFromFasta(refPath,ref_inds,chrName):
     myDat = ''.join(refFile.read(ref_inds_i[2]-ref_inds_i[1]).split('\n'))
     return myDat
 
+
 # cluster a sorted list
 def clusterList(l,delta):
     outList    = [[l[0]]]
@@ -53,6 +54,7 @@ def clusterList(l,delta):
         prevVal = n
     return outList
 
+
 def list_2_countDict(l):
     cDict = {}
     for n in l:
@@ -60,6 +62,7 @@ def list_2_countDict(l):
             cDict[n] = 0
         cDict[n] += 1
     return cDict
+
 
 def getBedTracks(fn):
     f = open(fn,'r')
@@ -71,6 +74,7 @@ def getBedTracks(fn):
         trackDict[splt[0]].extend([int(splt[1]),int(splt[2])])
     f.close()
     return trackDict
+
 
 def getTrackLen(trackDict):
     totSum = 0
@@ -142,7 +146,7 @@ if args.bi != None:
     MYBED = (getBedTracks(args.bi),True)
 elif args.be != None:
     print('only considering variants outside of specified bed regions...')
-MYBED = (getBedTracks(args.be),False)
+    MYBED = (getBedTracks(args.be),False)
 
 if TSV[-4:] == '.vcf':
     IS_VCF = True
