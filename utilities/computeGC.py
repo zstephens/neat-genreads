@@ -6,13 +6,12 @@
 #   Takes output file from bedtools genomecov to generate GC/coverage model
 #
 #   Usage: bedtools genomecov -d -ibam input.bam -g reference.fa > genomeCov.dat
-#          python computeGC.py -r reference.fa -i genomeCov.dat -W [sliding window length] -o output_name.p
+#          python computeGC.py -r reference.fa -i genomeCov.dat -w [sliding window length] -o output_name.p
 #
 #
-#
+# Python 3 ready
 
 import time
-import sys
 import argparse
 import numpy as np
 import pickle
