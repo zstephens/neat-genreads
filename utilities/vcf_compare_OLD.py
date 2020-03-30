@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+# Python 3 ready
+
 """ **************************************************
 
 vcf_compare.py
@@ -14,13 +16,15 @@ Contact:		zstephe2@illinois.edu
 ************************************************** """
 
 import sys
-import os
 import copy
 import time
 import bisect
 import re
 import numpy as np
 import optparse
+
+from Bio.Seq import Seq
+from Bio.Alphabet import IUPAC
 
 EV_BPRANGE = 50  # how far to either side of a particular variant location do we want to check for equivalents?
 
@@ -79,33 +83,33 @@ if len(sys.argv[1:]) == 0:
     PARSER.print_help()
     exit(1)
 
-if OPTS.MTRL != None:
+if OPTS.MTRL is not None:
     MINREGIONLEN = int(OPTS.MTRL)
 else:
     MINREGIONLEN = None
 
-if MIN_READLEN == None:
+if MIN_READLEN is None:
     MIN_READLEN = 0
 else:
     MIN_READLEN = int(MIN_READLEN)
 
-if REFERENCE == None:
+if REFERENCE is None:
     print('Error: No reference provided.')
     exit(1)
-if GOLDEN_VCF == None:
+if GOLDEN_VCF is None:
     print('Error: No golden VCF provided.')
     exit(1)
-if WORKFLOW_VCF == None:
+if WORKFLOW_VCF is None:
     print('Error: No workflow VCF provided.')
     exit(1)
-if OUT_PREFIX == None:
+if OUT_PREFIX is None:
     print('Error: No output prefix provided.')
     exit(1)
-if (BEDFILE != None and MINREGIONLEN == None) or (BEDFILE == None and MINREGIONLEN != None):
+if (BEDFILE is not None and MINREGIONLEN is None) or (BEDFILE is None and MINREGIONLEN is not None):
     print('Error: Both -t and -T must be specified')
     exit(1)
 
-if NO_PLOT == False:
+if NO_PLOT is False:
     import matplotlib
 
     matplotlib.use('Agg')
@@ -164,7 +168,7 @@ def parseLine(splt, colDict, colSamp):
             if ':' + dp_tok + ':' in format:
                 dpInd = format.split(':').index(dp_tok)
                 cov = int(splt[colSamp[0]].split(':')[dpInd])
-        if cov != None:
+        if cov is not None:
             break
 
     #	check INFO for AF first
@@ -179,7 +183,7 @@ def parseLine(splt, colDict, colSamp):
             afInd = splt[colDict['FORMAT']].split(':').index('AF')
             af = splt[colSamp[0]].split(':')[afInd]
 
-    if af != None:
+    if af is not None:
         af_splt = af.split(',')
         while (len(af_splt) < len(alt_alleles)):  # are we lacking enough AF values for some reason?
             af_splt.append(af_splt[-1])  # phone it in.
@@ -223,10 +227,10 @@ def parseVCF(VCF_FILENAME, refName, targRegionsFl, outFile, outBool):
 
                 if targInd % 2 == 1:
                     targLen = targRegionsFl[targInd] - targRegionsFl[targInd - 1]
-                    if (BEDFILE != None and targLen >= MINREGIONLEN) or BEDFILE == None:
+                    if (BEDFILE is not None and targLen >= MINREGIONLEN) or BEDFILE is None:
 
                         pl_out = parseLine(splt, colDict, colSamp)
-                        if pl_out == None:
+                        if pl_out is None:
                             var_filtered += 1
                             continue
                         (cov, qual, aa, af) = pl_out
@@ -252,7 +256,7 @@ def parseVCF(VCF_FILENAME, refName, targRegionsFl, outFile, outBool):
                             else:
                                 v_Hashed[var] = 1
 
-                            if cov != None:
+                            if cov is not None:
                                 v_Cov[var] = cov
                             v_AF[var] = af[0]  # only use first AF, even if multiple. fix this later?
                             v_Qual[var] = qual
@@ -276,7 +280,8 @@ def parseVCF(VCF_FILENAME, refName, targRegionsFl, outFile, outBool):
                     outFile.write(line)
 
     return (
-    v_Hashed, v_Alts, v_Cov, v_AF, v_Qual, v_TargLen, nBelowMinRLen, line_unique, var_filtered, var_merged, hash_coll)
+        v_Hashed, v_Alts, v_Cov, v_AF, v_Qual, v_TargLen, nBelowMinRLen, line_unique, var_filtered, var_merged,
+        hash_coll)
 
 
 def condenseByPos(listIn):
@@ -323,7 +328,7 @@ def main():
             ref_inds.append((prevR, prevP, f.tell() - len(data)))
             break
         if data[0] == '>':
-            if prevP != None:
+            if prevP is not None:
                 ref_inds.append((prevR, prevP, f.tell() - len(data)))
             prevP = f.tell()
             prevR = data[1:-1]
@@ -342,7 +347,7 @@ def main():
     zwF = 0  # total workflow variants that were filtered and excluded
     zwR = 0  # total workflow variants that were excluded for being redundant
     zwM = 0  # total workflow variants that were merged into a single position
-    if BEDFILE != None:
+    if BEDFILE is not None:
         zbM = 0
 
     mappability_vs_FN = {0: 0,
@@ -358,7 +363,7 @@ def main():
     mappability_tracks = {}  # indexed by chr string (e.g. 'chr1'), has boolean array
     prevRef = ''
     relevantRegions = []
-    if MAPTRACK != None:
+    if MAPTRACK is not None:
         mtf = open(MAPTRACK, 'r')
         for line in mtf:
             splt = line.strip().split('\t')
@@ -436,14 +441,14 @@ def main():
                         print(i, len(myDat[i]), inWidth)
                 exit(1)
 
-            myDat = bytearray(''.join(myDat)).upper()
+            myDat = Seq(''.join(myDat)).upper().tomutable()
             myLen = len(myDat)
 
         #
         #	Parse relevant targeted regions
         #
         targRegionsFl = []
-        if BEDFILE != None:
+        if BEDFILE is not None:
             bedfile = open(BEDFILE, 'r')
             for line in bedfile:
                 splt = line.split('\t')
@@ -480,9 +485,9 @@ def main():
         for var in correctHashed.keys():
             if var in workflowHashed or var[0] in solvedInds:
                 correctHashed[var] = 2
-                workflowHashed[var] = 2
+                workflowHashed[var] = 20
                 solvedInds[var[0]] = True
-        for var in correctHashed.keys() + workflowHashed.keys():
+        for var in list(correctHashed.keys()) + list(workflowHashed.keys()):
             if var[0] in solvedInds:
                 correctHashed[var] = 2
                 workflowHashed[var] = 2
@@ -580,9 +585,9 @@ def main():
         znP += nPerfect
         zfP += len(FPvariants)
         znF += len(notFound)
-        if FAST == False:
+        if FAST is False:
             znE += nEquiv
-        if BEDFILE != None:
+        if BEDFILE is not None:
             zbM += correctBelowMinRLen
 
         #
@@ -596,7 +601,7 @@ def main():
             noReason = True
 
             #	mappability?
-            if MAPTRACK != None:
+            if MAPTRACK is not None:
                 if refName in mappability_tracks and var[0] < len(mappability_tracks[refName]):
                     if mappability_tracks[refName][var[0]]:
                         mappability_vs_FN[1] += 1
@@ -608,7 +613,7 @@ def main():
             #	coverage?
             if var in correctCov:
                 c = correctCov[var]
-                if c != None:
+                if c is not None:
                     if c not in coverage_vs_FN:
                         coverage_vs_FN[c] = 0
                     coverage_vs_FN[c] += 1
@@ -697,7 +702,7 @@ def main():
         tstr1 = 'False Negative Variants (Missed Detections)'
         # tstr2 = str(nDetected)+' / '+str(znF)+' FN variants categorized'
         tstr2 = ''
-        if MAPTRACK != None:
+        if MAPTRACK is not None:
             v = venn3([set1, set2, set3], (s1, s2, s3))
         else:
             v = venn2([set2, set3], (s2, s3))
@@ -712,7 +717,7 @@ def main():
     #	spit out results to console
     #
     print('\n**********************************\n')
-    if BEDFILE != None:
+    if BEDFILE is not None:
         print('ONLY CONSIDERING VARIANTS FOUND WITHIN TARGETED REGIONS\n\n')
     print('Total Golden Variants:  ', ztV, '\t[', zgF, 'filtered,', zgM, 'merged,', zgR, 'redundant ]')
     print('Total Workflow Variants:', ztW, '\t[', zwF, 'filtered,', zwM, 'merged,', zwR, 'redundant ]')
@@ -723,7 +728,7 @@ def main():
         print('FP variants:    ', zfP)  # ,'({0:.2f}%)'.format(100.*float(zfP)/ztW)
     if FAST == False:
         print('\nNumber of equivalent variants denoted differently between the two vcfs:', znE)
-    if BEDFILE != None:
+    if BEDFILE is not None:
         print('\nNumber of golden variants located in targeted regions that were too small to be sampled from:', zbM)
     if FAST:
         print(
