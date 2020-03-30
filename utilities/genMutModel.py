@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Python 3 ready
+
 import sys
 import os
 import re
@@ -158,7 +160,7 @@ else:
 
 
 #####################################
-#				main()				#
+#				main()				#c
 #####################################
 
 

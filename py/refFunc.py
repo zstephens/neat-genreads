@@ -4,7 +4,6 @@ import os
 import random
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
-# from Bio.bgzf import *
 
 
 #	Index reference fasta
@@ -58,19 +57,6 @@ def indexRef(refPath):
     print('{0:.3f} (sec)'.format(time.time() - tt))
     return ref_inds
 
-
-#
-#	Read in sequence data from reference fasta
-#
-#	N_unknowns  = True --> all ambiguous characters will be treated as Ns
-#	N_handling  = (mode,params)
-#		- ('random',read/frag len)      --> all regions of Ns smaller than read or fragment
-#                                           length (whichever is bigger) will be replaced
-#                                           with uniformly random nucleotides
-#		- ('allChr',read/frag len, chr) --> same as above, but replaced instead with a string
-#                                           of 'chr's
-#		- ('ignore')                    --> do not alter nucleotides in N regions
-#
 def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
     OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
     ALLOWED_NUCL = ['A', 'C', 'G', 'T']

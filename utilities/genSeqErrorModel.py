@@ -9,12 +9,12 @@
 #          Usage: python genSeqErrorModel.py -i input_reads.fq -o path/to/output_name.p
 #
 #
+# Python 3 ready
 
 
 import os
 import sys
 import gzip
-import random
 import numpy as np
 import argparse
 import pickle
@@ -23,7 +23,7 @@ import pickle
 SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
 sys.path.append(SIM_PATH)
 
-from py.probability import DiscreteDistribution
+from probability import DiscreteDistribution
 
 
 def parseFQ(inf):
