@@ -4,6 +4,7 @@ import os
 import random
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
+# from Bio.bgzf import *
 
 
 #	Index reference fasta
@@ -56,6 +57,7 @@ def indexRef(refPath):
 
     print('{0:.3f} (sec)'.format(time.time() - tt))
     return ref_inds
+
 
 def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
     OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
