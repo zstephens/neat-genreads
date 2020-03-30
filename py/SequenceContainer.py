@@ -277,7 +277,8 @@ class SequenceContainer:
 				p = whichPloid[i]
 				myAlt = inpV[2][whichAlt[i]]
 				myVar = (inpV[0]-self.x,inpV[1],myAlt)
-				inLen = max([len(inpV[1]),len(myAlt)])
+				#inLen = max([len(inpV[1]),len(myAlt)])
+				inLen = len(inpV[1])
 
 				if myVar[0] < 0 or myVar[0] >= len(self.blackList[p]):
 					print '\nError: Attempting to insert variant out of window bounds:'
@@ -290,7 +291,7 @@ class SequenceContainer:
 					self.blackList[p][myVar[0]] = 2
 				else:
 					indel_failed = False
-					for k in xrange(myVar[0],myVar[0]+inLen+1):
+					for k in xrange(myVar[0],myVar[0]+inLen):
 						if k >= len(self.blackList[p]):
 							indel_failed = True
 							continue
@@ -299,7 +300,7 @@ class SequenceContainer:
 							continue
 					if indel_failed:
 						continue
-					for k in xrange(myVar[0],myVar[0]+inLen+1):
+					for k in xrange(myVar[0],myVar[0]+inLen):
 						self.blackList[p][k] = 1
 					self.indelList[p].append(myVar)
 
