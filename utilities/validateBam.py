@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Python 3 ready
+
 import sys
 import os
 import gzip
@@ -33,7 +35,7 @@ def getBytes(fmt, amt):
 IN_BAM = sys.argv[1]
 f = open(IN_BAM, 'rb')
 f.seek(os.path.getsize(IN_BAM) - 28)
-EOF = [format(ord(n), '02x') for n in f.read()]
+EOF = [format(n, '02x') for n in f.read()]
 print('EOF_MARKER:  ', ' '.join(EOF))
 if EOF != BAM_EOF:
     print('\nWARNING: BAM EOF DOES NOT MATCH EXPECTED STRING.\n')

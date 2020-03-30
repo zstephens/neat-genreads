@@ -5,6 +5,7 @@
 #
 #	python validateFQ.py read1.fq [read2.fq]
 #
+# Python 3 ready
 
 import sys
 
