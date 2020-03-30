@@ -25,7 +25,7 @@ import pickle
 import numpy as np
 import argparse
 
-from py.inputChecking import requiredField, checkFileOpen, checkDir, isInRange
+from py.inputChecking import requiredField, checkFileOpen, isInRange
 from py.refFunc import indexRef, readRef, getAllRefRegions, partitionRefRegions
 from py.vcfFunc import parseVCF
 from py.OutputFileWriter import OutputFileWriter
