@@ -7,8 +7,8 @@ import numpy as np
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 from Bio import SeqIO
-import gzip
-from Bio.bgzf import *
+# import gzip
+# from Bio.bgzf import *
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
@@ -51,7 +51,7 @@ class SequenceContainer:
         self.x         = xOffset
         self.ploidy    = ploidy
         self.readLen   = readLen
-        self.sequences = [Seq(sequence, IUPAC.unambiguous_dna).tomutable() for n in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence), IUPAC.unambiguous_dna).tomutable() for n in range(self.ploidy)]
         self.seqLen    = len(sequence)
         self.indelList = [[] for n in range(self.ploidy)]
         self.snpList   = [[] for n in range(self.ploidy)]
@@ -228,7 +228,7 @@ class SequenceContainer:
         self.trinuc_bias = [None for n in range(self.ploidy)]
         for p in range(self.ploidy):
             for i in range(self.winBuffer+1,self.seqLen-1):
-                trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[self.sequences[p][i-1:i+2].decode()]]
+                trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[str(self.sequences[p][i-1:i+2])]]
             self.trinuc_bias[p] = DiscreteDistribution(trinuc_snp_bias[p][self.winBuffer+1:self.seqLen-1],range(self.winBuffer+1,self.seqLen-1))
 
     def update(self, xOffset, sequence, ploidy, windowOverlap, readLen, mutationModels=[], mutRate=None):
@@ -394,7 +394,7 @@ class SequenceContainer:
                     continue
 
                 refNucl = self.sequences[i][eventPos]
-                context = str(self.sequences[i][eventPos-1])+chr(self.sequences[i][eventPos+1])
+                context = str(self.sequences[i][eventPos-1])+str(self.sequences[i][eventPos+1])
                 # sample from tri-nucleotide substitution matrices to get SNP alt allele
                 newNucl = self.models[i][6][TRI_IND[context]][NUC_IND[refNucl]].sample()
                 mySNP   = (eventPos,refNucl,newNucl)
@@ -623,7 +623,7 @@ class SequenceContainer:
                     # insert insertion error into read and update cigar string accordingly
                     else:
                         myadj = sse_adj[ePos]
-                        if chr(r[3][ePos+myadj]) == error[3]:
+                        if str(r[3][ePos+myadj]) == error[3]:
                             r[3] = r[3][:ePos+myadj] + error[4] + r[3][ePos+myadj+1:]
                             expandedCigar = expandedCigar[:ePos+myadj] + ['I']*eLen + expandedCigar[ePos+myadj:]
                         else:
@@ -635,7 +635,7 @@ class SequenceContainer:
                             sse_adj[i] += eLen
 
                 else:	# substitution errors, much easier by comparison...
-                    if chr(r[3][ePos+sse_adj[ePos]]) == error[3]:
+                    if str(r[3][ePos+sse_adj[ePos]]) == error[3]:
                         r[3][ePos+sse_adj[ePos]] = error[4]
                     else:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
@@ -648,7 +648,7 @@ class SequenceContainer:
 
                 r[3] = r[3][:self.readLen]
 
-            rOut.append([self.FM_pos[myPloid][r[0]], myCigar, r[3].decode(), str(r[1])])
+            rOut.append([self.FM_pos[myPloid][r[0]], myCigar, str(r[3]), str(r[1])])
 
         # rOut[i] = (pos, cigar, read_string, qual_string)
         return rOut
@@ -662,7 +662,7 @@ class ReadContainer:
 
         self.readLen = readLen
 
-        errorDat = pickle.load(open(errorModel, 'rb'), encoding='latin1')
+        errorDat = pickle.load(open(errorModel, 'rb'), encoding="bytes")
         self.UNIFORM = False
         if len(errorDat) == 4:		# uniform-error SE reads (e.g. PacBio)
             self.UNIFORM = True
@@ -788,18 +788,18 @@ class ReadContainer:
             # errorOut = (type, len, pos, ref, alt)
 
             if isSub:								# insert substitution error
-                myNucl  = chr(readData[ind])
+                myNucl  = str(readData[ind])
                 newNucl = self.errSSE[NUC_IND[myNucl]].sample()
                 sOut.append(('S',1,ind,myNucl,newNucl))
             else:									# insert indel error
                 indelLen = self.errSIE.sample()
                 if random.random() < self.errP[4]:		# insertion error
-                    myNucl  = chr(readData[ind])
+                    myNucl  = str(readData[ind])
                     newNucl = myNucl + ''.join([self.errSIN.sample() for n in range(indelLen)])
                     sOut.append(('I',len(newNucl)-1,ind,myNucl,newNucl))
                 elif ind < self.readLen-2-nDelSoFar:	# deletion error (prevent too many of them from stacking up)
                     myNucl  = str(readData[ind:ind+indelLen+1])
-                    newNucl = chr(readData[ind])
+                    newNucl = str(readData[ind])
                     nDelSoFar += len(myNucl)-1
                     sOut.append(('D',len(myNucl)-1,ind,myNucl,newNucl))
                     for i in range(ind+1,ind+indelLen+1):
