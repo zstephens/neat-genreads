@@ -435,7 +435,7 @@ def main():
 
         for i in range(len(N_regions['non_N'])):
             (pi, pf) = N_regions['non_N'][i]
-            nTargWindows = max([1, (pf - pi) / targSize])
+            nTargWindows = max([1, (pf - pi) // targSize])
             bpd = int((pf - pi) / float(nTargWindows))
             # bpd += GC_WINDOW_SIZE - bpd%GC_WINDOW_SIZE
 
@@ -706,9 +706,9 @@ def main():
         else:
             print('')
         if ONLY_VCF:
-            print('VCF generation completed in', end='')
+            print('VCF generation completed in ', end='')
         else:
-            print('Read sampling completed in', end='')
+            print('Read sampling completed in ', end='')
         print(int(time.time() - tt), '(sec)')
 
         # write all output variants for this reference

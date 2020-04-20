@@ -6,9 +6,6 @@ import pickle
 import numpy as np
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
-from Bio import SeqIO
-# import gzip
-# from Bio.bgzf import *
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
@@ -432,7 +429,7 @@ class SequenceContainer:
             rollingAdj = 0
             tempSymbolString = ['M' for n in self.sequences[i]]
             # there's an off-by-one error somewhere in the position sampling routines.. this might fix it
-            tempSymbolString.append('M')
+            # tempSymbolString.append('M')
             for j in range(len(all_indels_ins[i])):
                 vPos        = all_indels_ins[i][j][0] + rollingAdj
                 vPos2       = vPos + len(all_indels_ins[i][j][1])
@@ -701,7 +698,7 @@ class ReadContainer:
             print('Warning: Quality scores no longer exactly representative of error probability. '
                   'Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale))
 
-        if self.UNIFORM == False:
+        if not self.UNIFORM:
             # adjust length to match desired read length
             if self.readLen == len(initQ1):
                 self.qIndRemap = range(self.readLen)

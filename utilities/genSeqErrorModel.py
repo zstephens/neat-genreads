@@ -78,7 +78,7 @@ def parseFQ(inf):
             continue
 
         for i in range(len(data4) - 1):
-            q = ord(data4[i]) - offQ
+            q = ord(str(data4[i])) - offQ
             qDict[q] = True
             if i == 0:
                 priorQ[i][q] += 1
