@@ -77,6 +77,9 @@ class SequenceContainer:
             avg_out = []
             for i in range(len(self.sequences)):
                 max_coord = min([len(self.sequences[i])-self.readLen, len(self.allCigar[i])-self.readLen])
+                # Trying to fix a problem wherein the above line gives a negative answer
+                if max_coord <= 0:
+                    max_coord = min([len(self.sequences[i]), len(self.allCigar[i])])
                 # compute gc-bias
                 j = 0
                 while j+self.windowSize < len(self.sequences[i]):
@@ -89,7 +92,7 @@ class SequenceContainer:
                 trCov_vals[i].append(targetCov_vals[0])
                 prevVal = self.FM_pos[i][0]
                 for j in range(1,max_coord):
-                    if self.FM_pos[i][j] == None:
+                    if self.FM_pos[i][j] is None:
                         trCov_vals[i].append(targetCov_vals[prevVal])
                     elif self.FM_span[i][j]-self.FM_pos[i][j] <= 1:
                         trCov_vals[i].append(targetCov_vals[prevVal])
