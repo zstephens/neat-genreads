@@ -505,8 +505,7 @@ def main():
                 newPercent = int((currentProgress * 100) / float(total_bp_span))
                 if newPercent > currentPercent:
                     if newPercent <= 99 or (newPercent == 100 and not havePrinted100):
-                        if newPercent % 5 == 0:
-                            sys.stdout.write(str(newPercent) + '% ')
+                        sys.stdout.write(str(newPercent) + '% ')
                         sys.stdout.flush()
                     currentPercent = newPercent
                     if currentPercent == 100:
