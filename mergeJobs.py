@@ -51,7 +51,10 @@ def catBams(l,outName,samtools_exe):
 	l_sort = sorted(l)
 	tmp = outName+'.tempHeader.sam'
 	os.system(samtools_exe+' view -H '+l_sort[0]+' > '+tmp)
-	cmd = samtools_exe+' cat -h '+tmp+' '+' '.join(l_sort)+' > '+outName
+	cmd = samtools_exe+' cat -h '+tmp+' '+' '.join(l_sort)+' | '+samtools_exe+' sort - > '+outName
+	print cmd
+	os.system(cmd)
+	cmd = samtools_exe+' index '+outName
 	print cmd
 	os.system(cmd)
 	os.system('rm '+tmp)
@@ -67,9 +70,10 @@ def main():
 	parser.add_argument('-i', type=str, required=True, metavar='<str>', nargs='+', help="* input prefix: [prefix_1] [prefix_2] ...")
 	parser.add_argument('-o', type=str, required=True, metavar='<str>',            help="* output prefix")
 	parser.add_argument('-s', type=str, required=True, metavar='<str>',            help="* /path/to/samtools")
+	parser.add_argument('--no-job',     required=False, action='store_true',       help='files do not have .job suffix', default=False)
 
 	args = parser.parse_args()
-	(INP,OUP,SAMTOOLS) = (args.i,args.o,args.s)
+	(INP, OUP, SAMTOOLS, NO_JOB) = (args.i, args.o, args.s, args.no_job)
 
 	inDir = '/'.join(INP[0].split('/')[:-1])+'/'
 	if inDir == '/':
@@ -85,15 +89,19 @@ def main():
 	listing_r2 = []
 	listing_b  = []
 	listing_v  = []
+	pat_r1 = '_read1.fq'   + (NO_JOB == False)*'.job'
+	pat_r2 = '_read2.fq'   + (NO_JOB == False)*'.job'
+	pat_gb = '_golden.bam' + (NO_JOB == False)*'.job'
+	pat_gv = '_golden.vcf' + (NO_JOB == False)*'.job'
 	for n in INP_LIST:
-		listing_r1 += getListOfFiles(inDir,n+'_read1.fq.job')
-		listing_r2 += getListOfFiles(inDir,n+'_read2.fq.job')
-		listing_b  += getListOfFiles(inDir,n+'_golden.bam.job')
+		listing_r1 += getListOfFiles(inDir,n+pat_r1)
+		listing_r2 += getListOfFiles(inDir,n+pat_r2)
+		listing_b  += getListOfFiles(inDir,n+pat_gb)
 		if len(listing_v):	# remove headers from vcf files that aren't the first being processed
-			initList   = getListOfFiles(inDir,n+'_golden.vcf.job')
+			initList   = getListOfFiles(inDir,n+pat_gv)
 			listing_v += [stripVCF_header(n) for n in initList]
 		else:
-			listing_v  += getListOfFiles(inDir,n+'_golden.vcf.job')
+			listing_v  += getListOfFiles(inDir,n+pat_gv)
 	
 	#
 	#	merge fq files
