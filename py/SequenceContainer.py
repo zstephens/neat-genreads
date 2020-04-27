@@ -80,7 +80,7 @@ class SequenceContainer:
                 # Trying to fix a problem wherein the above line gives a negative answer
                 if max_coord <= 0:
                     max_coord = min([len(self.sequences[i]), len(self.allCigar[i])])
-                compute gc-bias
+                # compute gc-bias
                 j = 0
                 while j+self.windowSize < len(self.sequences[i]):
                     gc_c = self.sequences[i][j:j+self.windowSize].count('G') + self.sequences[i][j:j+self.windowSize].count('C')
