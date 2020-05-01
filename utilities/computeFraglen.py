@@ -18,72 +18,85 @@ FILTER_MAPQUAL = 10  # only consider reads that are mapped with at least this ma
 FILTER_MINREADS = 100  # only consider fragment lengths that have at least this many read pairs supporting it
 FILTER_MEDDEV_M = 10  # only consider fragment lengths this many median deviations above the median
 
-
-def quick_median(countDict):
-    midPoint = sum(countDict.values()) / 2
+def quick_median(count_dict):
+    midPoint = sum(count_dict.values()) // 2
     mySum = 0
     myInd = 0
-    sk = sorted(countDict.keys())
+    sk = sorted(count_dict.keys())
     while mySum < midPoint:
-        mySum += countDict[sk[myInd]]
+        mySum += count_dict[sk[myInd]]
         if mySum >= midPoint:
             break
         myInd += 1
     return myInd
 
 
-def median_deviation_from_median(countDict):
-    myMedian = quick_median(countDict)
+def median_deviation_from_median(count_dict):
+    myMedian = quick_median(count_dict)
     deviations = {}
-    for k in sorted(countDict.keys()):
+    for k in sorted(count_dict.keys()):
         d = abs(k - myMedian)
-        deviations[d] = countDict[k]
+        deviations[d] = count_dict[k]
     return quick_median(deviations)
 
 
-if len(sys.argv) != 1:
-    print("Usage: samtools view normal.bam | python computeFraglen.py")
-    exit(1)
+def count_frags(file: str) -> dict:
+    count_dict = {}
+    PRINT_EVERY = 100000
+    i = 0
+    for line in fileinput.input():
+        # Skip all comments and headers
+        if line[0] == '#' or line[0] == '@':
+            continue
+        splt = line.strip().split('\t')
+        samFlag = int(splt[1])
+        myRef = splt[2]
+        mapQual = int(splt[4])
+        mateRef = splt[6]
+        myTlen = abs(int(splt[8]))
 
-all_tlens = {}
-PRINT_EVERY = 100000
-BREAK_AFTER = 1000000
-i = 0
-for line in fileinput.input():
-    splt = line.strip().split('\t')
-    samFlag = int(splt[1])
-    myRef = splt[2]
-    mapQual = int(splt[4])
-    mateRef = splt[6]
-    myTlen = abs(int(splt[8]))
+        # if read is paired, and is first in pair, and is confidently mapped...
+        if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
+            # and mate is mapped to same reference
+            if mateRef == '=' or mateRef == myRef:
+                if myTlen not in count_dict:
+                    count_dict[myTlen] = 0
+                count_dict[myTlen] += 1
+                i += 1
+                if i % PRINT_EVERY == 0:
+                    print('---', i, quick_median(count_dict), median_deviation_from_median(count_dict))
+    return count_dict
 
-    if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:  # if read is paired, and is first in pair, and is confidently mapped...
-        if mateRef == '=' or mateRef == myRef:  # and mate is mapped to same reference
-            if myTlen not in all_tlens:
-                all_tlens[myTlen] = 0
-            all_tlens[myTlen] += 1
-            i += 1
-            if i % PRINT_EVERY == 0:
-                print('---', i, quick_median(all_tlens), median_deviation_from_median(all_tlens))
-            # for k in sorted(all_tlens.keys()):
-            #	print k, all_tlens[k]
 
-        # if i > BREAK_AFTER:
-        #	break
+def compute_probs(count_dict: dict) -> (list, list):
+    values = []
+    probabilities = []
+    med = quick_median(count_dict)
+    mdm = median_deviation_from_median(count_dict)
 
-med = quick_median(all_tlens)
-mdm = median_deviation_from_median(all_tlens)
+    for k in sorted(count_dict.keys()):
+        if k > 0 and k < med + FILTER_MEDDEV_M * mdm:
+            if count_dict[k] >= FILTER_MINREADS:
+                print(k, count_dict[k])
+                values.append(k)
+                probabilities.append(count_dict[k])
+    countSum = float(sum(probabilities))
+    probabilities = [n / countSum for n in probabilities]
+    return values, probabilities
 
-outVals = []
-outProbs = []
-for k in sorted(all_tlens.keys()):
-    if k > 0 and k < med + FILTER_MEDDEV_M * mdm:
-        if all_tlens[k] >= FILTER_MINREADS:
-            print(k, all_tlens[k])
-            outVals.append(k)
-            outProbs.append(all_tlens[k])
-countSum = float(sum(outProbs))
-outProbs = [n / countSum for n in outProbs]
+def main():
+    # TODO implement a more robust checking
+    if len(sys.argv) > 2:
+        print("Usage: samtools view normal.bam | python computeFraglen.py")
+        print("Usage: python computeFraglen.py normal.sam")
+        exit(1)
 
-print('\nsaving model...')
-pickle.dump([outVals, outProbs], open('fraglen.p', 'wb'))
+    all_tlens = count_frags(sys.arv[1])
+    print('\nsaving model...')
+    out_vals, out_probs = compute_probs(all_tlens)
+    print(out_probs)
+    pickle.dump([out_vals, out_probs], open('fraglen.p', 'wb'))
+
+
+if __name__ == "__main()":
+    main()
