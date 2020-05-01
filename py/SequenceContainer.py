@@ -872,7 +872,7 @@ def parseInputMutationModel(model=None, whichDefault=1):
 
         trinuc_mut_prob    = pickle_dict['TRINUC_MUT_PROB']
         which_have_we_seen = {n:False for n in ALL_TRI}
-        trinuc_mean        = np.mean(trinuc_mut_prob.values())
+        trinuc_mean        = np.mean(list(trinuc_mut_prob.values()))
         for trinuc in trinuc_mut_prob.keys():
             outModel[9][ALL_IND[trinuc]] = trinuc_mut_prob[trinuc]
             which_have_we_seen[trinuc]   = True
