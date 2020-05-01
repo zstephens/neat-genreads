@@ -190,7 +190,7 @@ class OutputFileWriter:
         if seqLen & 1:
             seq += '='
         for i in range(encodedLen):
-            print(seq[2*i], seq[2*i+1])
+            # print(seq[2*i], seq[2*i+1])
             encodedSeq.extend(pack('<B', (SEQ_PACKED[seq[2 * i].capitalize()] << 4) + SEQ_PACKED[seq[2 * i + 1].capitalize()]))
 
         # apparently samtools automatically adds 33 to the quality score string...
@@ -231,8 +231,8 @@ class OutputFileWriter:
         self.bam_buffer.append((refID, pos_0, pack('<i', blockSize) + pack('<i', refID) + pack('<i', pos_0) +
                                 pack('<I', (myBin << 16) + (myMapQual << 8) + len(readName) + 1) +
                                 pack('<I', (samFlag << 16) + cig_ops) + pack('<i', seqLen) + pack('<i', next_refID) +
-                                pack('<i', next_pos) + pack('<i', my_tlen) + readName +
-                                '\0' + encodedCig + encodedSeq + encodedQual))
+                                pack('<i', next_pos) + pack('<i', my_tlen) + readName.encode('utf-8') +
+                                b'\0' + encodedCig + encodedSeq + encodedQual.encode('utf-8')))
 
     def flushBuffers(self, bamMax=None, lastTime=False):
         if (len(self.fq1_buffer) >= BUFFER_BATCH_SIZE or len(self.bam_buffer) >= BUFFER_BATCH_SIZE) or (
@@ -257,7 +257,7 @@ class OutputFileWriter:
                             ind_to_stop_at = i + 1
                         else:
                             break
-                    self.bam_file.write(''.join([n[2] for n in bam_data[:ind_to_stop_at]]))
+                    self.bam_file.write(b''.join([n[2] for n in bam_data[:ind_to_stop_at]]))
                     ####print 'BAM WRITING:',ind_to_stop_at,'/',len(bam_data)
                     if ind_to_stop_at >= len(bam_data):
                         self.bam_buffer = []
