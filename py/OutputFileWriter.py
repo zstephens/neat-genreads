@@ -246,7 +246,7 @@ class OutputFileWriter:
             if len(self.bam_buffer):
                 bam_data = sorted(self.bam_buffer)
                 if lastTime:
-                    self.bam_file.write(''.join([n[2] for n in bam_data]))
+                    self.bam_file.write(b''.join([n[2] for n in bam_data]))
                     self.bam_buffer = []
                 else:
                     ind_to_stop_at = 0
