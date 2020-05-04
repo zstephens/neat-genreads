@@ -9,10 +9,9 @@
 #
 # Python 3 ready
 
-import sys
 import fileinput
 import pickle
-import numpy as np
+import argparse
 
 FILTER_MAPQUAL = 10  # only consider reads that are mapped with at least this mapping quality
 FILTER_MINREADS = 100  # only consider fragment lengths that have at least this many read pairs supporting it
@@ -85,17 +84,20 @@ def compute_probs(count_dict: dict) -> (list, list):
     return values, probabilities
 
 def main():
-    # TODO implement a more robust checking
-    if len(sys.argv) > 2:
-        print("Usage: samtools view normal.bam | python computeFraglen.py")
-        print("Usage: python computeFraglen.py normal.sam")
-        exit(1)
+    parser = argparse.ArgumentParser(description="computeFraglen.py")
+    parser.add_argument('-i', type=str, required=True, default=None, help="Sam file input (samtools view name.bam > name.sam")
+    parser.add_argument('-o', type=str, required=True, default=None, help="Prefix for output")
 
-    all_tlens = count_frags(sys.arv[1])
+    args = parser.parse_args()
+    input_file = args.i
+    output_prefix = args.o
+    output = output_prefix + '.p'
+
+    all_tlens = count_frags(input_file)
     print('\nsaving model...')
     out_vals, out_probs = compute_probs(all_tlens)
     print(out_probs)
-    pickle.dump([out_vals, out_probs], open('fraglen.p', 'wb'))
+    pickle.dump([out_vals, out_probs], open(output, 'wb'))
 
 
 if __name__ == "__main()":
