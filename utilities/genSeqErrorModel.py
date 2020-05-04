@@ -20,10 +20,10 @@ import argparse
 import pickle
 
 # absolute path to this script
-SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
-sys.path.append(SIM_PATH)
+# SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
+# sys.path.append(SIM_PATH)
 
-from probability import DiscreteDistribution
+from py.probability import DiscreteDistribution
 
 
 def parseFQ(inf):
@@ -78,7 +78,7 @@ def parseFQ(inf):
             continue
 
         for i in range(len(data4) - 1):
-            q = ord(chr(data4[i])) - offQ
+            q = ord(data4[i]) - offQ
             qDict[q] = True
             if i == 0:
                 priorQ[i][q] += 1
