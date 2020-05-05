@@ -9,7 +9,6 @@
 #
 # Python 3 ready
 
-import fileinput
 import pickle
 import argparse
 import pysam
@@ -59,28 +58,36 @@ def count_frags(file: str) -> dict:
     count_dict = {}
     PRINT_EVERY = 100000
     i = 0
-    with open(file, 'r') as f:
-        for line in f:
-            # Skip all comments and headers
-            if line[0] == '#' or line[0] == '@':
-                continue
-            splt = line.strip().split('\t')
-            samFlag = int(splt[1])
-            myRef = splt[2]
-            mapQual = int(splt[4])
-            mateRef = splt[6]
-            myTlen = abs(int(splt[8]))
+    if file[-4:] == ".sam":
+        file_to_parse = open(file, 'r')
+    elif file[-4:] == ".bam":
+        file_to_parse = pysam.AlignmentFile(file, 'rb')
+    else:
+        print("Unknown file type, must be bam or sam")
+        exit(1)
 
-            # if read is paired, and is first in pair, and is confidently mapped...
-            if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
-                # and mate is mapped to same reference
-                if mateRef == '=' or mateRef == myRef:
-                    if myTlen not in count_dict:
-                        count_dict[myTlen] = 0
-                    count_dict[myTlen] += 1
-                    i += 1
-                    if i % PRINT_EVERY == 0:
-                        print('---', i, quick_median(count_dict), median_deviation_from_median(count_dict))
+    for item in file_to_parse:
+        line = str(item)
+        # Skip all comments and headers
+        if line[0] == '#' or line[0] == '@':
+            continue
+        splt = line.strip().split('\t')
+        samFlag = int(splt[1])
+        myRef = splt[2]
+        mapQual = int(splt[4])
+        mateRef = splt[6]
+        myTlen = abs(int(splt[8]))
+
+        # if read is paired, and is first in pair, and is confidently mapped...
+        if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
+            # and mate is mapped to same reference
+            if mateRef == '=' or mateRef == myRef:
+                if myTlen not in count_dict:
+                    count_dict[myTlen] = 0
+                count_dict[myTlen] += 1
+                i += 1
+                if i % PRINT_EVERY == 0:
+                    print('---', i, quick_median(count_dict), median_deviation_from_median(count_dict))
     return count_dict
 
 
