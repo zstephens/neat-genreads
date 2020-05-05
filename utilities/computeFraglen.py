@@ -43,27 +43,28 @@ def count_frags(file: str) -> dict:
     count_dict = {}
     PRINT_EVERY = 100000
     i = 0
-    for line in fileinput.input():
-        # Skip all comments and headers
-        if line[0] == '#' or line[0] == '@':
-            continue
-        splt = line.strip().split('\t')
-        samFlag = int(splt[1])
-        myRef = splt[2]
-        mapQual = int(splt[4])
-        mateRef = splt[6]
-        myTlen = abs(int(splt[8]))
+    with open(file, 'r') as f:
+        for line in f:
+            # Skip all comments and headers
+            if line[0] == '#' or line[0] == '@':
+                continue
+            splt = line.strip().split('\t')
+            samFlag = int(splt[1])
+            myRef = splt[2]
+            mapQual = int(splt[4])
+            mateRef = splt[6]
+            myTlen = abs(int(splt[8]))
 
-        # if read is paired, and is first in pair, and is confidently mapped...
-        if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
-            # and mate is mapped to same reference
-            if mateRef == '=' or mateRef == myRef:
-                if myTlen not in count_dict:
-                    count_dict[myTlen] = 0
-                count_dict[myTlen] += 1
-                i += 1
-                if i % PRINT_EVERY == 0:
-                    print('---', i, quick_median(count_dict), median_deviation_from_median(count_dict))
+            # if read is paired, and is first in pair, and is confidently mapped...
+            if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
+                # and mate is mapped to same reference
+                if mateRef == '=' or mateRef == myRef:
+                    if myTlen not in count_dict:
+                        count_dict[myTlen] = 0
+                    count_dict[myTlen] += 1
+                    i += 1
+                    if i % PRINT_EVERY == 0:
+                        print('---', i, quick_median(count_dict), median_deviation_from_median(count_dict))
     return count_dict
 
 
@@ -83,10 +84,11 @@ def compute_probs(count_dict: dict) -> (list, list):
     probabilities = [n / countSum for n in probabilities]
     return values, probabilities
 
+
 def main():
     parser = argparse.ArgumentParser(description="computeFraglen.py")
-    parser.add_argument('-i', type=str, required=True, default=None, help="Sam file input (samtools view name.bam > name.sam")
-    parser.add_argument('-o', type=str, required=True, default=None, help="Prefix for output")
+    parser.add_argument('-i', type=str, metavar="input", required=True, default=None, help="Sam file input (samtools view name.bam > name.sam)")
+    parser.add_argument('-o', type=str, metavar="output", required=True, default=None, help="Prefix for output")
 
     args = parser.parse_args()
     input_file = args.i
@@ -100,5 +102,5 @@ def main():
     pickle.dump([out_vals, out_probs], open(output, 'wb'))
 
 
-if __name__ == "__main()":
+if __name__ == "__main__":
     main()
