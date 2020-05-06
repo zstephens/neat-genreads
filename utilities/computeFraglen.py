@@ -58,6 +58,7 @@ def count_frags(file: str) -> dict:
     count_dict = {}
     PRINT_EVERY = 100000
     i = 0
+    # Check if the file is sam or bam and decide how to open based on that
     if file[-4:] == ".sam":
         file_to_parse = open(file, 'r')
     elif file[-4:] == ".bam":
@@ -67,6 +68,7 @@ def count_frags(file: str) -> dict:
         exit(1)
 
     for item in file_to_parse:
+        # Need to convert bam iterable objects into strings for the next part
         line = str(item)
         # Skip all comments and headers
         if line[0] == '#' or line[0] == '@':
