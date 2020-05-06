@@ -7,7 +7,7 @@
 #      Usage: samtools view normal.bam | python computeFraglen.py
 #
 #
-# Python 3 ready
+# Upgraded 5/6/2020 to match Python 3 standards and refactored for easier reading
 
 import pickle
 import argparse
