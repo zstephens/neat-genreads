@@ -19,30 +19,98 @@ from Bio import SeqIO
 
 
 def process_fasta(file: str) -> dict:
+    """
+    Takes a fasta file, converts it into a dictionary of upper case sequences. Does some basic error checking,
+    like the file is readable and the reference dictionary is not empty
+    :param file: path to a fasta file
+    :return: dictionary form of the sequences indexed by chromosome
+    """
     ref_dict = {}
 
     try:
-        ref_dict = SeqIO.to_dict(SeqIO.parse(file, 'fasta'))
-        # ref_dict = {rec.id: rec.seq for rec in SeqIO.parse(file, "fasta")}
+        # reads in fasta file, converts sequence to upper case
+        ref_dict = {rec.id: rec.seq.upper() for rec in SeqIO.parse(file, "fasta")}
     except UnicodeDecodeError:
+        # if the file isn't readable, this exception should catch it
         print("Input file incorrect: -r should specify the reference fasta")
         exit(1)
 
     if not ref_dict:
+        # if the file was readable by SeqIO but wasn't a fasta file, this should catch it
         print("Input file incorrect: -r should specify the reference fasta")
         exit(1)
 
     return ref_dict
 
 
-def capitalize_ref(input_dict: dict) -> dict:
-    for k in sorted(input_dict.keys()):
-        print("Capitalizing " + k)
-        input_dict[k] = ''.join(input_dict[k])
-        input_dict[k] = input_dict[k].upper()
+def process_genomecov(file: str, ref_dict: dict, window) -> dict:
+
+    gc_bins = {n: [] for n in range(window + 1)}
+
+    # variables needed to parse coverage file
+    current_line = 0
+    current_ref = None
+    current_cov = 0
+    lines_processed = 0
+    print_every = 1000000
+
+    f = open(file, 'r')
+    for line in f:
+        splt = line.strip().split('\t')
+        if lines_processed % print_every == 0:
+            print(lines_processed)
+        lines_processed += 1
+        if current_line == 0:
+            current_ref = splt[0]
+            sPos = int(splt[1]) - 1
+
+        if current_ref not in ref_dict:
+            continue
+
+        current_line += 1
+        current_cov += float(splt[2])
+
+        if current_line == window:
+            current_line = 0
+            seq = str(ref_dict[current_ref][sPos:sPos + window])
+            if 'N' not in seq:
+                gc_count = seq.count('G') + seq.count('C')
+                gc_bins[gc_count].append(current_cov)
+            current_cov = 0
+
+    f.close()
+    return gc_bins
+
+
+def calculate_coverage(bin_dict: dict, window: int) -> float:
+    running_total = 0
+    all_mean = 0.0
+    for k in sorted(bin_dict.keys()):
+        if len(bin_dict[k]) == 0:
+            print('{0:0.2%}'.format(k / float(window)), 0.0, 0)
+            bin_dict[k] = 0
+        else:
+            myMean = np.mean(bin_dict[k])
+            myLen = len(bin_dict[k])
+            print('{0:0.2%}'.format(k / float(window)), myMean, myLen)
+            all_mean += myMean * myLen
+            running_total += myLen
+            bin_dict[k] = myMean
+
+    return all_mean / float(running_total)
 
 
 def main():
+    """
+    Reads in arguments and processes the inputs to a GC count for the sequence.
+    Parameters:
+        -i is the genome coverage input file
+        -r is the reference file
+        -o is the prefix for the output
+        -w is the sliding window length. The default is 50, but you can declare any reasonable integer
+
+    :return: None
+    """
     parser = argparse.ArgumentParser(description='computeGC.py')
     parser.add_argument('-i', type=str, required=True, metavar='input', help="input.genomecov")
     parser.add_argument('-r', type=str, required=True, metavar='reference', help="reference.fasta")
@@ -52,78 +120,29 @@ def main():
                         help="sliding window length [50]", default=50)
     args = parser.parse_args()
 
-    (IN_GCB, REF_FILE, WINDOW_SIZE, OUT_P) = (args.i, args.r, args.w, args.o)
+    (in_gcb, ref_file, window_size, out_p) = (args.i, args.r, args.w, args.o)
 
-    GC_BINS = {n: [] for n in range(WINDOW_SIZE + 1)}
 
-    print('reading ref...')
-    allrefs = process_fasta(REF_FILE)
 
-    print('capitalizing ref...')
-    allrefs = capitalize_ref(allrefs)
+    print('Reading ref...')
+    allrefs = process_fasta(ref_file)
 
-    print('reading genomecov file...')
     tt = time.time()
-    f = open(IN_GCB, 'r')
-    currentLine = 0
-    currentRef = None
-    currentCov = 0
-    linesProcessed = 0
-    PRINT_EVERY = 1000000
-    STOP_AFTER = 1000000
-    for line in f:
-        splt = line.strip().split('\t')
-        if linesProcessed % PRINT_EVERY == 0:
-            print(linesProcessed)
-        linesProcessed += 1
+    print('Reading genome coverage file...')
+    gc_bins = process_genomecov(in_gcb, allrefs, window_size)
 
-        # if linesProcessed > STOP_AFTER:
-        #	break
+    print("Calculating average coverage")
+    average_coverage = calculate_coverage(gc_bins, window_size)
 
-        if currentLine == 0:
-            currentRef = splt[0]
-            sPos = int(splt[1]) - 1
-
-        if currentRef not in allrefs:
-            continue
-
-        currentLine += 1
-        currentCov += float(splt[2])
-
-        if currentLine == WINDOW_SIZE:
-            currentLine = 0
-            seq = allrefs[currentRef][sPos:sPos + WINDOW_SIZE]
-            if 'N' not in seq:
-                gc_count = seq.count('G') + seq.count('C')
-                GC_BINS[gc_count].append(currentCov)
-            currentCov = 0
-
-    f.close()
-
-    runningTot = 0
-    allMean = 0.0
-    for k in sorted(GC_BINS.keys()):
-        if len(GC_BINS[k]) == 0:
-            print('{0:0.2%}'.format(k / float(WINDOW_SIZE)), 0.0, 0)
-            GC_BINS[k] = 0
-        else:
-            myMean = np.mean(GC_BINS[k])
-            myLen = len(GC_BINS[k])
-            print('{0:0.2%}'.format(k / float(WINDOW_SIZE)), myMean, myLen)
-            allMean += myMean * myLen
-            runningTot += myLen
-            GC_BINS[k] = myMean
-
-    avgCov = allMean / float(runningTot)
-    print('AVERAGE COVERAGE =', avgCov)
+    print('AVERAGE COVERAGE =', average_coverage)
 
     y_out = []
-    for k in sorted(GC_BINS.keys()):
-        GC_BINS[k] /= avgCov
-        y_out.append(GC_BINS[k])
+    for k in sorted(gc_bins.keys()):
+        gc_bins[k] /= average_coverage
+        y_out.append(gc_bins[k])
 
     print('saving model...')
-    pickle.dump([range(WINDOW_SIZE + 1), y_out], open(OUT_P, 'wb'))
+    pickle.dump([range(window_size + 1), y_out], open(out_p, 'wb'))
 
     print(time.time() - tt, '(sec)')
 
