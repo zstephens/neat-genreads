@@ -26,7 +26,7 @@ import numpy as np
 import argparse
 
 from py.inputChecking import requiredField, checkFileOpen, isInRange
-from py.refFunc import indexRef, readRef, getAllRefRegions, partitionRefRegions
+from py.ref_func import index_ref, readRef, getAllRefRegions, partitionRefRegions
 from py.vcfFunc import parseVCF
 from py.OutputFileWriter import OutputFileWriter
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
@@ -263,7 +263,7 @@ def main():
 
     ALLOWED_NUCL = ['A', 'C', 'G', 'T']
     # index reference
-    refIndex = indexRef(REFERENCE)
+    refIndex = index_ref(REFERENCE)
     if PAIRED_END:
         N_HANDLING = ('random', FRAGMENT_SIZE)
     else:

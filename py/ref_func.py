@@ -4,11 +4,10 @@ import os
 import random
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
-# from Bio.bgzf import *
 
 
 #	Index reference fasta
-def indexRef(refPath):
+def index_ref(refPath):
     tt = time.time()
 
     fn = None
