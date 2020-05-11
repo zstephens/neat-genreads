@@ -9,7 +9,7 @@
 #          python computeGC.py -r reference.fa -i genomeCov.dat -w [sliding window length] -o output_name.p
 #
 #
-# Python 3 ready
+# Updated to Python 3 standards
 
 import time
 import argparse
@@ -44,7 +44,6 @@ def process_fasta(file: str) -> dict:
 
 
 def process_genomecov(file: str, ref_dict: dict, window) -> dict:
-
     gc_bins = {n: [] for n in range(window + 1)}
 
     # variables needed to parse coverage file
@@ -57,8 +56,6 @@ def process_genomecov(file: str, ref_dict: dict, window) -> dict:
     f = open(file, 'r')
     for line in f:
         splt = line.strip().split('\t')
-        if lines_processed % print_every == 0:
-            print(lines_processed)
         lines_processed += 1
         if current_line == 0:
             current_ref = splt[0]
@@ -122,8 +119,6 @@ def main():
 
     (in_gcb, ref_file, window_size, out_p) = (args.i, args.r, args.w, args.o)
 
-
-
     print('Reading ref...')
     allrefs = process_fasta(ref_file)
 
@@ -131,7 +126,7 @@ def main():
     print('Reading genome coverage file...')
     gc_bins = process_genomecov(in_gcb, allrefs, window_size)
 
-    print("Calculating average coverage")
+    print("Calculating average coverage...")
     average_coverage = calculate_coverage(gc_bins, window_size)
 
     print('AVERAGE COVERAGE =', average_coverage)
