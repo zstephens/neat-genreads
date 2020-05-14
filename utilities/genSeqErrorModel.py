@@ -13,17 +13,17 @@
 
 
 import os
-import sys
 import gzip
 import numpy as np
 import argparse
+import sys
 import pickle
 
 # absolute path to this script
-# SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
-# sys.path.append(SIM_PATH)
+SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
+sys.path.append(SIM_PATH)
 
-from py.probability import DiscreteDistribution
+from probability import DiscreteDistribution
 
 
 def parseFQ(inf):
