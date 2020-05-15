@@ -11,10 +11,10 @@ import argparse
 import numpy as np
 from Bio import SeqIO
 import pandas as pd
-
-SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2])
-sys.path.append(SIM_PATH)
-print(sys.path)
+#
+# SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2])
+# sys.path.append(SIM_PATH)
+# print(sys.path)
 
 
 #########################################################
@@ -93,21 +93,28 @@ def main():
     VCF_DEFAULT_POP_FREQ = 0.00001
 
     parser = argparse.ArgumentParser(description='genMutModel.py')
-    parser.add_argument('-r', type=str, required=True, metavar='Reference, in fasta format', help="* ref.fa")
-    parser.add_argument('-m', type=str, required=True, metavar='A vcf with mutations to model', help="* mutations.vcf")
-    parser.add_argument('-o', type=str, required=True, metavar='The name of the output model', help="* output.p")
+    parser.add_argument('-r', type=str, required=True, metavar='/path/to/reference.fasta',
+                        help="Reference file for organism in fasta format")
+    parser.add_argument('-m', type=str, required=True, metavar='/path/to/mutations.vcf',
+                        help="Mutation file for organism in VCF format")
+    parser.add_argument('-o', type=str, required=True, metavar='/path/to/output/and/prefix',
+                        help="Name of output file (final model will append \'.p\')")
     parser.add_argument('-bi', type=str, required=False, metavar='Bed file of regions to include', default=None,
                         help="only_use_these_regions.bed")
     parser.add_argument('-be', type=str, required=False, metavar='Bed file of regions to exclued', default=None,
                         help="exclude_these_regions.bed")
     parser.add_argument('--save-trinuc', required=False, action='store_true', default=False,
-                        help='save trinuc counts for ref')
+                        help='save trinucleotide counts for reference')
+    parser.add_argument('--human-sample', required=False, action='store_true', default=False,
+                        help='To skip unnumbered scaffolds in human references')
     parser.add_argument('--skip-common', required=False, action='store_true', default=False,
-                        help='do not save common snps + high mut regions')
+                        help='Do not save common snps + high mut regions')
     args = parser.parse_args()
 
-    (ref, tsv, out_pickle, save_trinuc, skip_common) = (
+    (ref, vcf, out_pickle, save_trinuc, skip_common) = (
         args.r, args.m, args.o, args.save_trinuc, args.skip_common)
+
+    is_human = args.human_sample
 
     # how many times do we observe each trinucleotide in the reference (and input bed region, if present)?
     TRINUC_REF_COUNT = {}
@@ -138,13 +145,8 @@ def main():
         print('only considering variants outside of specified bed regions...')
         mybed = (getBedTracks(args.be), False)
 
-    if tsv[-4:] == '.vcf':
-        is_vcf = True
-    elif tsv[-4:] == '.tsv':
-        is_vcf = False
-    else:
-        print('\nError: Unknown format for mutation input.\n')
-        exit(1)
+    if vcf[-4:] == '.tsv':
+        print("Warning! TSV file must follow VCF specifications.")
 
     reference = SeqIO.to_dict(SeqIO.parse(ref, "fasta"))
 
@@ -152,22 +154,26 @@ def main():
     ref_dict = {}
     for key in reference.keys():
         key_split = key.split("|")
-        ref_dict[key_split[0]] = reference[key]
+        if is_human:
+            if key_split[0] in REF_WHITELIST:
+                ref_dict[key_split[0]] = reference[key]
+            else:
+                continue
+        else:
+            ref_dict[key_split[0]] = reference[key]
 
     ref_list = list(ref_dict.keys())
 
     # Pre-parsing
     print('reading input variants...')
     header = ["CHROM", 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO']
-    variants = pd.read_csv(tsv, sep='\t', comment='#', names=header)
+    variants = pd.read_csv(vcf, sep='\t', comment='#', names=header)
     # hard-code index values based on expected columns in vcf
     (c1, c2, c3, m1, m2, m3) = (0, 1, 1, 3, 3, 4)
     variant_chroms = variants['CHROM'].to_list()
     matching_chromosomes = []
     for ref_name in ref_list:
         if ref_name not in variant_chroms:
-            print("Warning: {} not in reference. Skipping this chromosome".format(ref_name))
-            print("(Note that if this behavior is unexpected, check that chromosome names in VCF match the reference)")
             continue
         else:
             matching_chromosomes.append(ref_name)
@@ -179,17 +185,26 @@ def main():
 
     matching_variants = variants[variants['CHROM'].isin(matching_chromosomes)]
 
-    if not matching_variants:
+    if matching_variants.empty:
         print("No variants matched with the Reference. This may be a chromosome naming problem.")
         exit(-1)
 
+    # Rename variants dataframe for processing
+    matching_variants = matching_variants.rename(columns={'POS': 'chr_start'})
+    # Change the indexing by -1 to match VCF format indexing
+    matching_variants['chr_start'] = matching_variants['chr_start'] - 1
+    matching_variants['chr_end'] = matching_variants['chr_start']
+
     # load and process variants in each reference sequence individually, for memory reasons...
-    for ref_name in ref_list:
+    for ref_name in matching_chromosomes:
         # Count the number of non-N nucleotides for the reference
         TOTAL_REFLEN += len(ref_dict[ref_name].seq) - ref_dict[ref_name].seq.count('N')
 
         # list to be used for counting variants that occur multiple times in file (i.e. in multiple samples)
         VDAT_COMMON = []
+
+        # narrow variants list to current ref
+        df_to_process = matching_variants[matching_variants["CHROM"] == ref_name]
 
         """ ##########################################################################
         ###						COUNT TRINUCLEOTIDES IN ref						   ###
@@ -241,27 +256,21 @@ def main():
         print('reading input variants...')
 
         # TODO change all this to pandas
-        # we have -1 because tsv/vcf coords are 1-based, and our reference string index is 0-based
+        # we have -1 because vcf/vcf coords are 1-based, and our reference string index is 0-based
 
-
-        [chrName, chrStart, chrEnd] = [splt[c1], int(splt[c2]) - 1, int(splt[c3]) - 1]
-        [allele_ref, allele_normal, allele_alternate] = [splt[m1].upper(), splt[m2].upper(), splt[m3].upper()]
-        if is_vcf:
-            if len(allele_ref) != len(allele_alternate):
-                # indels in tsv don't include the preserved first nucleotide, so lets trim the vcf alleles
-                [allele_ref, allele_normal, allele_alternate] = [allele_ref[1:], allele_normal[1:], allele_alternate[1:]]
-            if not allele_ref:
-                allele_ref = '-'
-            if not allele_normal:
-                allele_normal = '-'
-            if not allele_alternate:
-                allele_alternate = '-'
-            # if alternate alleles are present, lets just ignore this variant. I may come back and improve this later
-            if ',' in allele_alternate:
-                continue
-            vcf_info = ';' + splt[7] + ';'
-        else:
-            [donor_id] = [splt[d_id]]
+        if len(allele_ref) != len(allele_alternate):
+            # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
+            [allele_ref, allele_normal, allele_alternate] = [allele_ref[1:], allele_normal[1:], allele_alternate[1:]]
+        if not allele_ref:
+            allele_ref = '-'
+        if not allele_normal:
+            allele_normal = '-'
+        if not allele_alternate:
+            allele_alternate = '-'
+        # if alternate alleles are present, lets just ignore this variant. I may come back and improve this later
+        if ',' in allele_alternate:
+            continue
+        vcf_info = ';' + splt[7] + ';'
 
         # if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
         if ('-' not in allele_normal and '-' not in allele_alternate) and (
@@ -296,7 +305,7 @@ def main():
             trinuc_ref = ref_dict[ref_name][chrStart - 1:chrStart + 2]
             if not trinuc_ref in VALID_TRINUC:
                 continue  # skip ref trinuc with invalid characters
-            # only consider positions where ref allele in tsv matches the nucleotide in our reference
+            # only consider positions where ref allele in vcf matches the nucleotide in our reference
             if allele_ref == trinuc_ref[1]:
                 trinuc_normal = ref_dict[ref_name][chrStart - 1] + allele_normal + ref_dict[ref_name][chrStart + 1]
                 trinuc_tumor = ref_dict[ref_name][chrStart - 1] + allele_alternate + ref_dict[ref_name][chrStart + 1]
