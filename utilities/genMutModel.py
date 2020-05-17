@@ -256,7 +256,6 @@ def main():
         print('reading input variants...')
 
         # TODO change all this to pandas
-        # we have -1 because vcf/vcf coords are 1-based, and our reference string index is 0-based
 
         if len(allele_ref) != len(allele_alternate):
             # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
