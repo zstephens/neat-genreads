@@ -256,14 +256,20 @@ def main():
         print('reading input variants...')
 
         # TODO change all this to pandas
+        indices_to_indels = df_to_process.loc[df_to_process.ALT != df_to_process.REF].index
+
+        # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
+        ref_values_to_change = df_to_process.loc[indices_to_indels, 'REF'].str[1:]
+        alt_values_to_change = df_to_process.loc[indices_to_indels, 'ALT'].str[1:]
+        df_to_process.loc[indices_to_indels, "REF"] = ref_values_to_change
+        df_to_process.loc[indices_to_indels, "ALT"] = alt_values_to_change
+
 
         if len(allele_ref) != len(allele_alternate):
             # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
             [allele_ref, allele_normal, allele_alternate] = [allele_ref[1:], allele_normal[1:], allele_alternate[1:]]
         if not allele_ref:
             allele_ref = '-'
-        if not allele_normal:
-            allele_normal = '-'
         if not allele_alternate:
             allele_alternate = '-'
         # if alternate alleles are present, lets just ignore this variant. I may come back and improve this later
