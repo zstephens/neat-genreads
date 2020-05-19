@@ -166,11 +166,11 @@ def main():
 
     # Pre-parsing
     print('reading input variants...')
-    header = ["CHROM", 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO']
-    variants = pd.read_csv(vcf, sep='\t', comment='#', names=header)
+    variants = pd.read_csv(vcf, sep='\t', comment='#', index_col=None)
     # hard-code index values based on expected columns in vcf
     (c1, c2, c3, m1, m2, m3) = (0, 1, 1, 3, 3, 4)
-    variant_chroms = variants['CHROM'].to_list()
+    variant_chroms = variants[0].to_list()
+    variant_chroms = list(set(variant_chroms))
     matching_chromosomes = []
     for ref_name in ref_list:
         if ref_name not in variant_chroms:
@@ -183,14 +183,15 @@ def main():
         print("Found no chromosomes in common between VCF and Fasta. Please fix the chromosome names and try again")
         exit(-1)
 
-    matching_variants = variants[variants['CHROM'].isin(matching_chromosomes)]
+    matching_variants = variants[variants[0].isin(matching_chromosomes)]
 
     if matching_variants.empty:
         print("No variants matched with the Reference. This may be a chromosome naming problem.")
         exit(-1)
 
-    # Rename variants dataframe for processing
-    matching_variants = matching_variants.rename(columns={'POS': 'chr_start'})
+    # Rename header in dataframe for processing
+    matching_variants = matching_variants.rename(columns={0: "CHROM", 1: 'chr_start', 2: 'ID', 3: 'REF', 4: 'ALT',
+                                                          5: 'QUAL', 6: 'FILTER', 7: 'INFO'})
     # Change the indexing by -1 to match VCF format indexing
     matching_variants['chr_start'] = matching_variants['chr_start'] - 1
     matching_variants['chr_end'] = matching_variants['chr_start']
@@ -204,7 +205,7 @@ def main():
         VDAT_COMMON = []
 
         # narrow variants list to current ref
-        df_to_process = matching_variants[matching_variants["CHROM"] == ref_name]
+        df_to_process = matching_variants[matching_variants["CHROM"] == ref_name].copy()
 
         """ ##########################################################################
         ###						COUNT TRINUCLEOTIDES IN ref						   ###
@@ -255,43 +256,33 @@ def main():
 
         print('reading input variants...')
 
-        # TODO change all this to pandas
-        indices_to_indels = df_to_process.loc[df_to_process.ALT != df_to_process.REF].index
+        indices_to_indels = df_to_process.loc[df_to_process.ALT.apply(len) != df_to_process.REF.apply(len)].index
 
         # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
-        ref_values_to_change = df_to_process.loc[indices_to_indels, 'REF'].str[1:]
-        alt_values_to_change = df_to_process.loc[indices_to_indels, 'ALT'].str[1:]
+        ref_values_to_change = df_to_process.loc[indices_to_indels, 'REF'].copy().str[1:]
+        alt_values_to_change = df_to_process.loc[indices_to_indels, 'ALT'].copy().str[1:]
         df_to_process.loc[indices_to_indels, "REF"] = ref_values_to_change
         df_to_process.loc[indices_to_indels, "ALT"] = alt_values_to_change
+        df_to_process.replace('', '-', inplace=True)
 
-
-        if len(allele_ref) != len(allele_alternate):
-            # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
-            [allele_ref, allele_normal, allele_alternate] = [allele_ref[1:], allele_normal[1:], allele_alternate[1:]]
-        if not allele_ref:
-            allele_ref = '-'
-        if not allele_alternate:
-            allele_alternate = '-'
         # if alternate alleles are present, lets just ignore this variant. I may come back and improve this later
-        if ',' in allele_alternate:
-            continue
-        vcf_info = ';' + splt[7] + ';'
+        indices_to_ignore = df_to_process[df_to_process['ALT'].str.contains(',')].index
+        df_to_process = df_to_process.drop(indices_to_ignore)
+
+        # Not sure what the point of this line is
+        # vcf_info = ';' + splt[7] + ';'
 
         # if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
-        if ('-' not in allele_normal and '-' not in allele_alternate) and (
-                len(allele_normal) > 1 or len(allele_alternate) > 1):
-            print('skipping a complex variant...')
-            continue
+        # Alt and Ref contain no dashes
+        no_dashes = df_to_process[
+            ~df_to_process['REF'].str.contains('-') & ~df_to_process['ALT'].str.contains('-')].index
+        # Alt and Ref lengths are greater than 1
+        long_variants = df_to_process[
+            (df_to_process['REF'].apply(len) > 1) & (df_to_process['ALT'].apply(len) > 1)].index
+        complex_variants = list(set(no_dashes) & set(long_variants))
+        df_to_process = df_to_process.drop(complex_variants)
 
-        # to deal with '1' vs 'chr1' references, manually change names. this is hacky and bad.
-        if 'chr' not in chrName:
-            chrName = 'chr' + chrName
-        if 'chr' not in ref_name:
-            ref_name = 'chr' + ref_name
-        # skip irrelevant variants
-        if chrName != ref_name:
-            continue
-
+        # TODO change all this to pandas
         # if variant is outside the regions we're interested in (if specified), skip it...
         if mybed is not None:
             ref_key = ref_name
