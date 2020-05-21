@@ -101,8 +101,9 @@ def main():
                         help="Name of output file (final model will append \'.p\')")
     parser.add_argument('-bi', type=str, required=False, metavar='Bed file of regions to include', default=None,
                         help="only_use_these_regions.bed")
-    parser.add_argument('-be', type=str, required=False, metavar='Bed file of regions to exclued', default=None,
-                        help="exclude_these_regions.bed")
+    # This was not implemented correctly in the original file. Will circle back to it.
+    # parser.add_argument('-be', type=str, required=False, metavar='Bed file of regions to exclued', default=None,
+    #                     help="exclude_these_regions.bed")
     parser.add_argument('--save-trinuc', required=False, action='store_true', default=False,
                         help='save trinucleotide counts for reference')
     parser.add_argument('--human-sample', required=False, action='store_true', default=False,
@@ -119,7 +120,6 @@ def main():
     # how many times do we observe each trinucleotide in the reference (and input bed region, if present)?
     TRINUC_REF_COUNT = {}
     TRINUC_BED_COUNT = {}
-    print_bed_warning = True
     # [(trinuc_a, trinuc_b)] = # of times we observed a mutation from trinuc_a into trinuc_b
     TRINUC_TRANSITION_COUNT = {}
     # total count of SNPs
@@ -137,20 +137,29 @@ def main():
     # identify regions that have significantly higher local mutation rates than the average
     HIGH_MUT_REGIONS = []
 
+    # Process bed file
+    is_bed = False
     mybed = None
     if args.bi is not None:
-        print('only considering variants in specified bed regions...')
-        mybed = (getBedTracks(args.bi), True)
-    elif args.be is not None:
-        print('only considering variants outside of specified bed regions...')
-        mybed = (getBedTracks(args.be), False)
+        print('Processing bed file...')
+        try:
+            mybed = pd.read_csv(args.bi, sep='\t', header=None, index_col=None)
+            is_bed = True
+        except ValueError:
+            print('Problem parsing bed file. Ensure bed file is tab separated, standard bed format')
+            exit(1)
+        mybed = mybed.rename(columns={0: 'chrom', 1: 'start', 2: 'end'})
+        mybed['coords'] = list(zip(mybed.start, mybed.end))
 
-    if vcf[-4:] == '.tsv':
-        print("Warning! TSV file must follow VCF specifications.")
+    # Process reference file
+    print('Processing reference...')
+    try:
+        reference = SeqIO.to_dict(SeqIO.parse(ref, "fasta"))
+    except ValueError:
+        print("Problems parsing reference file. Ensure reference is in proper fasta format")
+        exit(1)
 
-    reference = SeqIO.to_dict(SeqIO.parse(ref, "fasta"))
-
-    # simplify naming
+    # simplify naming and filter out actual human genomes from scaffolding
     ref_dict = {}
     for key in reference.keys():
         key_split = key.split("|")
@@ -164,11 +173,20 @@ def main():
 
     ref_list = list(ref_dict.keys())
 
-    # Pre-parsing
-    print('reading input variants...')
-    variants = pd.read_csv(vcf, sep='\t', comment='#', index_col=None)
-    # hard-code index values based on expected columns in vcf
-    (c1, c2, c3, m1, m2, m3) = (0, 1, 1, 3, 3, 4)
+    # Process VCF file. First check if it's been entered as a TSV
+    if vcf[-3:] == 'tsv':
+        print("Warning! TSV file must follow VCF specifications.")
+
+    # Pre-parsing to find all the matching chromosomes between ref and vcf
+    print('Processing VCF file...')
+    try:
+        variants = pd.read_csv(vcf, sep='\t', comment='#', index_col=None)
+    except ValueError:
+        print("VCF must be in standard VCF format with tab-separated columns")
+        exit(1)
+
+    # Narrow chromosomes to those matching the reference
+    # This is in part to make sure the names match
     variant_chroms = variants[0].to_list()
     variant_chroms = list(set(variant_chroms))
     matching_chromosomes = []
@@ -181,22 +199,104 @@ def main():
     # Check to make sure there are some matches
     if not matching_chromosomes:
         print("Found no chromosomes in common between VCF and Fasta. Please fix the chromosome names and try again")
-        exit(-1)
+        exit(1)
 
-    matching_variants = variants[variants[0].isin(matching_chromosomes)]
-
+    # Double check that there are matches
+    try:
+        matching_variants = variants[variants[0].isin(matching_chromosomes)]
+    except ValueError:
+        print("Problem matching variants with reference.")
+        exit(1)
     if matching_variants.empty:
-        print("No variants matched with the Reference. This may be a chromosome naming problem.")
-        exit(-1)
+        print("There is no overlap between reference and variant file. This could be a chromosome naming problem")
+        exit(1)
+
 
     # Rename header in dataframe for processing
     matching_variants = matching_variants.rename(columns={0: "CHROM", 1: 'chr_start', 2: 'ID', 3: 'REF', 4: 'ALT',
                                                           5: 'QUAL', 6: 'FILTER', 7: 'INFO'})
-    # Change the indexing by -1 to match VCF format indexing
+
+    # Change the indexing by -1 to match python format indexing (0-based)
     matching_variants['chr_start'] = matching_variants['chr_start'] - 1
     matching_variants['chr_end'] = matching_variants['chr_start']
 
-    # load and process variants in each reference sequence individually, for memory reasons...
+    # Process the variant table
+    indices_to_indels = \
+        matching_variants.loc[matching_variants.ALT.apply(len) != matching_variants.REF.apply(len)].index
+
+    # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
+    ref_values_to_change = matching_variants.loc[indices_to_indels, 'REF'].copy().str[1:]
+    alt_values_to_change = matching_variants.loc[indices_to_indels, 'ALT'].copy().str[1:]
+    matching_variants.loc[indices_to_indels, "REF"] = ref_values_to_change
+    matching_variants.loc[indices_to_indels, "ALT"] = alt_values_to_change
+    matching_variants.replace('', '-', inplace=True)
+
+    # If multi-alternate alleles are present, lets just ignore this variant. I may come back and improve this later
+    indices_to_ignore = matching_variants[matching_variants['ALT'].str.contains(',')].index
+    matching_variants = matching_variants.drop(indices_to_ignore)
+
+    # Not sure what the point of this line is
+    # TODO take this out if it's not needed
+    # vcf_info = ';' + splt[7] + ';'
+
+    # if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
+
+    # Alt and Ref contain no dashes
+    no_dashes = matching_variants[
+        ~matching_variants['REF'].str.contains('-') & ~matching_variants['ALT'].str.contains('-')].index
+    # Alt and Ref lengths are greater than 1
+    long_variants = matching_variants[
+        (matching_variants['REF'].apply(len) > 1) & (matching_variants['ALT'].apply(len) > 1)].index
+    complex_variants = list(set(no_dashes) & set(long_variants))
+    matching_variants = matching_variants.drop(complex_variants)
+
+    # Now we check that the bed and vcf have matching regions
+    # This also checks that the vcf and bed have the same naming conventions and cuts out scaffolding.
+    if is_bed:
+        bed_chroms = list(set(mybed['chrom']))
+        matching_bed_keys = list(set(bed_chroms) & set(variant_chroms))
+        try:
+            matching_bed = mybed[mybed['chrom'].isin(matching_bed_keys)]
+        except ValueError:
+            print('Problem matching bed chromosomes to variant file.')
+            exit(1)
+        if matching_bed.empty:
+            print("There is no overlap between bed and variant file. "
+                  "This could be a chromosome naming problem")
+            exit(1)
+
+    # Count Trinucleotides in reference, based on bed or not
+    print('Counting trinucleotides in reference...')
+    if is_bed:
+        print("since you're using a bed input, we have to count trinucs in bed region even if\n"
+              "you already have a trinuc count file for the reference...")
+        sub_regions = matching_bed['coords'].to_list()
+        for sr in sub_regions:
+            for i in range(sr[0], sr[1] + 1):
+                for ref_name in matching_chromosomes:
+                    trinuc = ref_dict[ref_name][i:i + 3].seq
+                    # skip if trinuc contains invalid characters, or not in specified bed region
+                    if not trinuc in VALID_TRINUC:
+                        continue
+                    if trinuc not in TRINUC_BED_COUNT:
+                        TRINUC_BED_COUNT[trinuc] = 0
+                    TRINUC_BED_COUNT[trinuc] += 1
+
+    elif not os.path.isfile(ref + '.trinucCounts'):
+        for i in range(len(ref_dict[ref_name]) - 2):
+            if i % 1000000 == 0 and i > 0:
+                print(i, '/', len(ref_dict[ref_name]))
+            trinuc = ref_dict[ref_name][i:i + 3].seq
+            if not str(trinuc) in VALID_TRINUC:
+                continue  # skip if trinuc contains invalid characters
+            if str(trinuc) not in TRINUC_REF_COUNT:
+                TRINUC_REF_COUNT[trinuc] = 0
+            TRINUC_REF_COUNT[trinuc] += 1
+    else:
+        print('Found trinucCounts file, using that.')
+
+    # Load and process variants in each reference sequence individually, for memory reasons...
+    print('Creating mutational model...')
     for ref_name in matching_chromosomes:
         # Count the number of non-N nucleotides for the reference
         TOTAL_REFLEN += len(ref_dict[ref_name].seq) - ref_dict[ref_name].seq.count('N')
@@ -204,94 +304,18 @@ def main():
         # list to be used for counting variants that occur multiple times in file (i.e. in multiple samples)
         VDAT_COMMON = []
 
-        # narrow variants list to current ref
+        # Create a view that narrows variants list to current ref
         df_to_process = matching_variants[matching_variants["CHROM"] == ref_name].copy()
+        bed_to_process = matching_bed[matching_bed['chrom'] == ref_name].copy()
 
-        """ ##########################################################################
-        ###						COUNT TRINUCLEOTIDES IN ref						   ###
-        ########################################################################## """
-
-        if mybed is not None:
-            if print_bed_warning:
-                print("since you're using a bed input, "
-                      "we have to count trinucs in bed region even if "
-                      "you specified a trinuc count file for the reference...")
-                print_bed_warning = False
-            if ref_name in mybed[0]:
-                ref_key = ref_name
-            elif ('chr' in ref_name) and (ref_name not in mybed[0]) and (ref_name[3:] in mybed[0]):
-                ref_key = ref_name[3:]
-            elif ('chr' not in ref_name) and (ref_name not in mybed[0]) and ('chr' + ref_name in mybed[0]):
-                ref_key = 'chr' + ref_name
-            if ref_key in mybed[0]:
-                subRegions = [(mybed[0][ref_key][n], mybed[0][ref_key][n + 1]) for n in
-                              range(0, len(mybed[0][ref_key]), 2)]
-                for sr in subRegions:
-                    for i in range(sr[0], sr[1] + 1 - 2):
-                        trinuc = ref_dict[ref_name][i:i + 3].seq
-                        if not trinuc in VALID_TRINUC:
-                            continue  # skip if trinuc contains invalid characters, or not in specified bed region
-                        if trinuc not in TRINUC_BED_COUNT:
-                            TRINUC_BED_COUNT[trinuc] = 0
-                        TRINUC_BED_COUNT[trinuc] += 1
-
-        if not os.path.isfile(ref + '.trinucCounts'):
-            print('counting trinucleotides in reference...')
-            for i in range(len(ref_dict[ref_name]) - 2):
-                if i % 1000000 == 0 and i > 0:
-                    print(i, '/', len(ref_dict[ref_name]))
-                    # break
-                trinuc = ref_dict[ref_name][i:i + 3].seq
-                if not str(trinuc) in VALID_TRINUC:
-                    continue  # skip if trinuc contains invalid characters
-                if str(trinuc) not in TRINUC_REF_COUNT:
-                    TRINUC_REF_COUNT[trinuc] = 0
-                TRINUC_REF_COUNT[trinuc] += 1
-        else:
-            print('skipping trinuc counts (for whole reference) because we found a file...')
-
-        """ ##########################################################################
-        ###							READ INPUT VARIANTS							   ###
-        ########################################################################## """
-
-        print('reading input variants...')
-
-        indices_to_indels = df_to_process.loc[df_to_process.ALT.apply(len) != df_to_process.REF.apply(len)].index
-
-        # indels in vcf don't include the preserved first nucleotide, so lets trim the vcf alleles
-        ref_values_to_change = df_to_process.loc[indices_to_indels, 'REF'].copy().str[1:]
-        alt_values_to_change = df_to_process.loc[indices_to_indels, 'ALT'].copy().str[1:]
-        df_to_process.loc[indices_to_indels, "REF"] = ref_values_to_change
-        df_to_process.loc[indices_to_indels, "ALT"] = alt_values_to_change
-        df_to_process.replace('', '-', inplace=True)
-
-        # if alternate alleles are present, lets just ignore this variant. I may come back and improve this later
-        indices_to_ignore = df_to_process[df_to_process['ALT'].str.contains(',')].index
-        df_to_process = df_to_process.drop(indices_to_ignore)
-
-        # Not sure what the point of this line is
-        # vcf_info = ';' + splt[7] + ';'
-
-        # if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
-        # Alt and Ref contain no dashes
-        no_dashes = df_to_process[
-            ~df_to_process['REF'].str.contains('-') & ~df_to_process['ALT'].str.contains('-')].index
-        # Alt and Ref lengths are greater than 1
-        long_variants = df_to_process[
-            (df_to_process['REF'].apply(len) > 1) & (df_to_process['ALT'].apply(len) > 1)].index
-        complex_variants = list(set(no_dashes) & set(long_variants))
-        df_to_process = df_to_process.drop(complex_variants)
 
         # TODO change all this to pandas
         # if variant is outside the regions we're interested in (if specified), skip it...
         if mybed is not None:
-            ref_key = ref_name
-            if not ref_key in mybed[0] and ref_key[3:] in mybed[0]:  # account for 1 vs chr1, again...
-                ref_key = ref_key[3:]
-            if ref_key not in mybed[0]:
+            if ref_name not in mybed[0]:
                 inBed = False
             else:
-                inBed = isInBed(mybed[0][ref_key], chrStart)
+                inBed = isInBed(mybed[0][ref_name], chrStart)
             if inBed != mybed[1]:
                 continue
 
