@@ -235,10 +235,6 @@ def main():
     indices_to_ignore = matching_variants[matching_variants['ALT'].str.contains(',')].index
     matching_variants = matching_variants.drop(indices_to_ignore)
 
-    # Not sure what the point of this line is
-    # TODO take this out if it's not needed
-    # vcf_info = ';' + splt[7] + ';'
-
     # if we encounter a multi-np (i.e. 3 nucl --> 3 different nucl), let's skip it for now...
 
     # Alt and Ref contain no dashes
@@ -249,6 +245,10 @@ def main():
         (matching_variants['REF'].apply(len) > 1) & (matching_variants['ALT'].apply(len) > 1)].index
     complex_variants = list(set(no_dashes) & set(long_variants))
     matching_variants = matching_variants.drop(complex_variants)
+
+    # This is solely to make regex easier later, since we can't predict where in the line a string will be
+    new_info = ';' + matching_variants['INFO'].copy() + ';'
+    matching_variants['INFO'] = new_info
 
     # Now we check that the bed and vcf have matching regions
     # This also checks that the vcf and bed have the same naming conventions and cuts out scaffolding.
@@ -305,81 +305,73 @@ def main():
         VDAT_COMMON = []
 
         # Create a view that narrows variants list to current ref
-        df_to_process = matching_variants[matching_variants["CHROM"] == ref_name].copy()
+        variants_to_process = matching_variants[matching_variants["CHROM"] == ref_name].copy()
         bed_to_process = matching_bed[matching_bed['chrom'] == ref_name].copy()
+        ref_sequence = str(ref_dict[ref_name].seq)
 
 
         # TODO change all this to pandas
-        # if variant is outside the regions we're interested in (if specified), skip it...
-        if mybed is not None:
-            if ref_name not in mybed[0]:
-                inBed = False
-            else:
-                inBed = isInBed(mybed[0][ref_name], chrStart)
-            if inBed != mybed[1]:
-                continue
 
         # we want only snps
         # so, no '-' characters allowed, and chrStart must be same as chrEnd
-        if '-' not in allele_normal and '-' not in allele_alternate and chrStart == chrEnd:
-            trinuc_ref = ref_dict[ref_name][chrStart - 1:chrStart + 2]
-            if not trinuc_ref in VALID_TRINUC:
-                continue  # skip ref trinuc with invalid characters
+        snp_df = variants_to_process[~variants_to_process.index.isin(indices_to_indels)]
+        snp_df = snp_df.loc[snp_df['chr_start'] == snp_df['chr_end']]
+        if not snp_df.empty:
             # only consider positions where ref allele in vcf matches the nucleotide in our reference
-            if allele_ref == trinuc_ref[1]:
-                trinuc_normal = ref_dict[ref_name][chrStart - 1] + allele_normal + ref_dict[ref_name][chrStart + 1]
-                trinuc_tumor = ref_dict[ref_name][chrStart - 1] + allele_alternate + ref_dict[ref_name][chrStart + 1]
-                if not trinuc_normal in VALID_TRINUC or not trinuc_tumor in VALID_TRINUC:
-                    continue  # skip if mutation contains invalid char
-                key = (trinuc_normal, trinuc_tumor)
-                if key not in TRINUC_TRANSITION_COUNT:
-                    TRINUC_TRANSITION_COUNT[key] = 0
-                TRINUC_TRANSITION_COUNT[key] += 1
-                SNP_COUNT += 1
-                key2 = (allele_normal, allele_alternate)
-                if key2 not in SNP_TRANSITION_COUNT:
-                    SNP_TRANSITION_COUNT[key2] = 0
-                SNP_TRANSITION_COUNT[key2] += 1
+            for index, row in snp_df.iterrows():
+                trinuc_to_analyze = str(ref_sequence[row.chr_start - 1: row.chr_start + 2])
+                if not trinuc_to_analyze in VALID_TRINUC:
+                    continue
+                if row.REF == trinuc_to_analyze[1]:
+                    trinuc_ref = trinuc_to_analyze
+                    trinuc_alt = trinuc_to_analyze[0] + snp_df.loc[index, 'ALT'] + trinuc_to_analyze[2]
+                    if not trinuc_alt in VALID_TRINUC:
+                        continue
+                    key = (trinuc_ref, trinuc_alt)
+                    if key not in TRINUC_TRANSITION_COUNT:
+                        TRINUC_TRANSITION_COUNT[key] = 0
+                    TRINUC_TRANSITION_COUNT[key] += 1
+                    SNP_COUNT += 1
+                    key2 = (str(row.REF), str(row.ALT))
+                    if key2 not in SNP_TRANSITION_COUNT:
+                        SNP_TRANSITION_COUNT[key2] = 0
+                    SNP_TRANSITION_COUNT[key2] += 1
 
-                if is_vcf:
-                    myPopFreq = VCF_DEFAULT_POP_FREQ
-                    if ';CAF=' in vcf_info:
-                        cafStr = re.findall(r";CAF=.*?(?=;)", vcf_info)[0]
-                        if ',' in cafStr:
-                            myPopFreq = float(cafStr[5:].split(',')[1])
-                    VDAT_COMMON.append((chrStart, allele_ref, allele_normal, allele_alternate, myPopFreq))
+                    my_pop_freq = VCF_DEFAULT_POP_FREQ
+                    if ';CAF=' in snp_df.loc[index, 'INFO']:
+                        caf_str = re.findall(r";CAF=.*?(?=;)", row.INFO)[0]
+                        if ',' in caf_str:
+                            my_pop_freq = float(caf_str[5:].split(',')[1])
+                    VDAT_COMMON.append(
+                        (row.chr_start, row.REF, row.ALT, my_pop_freq))
                 else:
-                    VDAT_COMMON.append((chrStart, allele_ref, allele_normal, allele_alternate))
-                    TOTAL_DONORS[donor_id] = True
-            else:
-                print('\nError: ref allele in variant call does not match reference.\n')
-                exit(1)
+                    print('\nError: ref allele in variant call does not match reference.\n')
+                    exit(1)
 
         # now let's look for indels...
-        if '-' in allele_normal:
-            len_normal = 0
-        else:
-            len_normal = len(allele_normal)
-        if '-' in allele_alternate:
-            len_tumor = 0
-        else:
-            len_tumor = len(allele_alternate)
-        if len_normal != len_tumor:
-            indel_len = len_tumor - len_normal
-            if indel_len not in INDEL_COUNT:
-                INDEL_COUNT[indel_len] = 0
-            INDEL_COUNT[indel_len] += 1
+        indel_df = variants_to_process[variants_to_process.index.isin(indices_to_indels)]
+        if not indel_df.empty:
+            for index, row in indel_df.iterrows():
+                if "-" in row.REF:
+                    len_ref = 0
+                else:
+                    len_ref = len(row.REF)
+                if "-" in row.ALT:
+                    len_alt = 0
+                else:
+                    len_alt = len(row.ALT)
+                if len_ref != len_alt:
+                    indel_len = len_alt - len_ref
+                    if indel_len not in INDEL_COUNT:
+                        INDEL_COUNT[indel_len] = 0
+                    INDEL_COUNT[indel_len] += 1
 
-            if is_vcf:
-                myPopFreq = VCF_DEFAULT_POP_FREQ
-                if ';CAF=' in vcf_info:
-                    cafStr = re.findall(r";CAF=.*?(?=;)", vcf_info)[0]
-                    if ',' in cafStr:
-                        myPopFreq = float(cafStr[5:].split(',')[1])
-                VDAT_COMMON.append((chrStart, allele_ref, allele_normal, allele_alternate, myPopFreq))
-            else:
-                VDAT_COMMON.append((chrStart, allele_ref, allele_normal, allele_alternate))
-                TOTAL_DONORS[donor_id] = True
+                    my_pop_freq = VCF_DEFAULT_POP_FREQ
+                    if ';CAF=' in row.INFO:
+                        caf_str = re.findall(r";CAF=.*?(?=;))", row.INFO)[0]
+                        if ',' in caf_str:
+                            my_pop_freq = float(caf_str[5:].split(',')[1])
+                    VDAT_COMMON.append((row.chr_start, row.REF, row.ALT, my_pop_freq))
 
         # if we didn't find anything, skip ahead along to the next reference sequence
         if not len(VDAT_COMMON):
