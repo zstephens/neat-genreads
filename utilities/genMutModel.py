@@ -22,20 +22,25 @@ import pandas as pd
 #########################################################
 
 
-# cluster a sorted list
-def cluster_list(l: list, delta: float) -> list:
-    outList = [[l[0]]]
-    prevVal = l[0]
-    currentInd = 0
-    for n in l[1:]:
-        if n - prevVal <= delta:
-            outList[currentInd].append(n)
+def cluster_list(list_to_cluster: list, delta: float) -> list:
+    """
+    Clusters a sorted list
+    :param list_to_cluster: a sorted list
+    :param delta: the value to compare list items to
+    :return: a clustered list of values
+    """
+    out_list = [[list_to_cluster[0]]]
+    previous_value = list_to_cluster[0]
+    current_index = 0
+    for item in list_to_cluster[1:]:
+        if item - previous_value <= delta:
+            out_list[current_index].append(item)
         else:
-            currentInd += 1
-            outList.append([])
-            outList[currentInd].append(n)
-        prevVal = n
-    return outList
+            current_index += 1
+            out_list.append([])
+            out_list[current_index].append(item)
+        previous_value = item
+    return out_list
 
 
 def list_2_countDict(l: list) -> dict:
@@ -309,9 +314,6 @@ def main():
         bed_to_process = matching_bed[matching_bed['chrom'] == ref_name].copy()
         ref_sequence = str(ref_dict[ref_name].seq)
 
-
-        # TODO change all this to pandas
-
         # we want only snps
         # so, no '-' characters allowed, and chrStart must be same as chrEnd
         snp_df = variants_to_process[~variants_to_process.index.isin(indices_to_indels)]
@@ -343,7 +345,7 @@ def main():
                         if ',' in caf_str:
                             my_pop_freq = float(caf_str[5:].split(',')[1])
                     VDAT_COMMON.append(
-                        (row.chr_start, row.REF, row.ALT, my_pop_freq))
+                        (row.chr_start, row.REF, row.REF, row.ALT, my_pop_freq))
                 else:
                     print('\nError: ref allele in variant call does not match reference.\n')
                     exit(1)
@@ -368,70 +370,58 @@ def main():
 
                     my_pop_freq = VCF_DEFAULT_POP_FREQ
                     if ';CAF=' in row.INFO:
-                        caf_str = re.findall(r";CAF=.*?(?=;))", row.INFO)[0]
+                        caf_str = re.findall(r";CAF=.*?(?=;)", row.INFO)[0]
                         if ',' in caf_str:
                             my_pop_freq = float(caf_str[5:].split(',')[1])
-                    VDAT_COMMON.append((row.chr_start, row.REF, row.ALT, my_pop_freq))
+                    VDAT_COMMON.append((row.chr_start, row.REF, row.REF, row.ALT, my_pop_freq))
 
         # if we didn't find anything, skip ahead along to the next reference sequence
         if not len(VDAT_COMMON):
-            print('Found no variants for this reference, moving along...')
+            print('Found no variants for this reference.')
             continue
 
-        #
         # identify common mutations
-        #
         percentile_var = 95
-        if is_vcf:
-            minVal = np.percentile([n[4] for n in VDAT_COMMON], percentile_var)
-            for k in sorted(VDAT_COMMON):
-                if k[4] >= minVal:
-                    COMMON_VARIANTS.append((ref_name, k[0], k[1], k[3], k[4]))
-            VDAT_COMMON = {(n[0], n[1], n[2], n[3]): n[4] for n in VDAT_COMMON}
-        else:
-            N_DONORS = len(TOTAL_DONORS)
-            VDAT_COMMON = list_2_countDict(VDAT_COMMON)
-            minVal = int(np.percentile(VDAT_COMMON.values(), percentile_var))
-            for k in sorted(VDAT_COMMON.keys()):
-                if VDAT_COMMON[k] >= minVal:
-                    COMMON_VARIANTS.append((ref_name, k[0], k[1], k[3], VDAT_COMMON[k] / float(N_DONORS)))
+        min_value = np.percentile([n[4] for n in VDAT_COMMON], percentile_var)
+        for k in sorted(VDAT_COMMON):
+            if k[4] >= min_value:
+                COMMON_VARIANTS.append((ref_name, k[0], k[1], k[3], k[4]))
+        VDAT_COMMON = {(n[0], n[1], n[2], n[3]): n[4] for n in VDAT_COMMON}
 
-        #
         # identify areas that have contained significantly higher random mutation rates
-        #
         dist_thresh = 2000
         percentile_clust = 97
-        qptn = 1000
+        scaler = 1000
         # identify regions with disproportionately more variants in them
         VARIANT_POS = sorted([n[0] for n in VDAT_COMMON.keys()])
         clustered_pos = cluster_list(VARIANT_POS, dist_thresh)
-        byLen = [(len(clustered_pos[i]), min(clustered_pos[i]), max(clustered_pos[i]), i) for i in
+        by_len = [(len(clustered_pos[i]), min(clustered_pos[i]), max(clustered_pos[i]), i) for i in
                  range(len(clustered_pos))]
-        # byLen  = sorted(byLen,reverse=True)
-        # minLen = int(np.percentile([n[0] for n in byLen],percentile_clust))
-        # byLen  = [n for n in byLen if n[0] >= minLen]
+        # Not sure what this was intended to do or why it is commented out. Leaving it here for now.
+        # by_len  = sorted(by_len,reverse=True)
+        # minLen = int(np.percentile([n[0] for n in by_len],percentile_clust))
+        # by_len  = [n for n in by_len if n[0] >= minLen]
         candidate_regions = []
-        for n in byLen:
-            bi = int((n[1] - dist_thresh) / float(qptn)) * qptn
-            bf = int((n[2] + dist_thresh) / float(qptn)) * qptn
+        for n in by_len:
+            bi = int((n[1] - dist_thresh) / float(scaler)) * scaler
+            bf = int((n[2] + dist_thresh) / float(scaler)) * scaler
             candidate_regions.append((n[0] / float(bf - bi), max([0, bi]), min([len(ref_dict[ref_name]), bf])))
-        minVal = np.percentile([n[0] for n in candidate_regions], percentile_clust)
+        minimum_value = np.percentile([n[0] for n in candidate_regions], percentile_clust)
         for n in candidate_regions:
-            if n[0] >= minVal:
+            if n[0] >= minimum_value:
                 HIGH_MUT_REGIONS.append((ref_name, n[1], n[2], n[0]))
         # collapse overlapping regions
         for i in range(len(HIGH_MUT_REGIONS) - 1, 0, -1):
             if HIGH_MUT_REGIONS[i - 1][2] >= HIGH_MUT_REGIONS[i][1] and HIGH_MUT_REGIONS[i - 1][0] == \
                     HIGH_MUT_REGIONS[i][0]:
+                # Might need to research a more accurate way to get the mutation rate for this region
                 avgMutRate = 0.5 * HIGH_MUT_REGIONS[i - 1][3] + 0.5 * HIGH_MUT_REGIONS[i][
-                    3]  # not accurate, but I'm lazy
+                    3]
                 HIGH_MUT_REGIONS[i - 1] = (
                     HIGH_MUT_REGIONS[i - 1][0], HIGH_MUT_REGIONS[i - 1][1], HIGH_MUT_REGIONS[i][2], avgMutRate)
                 del HIGH_MUT_REGIONS[i]
 
-    #
     # if we didn't count ref trinucs because we found file, read in ref counts from file now
-    #
     if os.path.isfile(ref + '.trinucCounts'):
         print('reading pre-computed trinuc counts...')
         f = open(ref + '.trinucCounts', 'r')
@@ -450,13 +440,15 @@ def main():
                 f.write(trinuc + '\t' + str(TRINUC_REF_COUNT[trinuc]) + '\n')
             f.close()
 
-    #
-    # if using an input bed region, make necessary adjustments to trinuc ref counts based on the bed region trinuc counts
-    #
+    # if using an input bed region, make necessary adjustments to
+    # trinuc ref counts based on the bed region trinuc counts
+    #TODO figure out how to make this next part work
     if mybed is not None:
-        if mybed[1] == True:  # we are restricting our attention to bed regions, so ONLY use bed region trinuc counts
+        # we are restricting our attention to bed regions, so ONLY use bed region trinuc counts
+        if mybed[1] == True:
             TRINUC_REF_COUNT = TRINUC_BED_COUNT
-        else:  # we are only looking outside bed regions, so subtract bed region trinucs from entire reference trinucs
+        # we are only looking outside bed regions, so subtract bed region trinucs from entire reference trinucs
+        else:
             for k in TRINUC_REF_COUNT.keys():
                 if k in TRINUC_BED_COUNT:
                     TRINUC_REF_COUNT[k] -= TRINUC_BED_COUNT[k]
