@@ -107,12 +107,12 @@ def compute_probs(count_dict: dict) -> (list, list):
     med = quick_median(count_dict)
     mdm = median_deviation_from_median(count_dict)
 
-    for k in sorted(count_dict.keys()):
-        if 0 < k < med + FILTER_MEDDEV_M * mdm:
-            if count_dict[k] >= FILTER_MINREADS:
-                print(k, count_dict[k])
-                values.append(k)
-                probabilities.append(count_dict[k])
+    for key in sorted(count_dict.keys()):
+        if 0 < key < med + FILTER_MEDDEV_M * mdm:
+            if count_dict[key] >= FILTER_MINREADS:
+                print(key, count_dict[key])
+                values.append(key)
+                probabilities.append(count_dict[key])
     count_sum = float(sum(probabilities))
     probabilities = [n / count_sum for n in probabilities]
     return values, probabilities
