@@ -52,8 +52,8 @@ def list_2_countDict(l: list) -> dict:
     return cDict
 
 
-def getBedTracks(fn: str) -> dict:
-    f = open(fn, 'r')
+def getBedTracks(file_name: str) -> dict:
+    f = open(file_name, 'r')
     trackDict = {}
     for line in f:
         splt = line.strip().split('\t')
@@ -63,7 +63,7 @@ def getBedTracks(fn: str) -> dict:
     f.close()
     return trackDict
 
-
+#TODO Convert this function to pandas
 def getTrackLen(trackDict: dict) -> float:
     totSum = 0
     for k in trackDict.keys():
@@ -83,7 +83,7 @@ def isInBed(track, ind):
 
 
 #####################################
-#				main()				#c
+#				main()				#
 #####################################
 
 
@@ -104,11 +104,10 @@ def main():
                         help="Mutation file for organism in VCF format")
     parser.add_argument('-o', type=str, required=True, metavar='/path/to/output/and/prefix',
                         help="Name of output file (final model will append \'.p\')")
-    parser.add_argument('-bi', type=str, required=False, metavar='Bed file of regions to include', default=None,
+    parser.add_argument('-bi', type=str, required=False, metavar='Bed file of regions to include '
+                                                                 '(use bedtools complement if you have a '
+                                                                 'bed of exclusion areas)', default=None,
                         help="only_use_these_regions.bed")
-    # This was not implemented correctly in the original file. Will circle back to it.
-    # parser.add_argument('-be', type=str, required=False, metavar='Bed file of regions to exclued', default=None,
-    #                     help="exclude_these_regions.bed")
     parser.add_argument('--save-trinuc', required=False, action='store_true', default=False,
                         help='save trinucleotide counts for reference')
     parser.add_argument('--human-sample', required=False, action='store_true', default=False,
@@ -124,7 +123,6 @@ def main():
 
     # how many times do we observe each trinucleotide in the reference (and input bed region, if present)?
     TRINUC_REF_COUNT = {}
-    TRINUC_BED_COUNT = {}
     # [(trinuc_a, trinuc_b)] = # of times we observed a mutation from trinuc_a into trinuc_b
     TRINUC_TRANSITION_COUNT = {}
     # total count of SNPs
@@ -142,7 +140,7 @@ def main():
     # identify regions that have significantly higher local mutation rates than the average
     HIGH_MUT_REGIONS = []
 
-    # Process bed file
+    # Process bed file,
     is_bed = False
     mybed = None
     if args.bi is not None:
@@ -283,9 +281,9 @@ def main():
                     # skip if trinuc contains invalid characters, or not in specified bed region
                     if not trinuc in VALID_TRINUC:
                         continue
-                    if trinuc not in TRINUC_BED_COUNT:
-                        TRINUC_BED_COUNT[trinuc] = 0
-                    TRINUC_BED_COUNT[trinuc] += 1
+                    if trinuc not in TRINUC_REF_COUNT:
+                        TRINUC_REF_COUNT[trinuc] = 0
+                    TRINUC_REF_COUNT[trinuc] += 1
 
     elif not os.path.isfile(ref + '.trinucCounts'):
         for i in range(len(ref_dict[ref_name]) - 2):
@@ -440,19 +438,6 @@ def main():
                 f.write(trinuc + '\t' + str(TRINUC_REF_COUNT[trinuc]) + '\n')
             f.close()
 
-    # if using an input bed region, make necessary adjustments to
-    # trinuc ref counts based on the bed region trinuc counts
-    #TODO figure out how to make this next part work
-    if mybed is not None:
-        # we are restricting our attention to bed regions, so ONLY use bed region trinuc counts
-        if mybed[1] == True:
-            TRINUC_REF_COUNT = TRINUC_BED_COUNT
-        # we are only looking outside bed regions, so subtract bed region trinucs from entire reference trinucs
-        else:
-            for k in TRINUC_REF_COUNT.keys():
-                if k in TRINUC_BED_COUNT:
-                    TRINUC_REF_COUNT[k] -= TRINUC_BED_COUNT[k]
-
     # if for some reason we didn't find any valid input variants, exit gracefully...
     totalVar = SNP_COUNT + sum(INDEL_COUNT.values())
     if totalVar == 0:
@@ -460,15 +445,8 @@ def main():
             '\nError: No valid variants were found, model could not be created. (Are you using the correct reference?)\n')
         exit(1)
 
-    """ ##########################################################################
-    ###							COMPUTE PROBABILITIES						   ###
-    ########################################################################## """
 
-    # for k in sorted(TRINUC_REF_COUNT.keys()):
-    #		print k, TRINUC_REF_COUNT[k]
-    #
-    # for k in sorted(TRINUC_TRANSITION_COUNT.keys()):
-    #	print k, TRINUC_TRANSITION_COUNT[k]
+    ###	COMPUTE PROBABILITIES
 
     # frequency that each trinuc mutated into anything else
     TRINUC_MUT_PROB = {}
@@ -498,17 +476,13 @@ def main():
     SNP_FREQ = SNP_COUNT / float(totalVar)
     AVG_INDEL_FREQ = 1. - SNP_FREQ
     INDEL_FREQ = {k: (INDEL_COUNT[k] / float(totalVar)) / AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
-    if mybed is not None:
-        if mybed[1] == True:
-            AVG_MUT_RATE = totalVar / float(getTrackLen(mybed[0]))
-        else:
-            AVG_MUT_RATE = totalVar / float(TOTAL_REFLEN - getTrackLen(mybed[0]))
+    #TODO fix this get track len function
+    if is_bed:
+        AVG_MUT_RATE = totalVar / float(getTrackLen(mybed))
     else:
         AVG_MUT_RATE = totalVar / float(TOTAL_REFLEN)
 
-    #
     #	if values weren't found in data, appropriately append null entries
-    #
     printTrinucWarning = False
     for trinuc in VALID_TRINUC:
         trinuc_mut = [trinuc[0] + n + trinuc[2] for n in VALID_NUCL if n != trinuc[1]]

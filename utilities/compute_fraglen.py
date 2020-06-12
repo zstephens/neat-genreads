@@ -20,16 +20,16 @@ def quick_median(count_dict: dict) -> int:
     :param count_dict: the counting dictionary to find the median of
     :return: integer index of the location of the median
     """
-    midPoint = sum(count_dict.values()) // 2
-    mySum = 0
-    myInd = 0
+    mid_point = sum(count_dict.values()) // 2
+    my_sum = 0
+    my_ind = 0
     sk = sorted(count_dict.keys())
-    while mySum < midPoint:
-        mySum += count_dict[sk[myInd]]
-        if mySum >= midPoint:
+    while my_sum < mid_point:
+        my_sum += count_dict[sk[my_ind]]
+        if my_sum >= mid_point:
             break
-        myInd += 1
-    return myInd
+        my_ind += 1
+    return my_ind
 
 
 def median_deviation_from_median(count_dict: dict) -> int:
@@ -39,11 +39,11 @@ def median_deviation_from_median(count_dict: dict) -> int:
     :param count_dict: Counting dictionary to analyze
     :return: index of median of the deviations
     """
-    myMedian = quick_median(count_dict)
+    my_median = quick_median(count_dict)
     deviations = {}
-    for k in sorted(count_dict.keys()):
-        d = abs(k - myMedian)
-        deviations[d] = count_dict[k]
+    for key in sorted(count_dict.keys()):
+        delta = abs(key - my_median)
+        deviations[delta] = count_dict[key]
     return quick_median(deviations)
 
 
@@ -78,15 +78,15 @@ def count_frags(file: str) -> dict:
         myRef = splt[2]
         mapQual = int(splt[4])
         mateRef = splt[6]
-        myTlen = abs(int(splt[8]))
+        my_tlen = abs(int(splt[8]))
 
         # if read is paired, and is first in pair, and is confidently mapped...
         if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
             # and mate is mapped to same reference
             if mateRef == '=' or mateRef == myRef:
-                if myTlen not in count_dict:
-                    count_dict[myTlen] = 0
-                count_dict[myTlen] += 1
+                if my_tlen not in count_dict:
+                    count_dict[my_tlen] = 0
+                count_dict[my_tlen] += 1
                 i += 1
                 if i % PRINT_EVERY == 0:
                     print('---', i, quick_median(count_dict), median_deviation_from_median(count_dict))
@@ -113,8 +113,8 @@ def compute_probs(count_dict: dict) -> (list, list):
                 print(k, count_dict[k])
                 values.append(k)
                 probabilities.append(count_dict[k])
-    countSum = float(sum(probabilities))
-    probabilities = [n / countSum for n in probabilities]
+    count_sum = float(sum(probabilities))
+    probabilities = [n / count_sum for n in probabilities]
     return values, probabilities
 
 
