@@ -22,15 +22,20 @@ def quick_median(count_dict: dict) -> int:
     :param count_dict: the counting dictionary to find the median of
     :return: The median of the set
     """
+    # The sum of the values of the counting dictionary tells us how long the expanded list is. To find the midpoint
+    # We divide by 2
     mid_point = sum(count_dict.values()) / 2
     my_sum = 0
     my_ind = 0
     sk = sorted(count_dict.keys())
+    # Here we basically count up one group of dictionary values at a time until we're at the midpoint
     while my_sum < mid_point:
         my_sum += count_dict[sk[my_ind]]
         if my_sum >= mid_point:
             break
         my_ind += 1
+    # Once we've found the midpoint, we calculate the median, which is just the middle value if there are an
+    # odd number of values, or the average of the two middle valuse if there are an even number
     if sum(count_dict.values()) % 2 == 0:
         median = (sk[my_ind] + sk[my_ind-1])//2
     else:
@@ -40,16 +45,21 @@ def quick_median(count_dict: dict) -> int:
 
 def median_deviation_from_median(count_dict: dict) -> int:
     """
-    calculates the deviation from the median of each element of counting dictionary,
-    then returns the median of that dictionary
+    Calculates the deviation from the median of each element of counting dictionary,
+    then returns the median of that dictionary. A counting dictionary such as {2: 3, 5:2} expands to [2,2,2,5,5]
     :param count_dict: Counting dictionary to analyze
     :return: index of median of the deviations
     """
     my_median = quick_median(count_dict)
     deviations = {}
     for key in sorted(count_dict.keys()):
+        # We take the absolute difference between the value and the median
         X_value = abs(key - my_median)
+        # We retain the number of items for each element of the dictionary
+        # This is equivalent to subtracting the median from each value of the expanded dataset
         deviations[X_value] = count_dict[key]
+    # Taking the median of this dataset gives us the median deviation from the median
+    # (also called the Median Absolute Deviation)
     return quick_median(deviations)
 
 def count_frags(file: str) -> dict:
