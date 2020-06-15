@@ -29,9 +29,7 @@ def quick_median(count_dict: dict) -> int:
         if my_sum >= mid_point:
             break
         my_ind += 1
-    if sum(count_dict.values())%2 == 0:
-        print(sk[my_ind])
-        print(sk[my_ind-1])
+    if sum(count_dict.values()) % 2 == 0:
         median = (sk[my_ind] + sk[my_ind-1])//2
     else:
         median = sk[my_ind]
