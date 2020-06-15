@@ -24,23 +24,26 @@ def quick_median(count_dict: dict) -> int:
     """
     # The sum of the values of the counting dictionary tells us how long the expanded list is. To find the midpoint
     # We divide by 2
-    mid_point = sum(count_dict.values()) / 2
-    my_sum = 0
-    my_ind = 0
-    sk = sorted(count_dict.keys())
-    # Here we basically count up one group of dictionary values at a time until we're at the midpoint
-    while my_sum < mid_point:
-        my_sum += count_dict[sk[my_ind]]
-        if my_sum >= mid_point:
-            break
-        my_ind += 1
-    # Once we've found the midpoint, we calculate the median, which is just the middle value if there are an
-    # odd number of values, or the average of the two middle valuse if there are an even number
-    if sum(count_dict.values()) % 2 == 0:
-        median = (sk[my_ind] + sk[my_ind-1])//2
+    if not count_dict:
+        raise Exception('This Counting Dictionary is Empty. Please input a dictionary with at least one entry.')
     else:
-        median = sk[my_ind]
-    return median
+        mid_point = sum(count_dict.values()) / 2
+        my_sum = 0
+        my_ind = 0
+        sk = sorted(count_dict.keys())
+        # Here we basically count up one group of dictionary values at a time until we're at the midpoint
+        while my_sum < mid_point:
+            my_sum += count_dict[sk[my_ind]]
+            if my_sum >= mid_point:
+                break
+            my_ind += 1
+        # Once we've found the midpoint, we calculate the median, which is just the middle value if there are an
+        # odd number of values, or the average of the two middle valuse if there are an even number
+        if sum(count_dict.values()) % 2 == 0:
+            median = (sk[my_ind] + sk[my_ind-1])//2
+        else:
+            median = sk[my_ind]
+        return median
 
 
 def median_deviation_from_median(count_dict: dict) -> int:
