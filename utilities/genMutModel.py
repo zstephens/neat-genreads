@@ -64,11 +64,11 @@ def getBedTracks(file_name: str) -> dict:
     return trackDict
 
 #TODO Convert this function to pandas
-def getTrackLen(trackDict: dict) -> float:
+def get_track_len(track_df: pd.DataFrame) -> float:
     totSum = 0
-    for k in trackDict.keys():
-        for i in range(0, len(trackDict[k]), 2):
-            totSum += trackDict[k][i + 1] - trackDict[k][i] + 1
+    for k in track_df.keys():
+        for i in range(0, len(track_df[k]), 2):
+            totSum += track_df[k][i + 1] - track_df[k][i] + 1
     return totSum
 
 
@@ -478,7 +478,7 @@ def main():
     INDEL_FREQ = {k: (INDEL_COUNT[k] / float(totalVar)) / AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
     #TODO fix this get track len function
     if is_bed:
-        AVG_MUT_RATE = totalVar / float(getTrackLen(mybed))
+        AVG_MUT_RATE = totalVar / float(get_track_len(mybed))
     else:
         AVG_MUT_RATE = totalVar / float(TOTAL_REFLEN)
 

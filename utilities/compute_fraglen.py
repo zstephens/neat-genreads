@@ -24,26 +24,29 @@ def quick_median(count_dict: dict) -> int:
     """
     # The sum of the values of the counting dictionary tells us how long the expanded list is. To find the midpoint
     # We divide by 2
-    mid_point = sum(count_dict.values()) / 2
-    my_sum = 0
-    my_ind = 0
-    sk = sorted(count_dict.keys())
-    # Here we basically count up one group of dictionary values at a time until we're at the midpoint
-    while my_sum < mid_point:
-        my_sum += count_dict[sk[my_ind]]
-        if my_sum >= mid_point:
-            break
-        my_ind += 1
-    # Once we've found the midpoint, we calculate the median, which is just the middle value if there are an
-    # odd number of values, or the average of the two middle valuse if there are an even number
-    if sum(count_dict.values()) % 2 == 0:
-        median = (sk[my_ind] + sk[my_ind-1])//2
+    if not count_dict:
+        raise Exception('Empty counting dictionary. Check that sam input was correctly formatted.')
     else:
-        median = sk[my_ind]
+        mid_point = sum(count_dict.values()) / 2
+        my_sum = 0
+        my_ind = 0
+        sk = sorted(count_dict.keys())
+        # Here we basically count up one group of dictionary values at a time until we're at the midpoint
+        while my_sum < mid_point:
+            my_sum += count_dict[sk[my_ind]]
+            if my_sum >= mid_point:
+                break
+            my_ind += 1
+        # Once we've found the midpoint, we calculate the median, which is just the middle value if there are an
+        # odd number of values, or the average of the two middle values if there are an even number
+        if sum(count_dict.values()) % 2 == 0:
+            median = (sk[my_ind] + sk[my_ind-1])//2
+        else:
+            median = sk[my_ind]
     return median
 
 
-def median_deviation_from_median(count_dict: dict) -> int:
+def median_absolute_deviation(count_dict: dict) -> int:
     """
     Calculates the deviation from the median of each element of counting dictionary,
     then returns the median of that dictionary. A counting dictionary such as {2: 3, 5:2} expands to [2,2,2,5,5]
@@ -104,7 +107,7 @@ def count_frags(file: str) -> dict:
                 count_dict[my_tlen] += 1
                 i += 1
                 if i % PRINT_EVERY == 0:
-                    print('---', i, quick_median(count_dict), median_deviation_from_median(count_dict))
+                    print('---', i, quick_median(count_dict), median_absolute_deviation(count_dict))
     return count_dict
 
 
@@ -120,7 +123,7 @@ def compute_probs(count_dict: dict) -> (list, list):
     values = []
     probabilities = []
     med = quick_median(count_dict)
-    mdm = median_deviation_from_median(count_dict)
+    mdm = median_absolute_deviation(count_dict)
 
     for key in sorted(count_dict.keys()):
         if 0 < key < med + FILTER_MEDDEV_M * mdm:
