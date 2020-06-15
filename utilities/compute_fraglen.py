@@ -16,7 +16,9 @@ import pysam
 
 def quick_median(count_dict: dict) -> int:
     """
-    Finds the median of a counting dictionary
+    Finds the median of a counting dictionary. A counting dictionary is a representation of a list of data.
+    For example, the data [1,1,2,2,2] could be represented in dictionary form as {1:2, 2:3}, indicating that 1 is
+    repeated twice and 2 is repeating three times.
     :param count_dict: the counting dictionary to find the median of
     :return: The median of the set
     """
@@ -34,19 +36,6 @@ def quick_median(count_dict: dict) -> int:
     else:
         median = sk[my_ind]
     return median
-
-
-def quick_median_old(count_dict: dict) -> int:
-    mid_point = sum(count_dict.values()) / 2
-    my_sum = 0
-    my_ind = 0
-    sk = sorted(count_dict.keys())
-    while my_sum < mid_point:
-        my_sum += count_dict[sk[my_ind]]
-        if my_sum >= mid_point:
-            break
-        my_ind += 1
-    return sk[my_ind]
 
 
 def median_deviation_from_median(count_dict: dict) -> int:
