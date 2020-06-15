@@ -18,7 +18,7 @@ def quick_median(count_dict: dict) -> int:
     """
     Finds the median of a counting dictionary
     :param count_dict: the counting dictionary to find the median of
-    :return: integer index of the location of the median
+    :return: The median of the set
     """
     list = []
     for key in count_dict.keys():
@@ -33,6 +33,19 @@ def quick_median(count_dict: dict) -> int:
     return median
 
 
+def quick_median_old(count_dict: dict) -> int:
+    mid_point = sum(count_dict.values()) / 2
+    my_sum = 0
+    my_ind = 0
+    sk = sorted(count_dict.keys())
+    while my_sum < mid_point:
+        my_sum += count_dict[sk[my_ind]]
+        if my_sum >= mid_point:
+            break
+        my_ind += 1
+    return sk[my_ind]
+
+
 def median_deviation_from_median(count_dict: dict) -> int:
     """
     calculates the deviation from the median of each element of counting dictionary,
@@ -45,7 +58,6 @@ def median_deviation_from_median(count_dict: dict) -> int:
     for key in sorted(count_dict.keys()):
         X_value = abs(key - my_median)
         deviations[X_value] = count_dict[key]
-    print(deviations)
     return quick_median(deviations)
 
 def count_frags(file: str) -> dict:
