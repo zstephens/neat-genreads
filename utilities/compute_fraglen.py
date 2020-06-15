@@ -20,16 +20,21 @@ def quick_median(count_dict: dict) -> int:
     :param count_dict: the counting dictionary to find the median of
     :return: The median of the set
     """
-    list = []
-    for key in count_dict.keys():
-        for i in range(count_dict[key]):
-            list.append(key)
-    list = sorted(list)
-    midpoint = len(list)//2
-    if len(list) % 2 == 0:
-        median = (list[midpoint] + list[midpoint-1])//2
+    mid_point = sum(count_dict.values()) / 2
+    my_sum = 0
+    my_ind = 0
+    sk = sorted(count_dict.keys())
+    while my_sum < mid_point:
+        my_sum += count_dict[sk[my_ind]]
+        if my_sum >= mid_point:
+            break
+        my_ind += 1
+    if sum(count_dict.values())%2 == 0:
+        print(sk[my_ind])
+        print(sk[my_ind-1])
+        median = (sk[my_ind] + sk[my_ind-1])//2
     else:
-        median = list[midpoint]
+        median = sk[my_ind]
     return median
 
 
