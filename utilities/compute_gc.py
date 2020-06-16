@@ -51,7 +51,6 @@ def process_genomecov(file: str, ref_dict: dict, window) -> dict:
     current_ref = None
     current_cov = 0
     lines_processed = 0
-    print_every = 1000000
 
     f = open(file, 'r')
     for line in f:
