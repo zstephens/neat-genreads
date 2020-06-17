@@ -43,7 +43,7 @@ def process_fasta(file: str) -> dict:
     return ref_dict
 
 
-def process_genomecov(file: str, ref_dict: dict, window) -> dict:
+def process_genomecov(file: str, ref_dict: dict, window: int) -> dict:
     gc_bins = {n: [] for n in range(window + 1)}
 
     # variables needed to parse coverage file
@@ -58,7 +58,7 @@ def process_genomecov(file: str, ref_dict: dict, window) -> dict:
         lines_processed += 1
         if current_line == 0:
             current_ref = splt[0]
-            sPos = int(splt[1]) - 1
+            current_pos = int(splt[1]) - 1
 
         if current_ref not in ref_dict:
             continue
@@ -68,7 +68,7 @@ def process_genomecov(file: str, ref_dict: dict, window) -> dict:
 
         if current_line == window:
             current_line = 0
-            seq = str(ref_dict[current_ref][sPos:sPos + window])
+            seq = str(ref_dict[current_ref][current_pos:current_pos + window])
             if 'N' not in seq:
                 gc_count = seq.count('G') + seq.count('C')
                 gc_bins[gc_count].append(current_cov)
