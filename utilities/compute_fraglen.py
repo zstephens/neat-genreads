@@ -109,7 +109,7 @@ def compute_probs(datalist: list) -> (list, list):
     mad = median_absolute_deviation(datalist)
 
     for item in list(set(datalist)):
-        if 0 < item < med + FILTER_MEDDEV_M * mad:
+        if 0 < item <= med + FILTER_MEDDEV_M * mad:
             data_count = datalist.count(item)
             if data_count >= FILTER_MINREADS:
                 values.append(item)
