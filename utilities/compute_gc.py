@@ -86,12 +86,12 @@ def calculate_coverage(bin_dict: dict, window: int) -> float:
             print('{0:0.2%}'.format(k / float(window)), 0.0, 0)
             bin_dict[k] = 0
         else:
-            myMean = np.mean(bin_dict[k])
-            myLen = len(bin_dict[k])
-            print('{0:0.2%}'.format(k / float(window)), myMean, myLen)
-            all_mean += myMean * myLen
-            running_total += myLen
-            bin_dict[k] = myMean
+            my_mean = np.mean(bin_dict[k])
+            my_len = len(bin_dict[k])
+            print('{0:0.2%}'.format(k / float(window)), my_mean, my_len)
+            all_mean += my_mean * my_len
+            running_total += my_len
+            bin_dict[k] = my_mean
 
     return all_mean / float(running_total)
 
