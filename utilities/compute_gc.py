@@ -44,6 +44,14 @@ def process_fasta(file: str) -> dict:
 
 
 def process_genomecov(file: str, ref_dict: dict, window: int) -> dict:
+    """
+    Takes a genomecov file and converts it into a dictionary made up of 'window' sized sections 
+    that record the number of GCs and the coverage measure for each section.
+    :param file: path to a genomecov file
+    :param ref_dict: dictionary created from using the process_fasta function
+    :param window: Length of each section of base pairs to count in the reference dictionary
+    :return: dictionary form of genomecov file based on window size and ref_dict data
+    """
     gc_bins = {n: [] for n in range(window + 1)}
 
     # variables needed to parse coverage file
@@ -79,6 +87,14 @@ def process_genomecov(file: str, ref_dict: dict, window: int) -> dict:
 
 
 def calculate_coverage(bin_dict: dict, window: int) -> float:
+    """
+    Takes the dictionary created in process_genomecov and finds the average coverage value.
+    Also ouputs the average coverage value for each window, along with the number of entries in that window.
+    :param bin_dict: dictionary created from using the process_genomecov function
+    :param window: Length of each section of base pairs to count, 
+                   should be the same as the window value in process_genomecov
+    :return: Average coverage value for the whole sample, along with average coverage values for each window.
+    """
     running_total = 0
     all_mean = 0.0
     for k in sorted(bin_dict.keys()):
@@ -100,11 +116,10 @@ def main():
     """
     Reads in arguments and processes the inputs to a GC count for the sequence.
     Parameters:
-        -i is the genome coverage input file
-        -r is the reference file
+        -i is the genome coverage input file (genomecov)
+        -r is the reference file (fasta)
         -o is the prefix for the output
         -w is the sliding window length. The default is 50, but you can declare any reasonable integer
-
     :return: None
     """
     parser = argparse.ArgumentParser(description='compute_gc.py')

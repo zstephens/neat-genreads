@@ -12,6 +12,7 @@
 import pickle
 import argparse
 import pysam
+import doctest
 
 
 def median(datalist: list) -> float:
@@ -20,6 +21,12 @@ def median(datalist: list) -> float:
     numbers, either float or int.
     :param datalist: the list of data to find the median of. This should be a set of numbers.
     :return: The median of the set
+    >>> median([2])
+    2
+    >>> median([2183, 2292, 4064, 4795, 7471, 12766, 14603, 15182, 16803, 18704, 21504, 21677, 23347, 23586, 24612, 24878, 25310, 25993, 26448, 28018, 28352, 28373, 28786, 30037, 31659, 31786, 33487, 33531, 34442, 39138, 39718, 39815, 41518, 41934, 43301])
+    25993
+    >>> median([1,2,4,6,8,12,14,15,17,21])
+    10.0
     """
     # using integer division here gives the index of the midpoint, due to zero-based indexing.
     midpoint = len(datalist)//2
@@ -36,10 +43,16 @@ def median(datalist: list) -> float:
 
 def median_absolute_deviation(datalist: list) -> float:
     """
-    Calculates the median deviation from the median for each element of of a datalist.
-    then returns the median of that dictionary. A counting dictionary such as {2: 3, 5:2} expands to [2,2,2,5,5]
+    Calculates the absolute value of the median deviation from the median for each element of of a datalist. 
+    Then returns the median of these values.
     :param datalist: A list of data to find the MAD of
     :return: index of median of the deviations
+    >>> median_absolute_deviation([2183, 2292, 4064, 4795, 7471, 12766, 14603, 15182, 16803, 18704, 21504, 21677, 23347, 23586, 24612, 24878, 25310, 25993, 26448, 28018, 28352, 28373, 28786, 30037, 31659, 31786, 33487, 33531, 34442, 39138, 39718, 39815, 41518, 41934, 43301])
+    7494
+    >>> median_absolute_deviation([1,2,4,6,8,12,14,15,17,21])
+    5.5
+    >>> median_absolute_deviation([0,2])
+    1.0
     """
     my_median = median(datalist)
     deviations = []
@@ -83,7 +96,6 @@ def count_frags(file: str) -> list:
         map_qual = int(splt[4])
         mate_ref = splt[6]
         my_tlen = abs(int(splt[8]))
-
         # if read is paired, and is first in pair, and is confidently mapped...
         if sam_flag & 1 and sam_flag & 64 and map_qual > FILTER_MAPQUAL:
             # and mate is mapped to same reference
@@ -124,7 +136,7 @@ def main():
     Main function takes 2 arguments:
         input - a path to a sam or bam file input. Note that sam files can be formed by applying samtools to a bam file
         in the follawing way: samtools view nameof.bam > nameof.sam
-
+        
         output - the string prefix of the output. The actual output will be the prefix plus ".p" at the end
         for pickle file. The list of values and list of probabilities are dumped as a list of lists
         into a pickle file on completion of the analysis
