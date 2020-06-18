@@ -78,17 +78,17 @@ def count_frags(file: str) -> list:
         if line[0] == '#' or line[0] == '@':
             continue
         splt = line.strip().split('\t')
-        samFlag = int(splt[1])
-        myRef = splt[2]
-        mapQual = int(splt[4])
-        mateRef = splt[6]
-        myTlen = abs(int(splt[8]))
+        sam_flag = int(splt[1])
+        my_ref = splt[2]
+        map_qual = int(splt[4])
+        mate_ref = splt[6]
+        my_tlen = abs(int(splt[8]))
 
         # if read is paired, and is first in pair, and is confidently mapped...
-        if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
+        if sam_flag & 1 and sam_flag & 64 and map_qual > FILTER_MAPQUAL:
             # and mate is mapped to same reference
-            if mateRef == '=' or mateRef == myRef:
-                count_list.append(myTlen)
+            if mate_ref == '=' or mate_ref == my_ref:
+                count_list.append(my_tlen)
     count_list = sorted(count_list)
     file_to_parse.close()
     return count_list
