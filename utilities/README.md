@@ -1,4 +1,4 @@
-# computeGC.py
+# compute_gc.py
 
 Takes .genomecov files produced by BEDtools genomeCov (with -d option).
 
@@ -10,20 +10,39 @@ bedtools genomecov
 ```
 
 ```
-python computeGC.py                 \
-        -r reference.fa             \
-        -i genomecovfile            \
-        -w [sliding window length]  \
-        -o /path/to/model.p
+python computeGC.py                	\
+        -r reference.fasta         	\
+        -i genomecov            	\
+        -w [sliding window length]  	\
+        -o /path/to/output
 ```
 
-# computeFraglen.py
+The main function in this file processes the inputs (reference.fasta, genome.cov, window length), and outputs a GC count for the sequence in the form of a pickle file at the location and with the name from the path the user provides with the -o command.
 
-Takes SAM file via stdin:
 
-./samtools view toy.bam | python computeFraglen.py
 
-and creates fraglen.p model in working directory.
+# compute_fraglen.py
+
+Takes SAM or BAM files and uses console commands for processing:
+
+```
+python computeGC.py		\
+	-i path to sam file	\
+	-o path/to/output
+```
+
+The main function in this file will save a pickle (.p) in the location and with the name from the path the user provides with the -o command.
+
+**Please be aware that pysam is not usable on windows, so any BAM file will need to be turned into a SAM file using samtools beforehand.
+
+To use samtools, use the following command:
+
+```
+Turn SAM file into BAM file:			\
+	samtools view nameof.bam > nameof.sam
+```
+
+
 
 
 # genMutModel.py
