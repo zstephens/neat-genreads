@@ -29,7 +29,7 @@ def median(datalist: list) -> float:
     10.0
     """
     # using integer division here gives the index of the midpoint, due to zero-based indexing.
-    midpoint = (len(datalist))//2
+    midpoint = len(datalist)//2
 
     # Once we've found the midpoint, we calculate the median, which is just the middle value if there are an
     # odd number of values, or the average of the two middle values if there are an even number
@@ -91,17 +91,16 @@ def count_frags(file: str) -> list:
         if line[0] == '#' or line[0] == '@':
             continue
         splt = line.strip().split('\t')
-        samFlag = int(splt[1])
-        myRef = splt[2]
-        mapQual = int(splt[4])
-        mateRef = splt[6]
-        myTlen = abs(int(splt[8]))
-
+        sam_flag = int(splt[1])
+        my_ref = splt[2]
+        map_qual = int(splt[4])
+        mate_ref = splt[6]
+        my_tlen = abs(int(splt[8]))
         # if read is paired, and is first in pair, and is confidently mapped...
-        if samFlag & 1 and samFlag & 64 and mapQual > FILTER_MAPQUAL:
+        if sam_flag & 1 and sam_flag & 64 and map_qual > FILTER_MAPQUAL:
             # and mate is mapped to same reference
-            if mateRef == '=' or mateRef == myRef:
-                count_list.append(myTlen)
+            if mate_ref == '=' or mate_ref == my_ref:
+                count_list.append(my_tlen)
     count_list = sorted(count_list)
     file_to_parse.close()
     return count_list
@@ -122,7 +121,7 @@ def compute_probs(datalist: list) -> (list, list):
     mad = median_absolute_deviation(datalist)
 
     for item in list(set(datalist)):
-        if 0 < item < med + FILTER_MEDDEV_M * mad:
+        if 0 < item <= med + FILTER_MEDDEV_M * mad:
             data_count = datalist.count(item)
             if data_count >= FILTER_MINREADS:
                 values.append(item)
@@ -137,11 +136,11 @@ def main():
     Main function takes 2 arguments:
         input - a path to a sam or bam file input. Note that sam files can be formed by applying samtools to a bam file
         in the follawing way: samtools view nameof.bam > nameof.sam
-​
+        
         output - the string prefix of the output. The actual output will be the prefix plus ".p" at the end
         for pickle file. The list of values and list of probabilities are dumped as a list of lists
         into a pickle file on completion of the analysis
-​
+
     :return: None
     """
     parser = argparse.ArgumentParser(description="compute_fraglen.py")

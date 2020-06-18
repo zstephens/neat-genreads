@@ -94,20 +94,6 @@ def calculate_coverage(bin_dict: dict, window: int) -> float:
     :param window: Length of each section of base pairs to count, 
                    should be the same as the window value in process_genomecov
     :return: Average coverage value for the whole sample, along with average coverage values for each window.
-    
-​
-    Parameters
-    ----------
-    bin_dict : dict
-        DESCRIPTION.
-    window : int
-        DESCRIPTION.
-​
-    Returns
-    -------
-    float
-        DESCRIPTION.
-​
     """
     running_total = 0
     all_mean = 0.0
@@ -134,7 +120,6 @@ def main():
         -r is the reference file (fasta)
         -o is the prefix for the output
         -w is the sliding window length. The default is 50, but you can declare any reasonable integer
-​
     :return: None
     """
     parser = argparse.ArgumentParser(description='compute_gc.py')
