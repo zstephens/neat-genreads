@@ -3,6 +3,8 @@ NEAT-genReads is a fine-grained read simulator. GenReads simulates real-looking 
 
 This is an in-progress v2.0 of the software. For a previous stable release please see: [genReads1](https://github.com/zstephens/genReads1)
 
+***PLEASE NOTE: The module "pysam" does not work on Windows OS. If you are using a windows system and wish to input a BAM file, you will first have to use samtools to convert the BAM to a SAM file.****
+
 
 Table of Contents
 =================
