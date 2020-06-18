@@ -4,13 +4,13 @@ Takes .genomecov files produced by BEDtools genomeCov (with -d option).
 
 ```
 bedtools genomecov 
-	-d                          \
-	-ibam normal.bam            \
+	-d				\
+	-ibam normal.bam		\
         -g reference.fa             
 ```
 
 ```
-python computeGC.py                	\
+python computeGC.py			\
         -r reference.fasta         	\
         -i genomecov            	\
         -w [sliding window length]  	\
@@ -26,8 +26,8 @@ The main function in this file processes the inputs (reference.fasta, genome.cov
 Takes SAM or BAM files and uses console commands for processing:
 
 ```
-python computeGC.py		\
-	-i path to sam file	\
+python computeGC.py			\
+	-i path to sam file		\
 	-o path/to/output
 ```
 
@@ -35,11 +35,10 @@ The main function in this file will save a pickle (.p) in the location and with 
 
 **Please be aware that pysam is not usable on windows, so any BAM file will need to be turned into a SAM file using samtools beforehand.
 
-To use samtools, use the following command:
+To convert a BAM file to a SAM file using samtools, use the following command:
 
 ```
-Turn SAM file into BAM file:			\
-	samtools view nameof.bam > nameof.sam
+samtools view nameof.bam > nameof.sam
 ```
 
 
