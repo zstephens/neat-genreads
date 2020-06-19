@@ -11,8 +11,11 @@
 
 import pickle
 import argparse
-import pysam
+import platform
 import doctest
+os = platform.system()
+if os !='Windows':
+    import pysam
 
 
 def median(datalist: list) -> float:
@@ -79,7 +82,10 @@ def count_frags(file: str) -> list:
         file_to_parse = open(file, 'r')
     elif file[-4:] == ".bam":
         print("WARNING: Must have pysam installed to read bam files. Pysam does not work on Windows OS.")
-        file_to_parse = pysam.AlignmentFile(file, 'rb')
+        if os != 'Windows':
+            file_to_parse = pysam.AlignmentFile(file, 'rb')
+        else:
+            raise Exception("Your machine is running Windows. Please convert any BAM files to SAM files using samtools prior to input")
     else:
         print("Unknown file type, file extension must be bam or sam")
         exit(1)
