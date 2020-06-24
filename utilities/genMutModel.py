@@ -43,45 +43,6 @@ def cluster_list(list_to_cluster: list, delta: float) -> list:
     return out_list
 
 
-def list_2_countDict(l: list) -> dict:
-    cDict = {}
-    for n in l:
-        if n not in cDict:
-            cDict[n] = 0
-        cDict[n] += 1
-    return cDict
-
-
-def getBedTracks(file_name: str) -> dict:
-    f = open(file_name, 'r')
-    trackDict = {}
-    for line in f:
-        splt = line.strip().split('\t')
-        if splt[0] not in trackDict:
-            trackDict[splt[0]] = []
-        trackDict[splt[0]].extend([int(splt[1]), int(splt[2])])
-    f.close()
-    return trackDict
-
-#TODO Convert this function to pandas
-def get_track_len(track_df: pd.DataFrame) -> float:
-    totSum = 0
-    for k in track_df.keys():
-        for i in range(0, len(track_df[k]), 2):
-            totSum += track_df[k][i + 1] - track_df[k][i] + 1
-    return totSum
-
-
-def isInBed(track, ind):
-    myInd = bisect.bisect(track, ind)
-    if myInd & 1:
-        return True
-    if myInd < len(track):
-        if track[myInd - 1] == ind:
-            return True
-    return False
-
-
 #####################################
 #				main()				#
 #####################################
@@ -152,7 +113,9 @@ def main():
             print('Problem parsing bed file. Ensure bed file is tab separated, standard bed format')
             exit(1)
         mybed = mybed.rename(columns={0: 'chrom', 1: 'start', 2: 'end'})
+        # Adding a couple of columns we'll need for later calculations
         mybed['coords'] = list(zip(mybed.start, mybed.end))
+        mybed['track_len'] = mybed.end - mybed.start + 1
 
     # Process reference file
     print('Processing reference...')
@@ -476,9 +439,10 @@ def main():
     SNP_FREQ = SNP_COUNT / float(totalVar)
     AVG_INDEL_FREQ = 1. - SNP_FREQ
     INDEL_FREQ = {k: (INDEL_COUNT[k] / float(totalVar)) / AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
-    #TODO fix this get track len function
+
     if is_bed:
-        AVG_MUT_RATE = totalVar / float(get_track_len(mybed))
+        track_sum = float(mybed['track_len'].sum())
+        AVG_MUT_RATE = totalVar / track_sum
     else:
         AVG_MUT_RATE = totalVar / float(TOTAL_REFLEN)
 
