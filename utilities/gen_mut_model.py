@@ -2,19 +2,13 @@
 
 # Python 3 ready
 
-import sys
 import os
 import re
-import bisect
 import pickle
 import argparse
 import numpy as np
 from Bio import SeqIO
 import pandas as pd
-#
-# SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-2])
-# sys.path.append(SIM_PATH)
-# print(sys.path)
 
 
 #########################################################
@@ -58,7 +52,7 @@ def main():
     # if parsing a dbsnp vcf, and no CAF= is found in info tag, use this as default val for population freq
     VCF_DEFAULT_POP_FREQ = 0.00001
 
-    parser = argparse.ArgumentParser(description='genMutModel.py')
+    parser = argparse.ArgumentParser(description='gen_mut_model.py')
     parser.add_argument('-r', type=str, required=True, metavar='/path/to/reference.fasta',
                         help="Reference file for organism in fasta format")
     parser.add_argument('-m', type=str, required=True, metavar='/path/to/mutations.vcf',
@@ -480,11 +474,6 @@ def main():
     for k in sorted(SNP_TRANS_FREQ.keys()):
         print('p(' + k[0] + ' --> ' + k[1] + ' | SNP occurs) =', SNP_TRANS_FREQ[k])
 
-    # for n in COMMON_VARIANTS:
-    #	print n
-
-    # for n in HIGH_MUT_REGIONS:
-    #	print n
 
     print('p(snp)   =', SNP_FREQ)
     print('p(indel) =', AVG_INDEL_FREQ)
