@@ -78,6 +78,7 @@ def main():
 
     # how many times do we observe each trinucleotide in the reference (and input bed region, if present)?
     TRINUC_REF_COUNT = {}
+    TRINUC_BED_COUNT = {}
     # [(trinuc_a, trinuc_b)] = # of times we observed a mutation from trinuc_a into trinuc_b
     TRINUC_TRANSITION_COUNT = {}
     # total count of SNPs
@@ -140,7 +141,7 @@ def main():
     # Pre-parsing to find all the matching chromosomes between ref and vcf
     print('Processing VCF file...')
     try:
-        variants = pd.read_csv(vcf, sep='\t', comment='#', index_col=None)
+        variants = pd.read_csv(vcf, sep='\t', comment='#', index_col=None, header=None)
     except ValueError:
         print("VCF must be in standard VCF format with tab-separated columns")
         exit(1)
@@ -232,10 +233,10 @@ def main():
               "you already have a trinuc count file for the reference...")
         sub_regions = matching_bed['coords'].to_list()
         for sr in sub_regions:
-            for i in range(sr[0], sr[1] + 1):
-                for ref_name in matching_chromosomes:
-                    trinuc = ref_dict[ref_name][i:i + 3].seq
-                    # skip if trinuc contains invalid characters, or not in specified bed region
+            for ref_name in matching_chromosomes:
+                for i in range(sr[0], sr[1] - 2):
+                    trinuc = str(ref_dict[ref_name][i:i + 3].seq)
+                    # skip if trinuc contains invalid characters
                     if not trinuc in VALID_TRINUC:
                         continue
                     if trinuc not in TRINUC_REF_COUNT:
@@ -243,15 +244,15 @@ def main():
                     TRINUC_REF_COUNT[trinuc] += 1
 
     elif not os.path.isfile(ref + '.trinucCounts'):
-        for i in range(len(ref_dict[ref_name]) - 2):
-            if i % 1000000 == 0 and i > 0:
-                print(i, '/', len(ref_dict[ref_name]))
-            trinuc = ref_dict[ref_name][i:i + 3].seq
-            if not str(trinuc) in VALID_TRINUC:
-                continue  # skip if trinuc contains invalid characters
-            if str(trinuc) not in TRINUC_REF_COUNT:
-                TRINUC_REF_COUNT[trinuc] = 0
-            TRINUC_REF_COUNT[trinuc] += 1
+        for ref_name in matching_chromosomes:
+            for i in range(len(ref_dict[ref_name]) - 2):
+                trinuc = str(ref_dict[ref_name][i:i + 3].seq)
+                # skip if trinuc contains invalid characters
+                if not trinuc in VALID_TRINUC:
+                    continue
+                if trinuc not in TRINUC_REF_COUNT:
+                    TRINUC_REF_COUNT[trinuc] = 0
+                TRINUC_REF_COUNT[trinuc] += 1
     else:
         print('Found trinucCounts file, using that.')
 
@@ -277,12 +278,12 @@ def main():
             # only consider positions where ref allele in vcf matches the nucleotide in our reference
             for index, row in snp_df.iterrows():
                 trinuc_to_analyze = str(ref_sequence[row.chr_start - 1: row.chr_start + 2])
-                if not trinuc_to_analyze in VALID_TRINUC:
+                if trinuc_to_analyze not in VALID_TRINUC:
                     continue
                 if row.REF == trinuc_to_analyze[1]:
                     trinuc_ref = trinuc_to_analyze
                     trinuc_alt = trinuc_to_analyze[0] + snp_df.loc[index, 'ALT'] + trinuc_to_analyze[2]
-                    if not trinuc_alt in VALID_TRINUC:
+                    if trinuc_alt not in VALID_TRINUC:
                         continue
                     key = (trinuc_ref, trinuc_alt)
                     if key not in TRINUC_TRANSITION_COUNT:
@@ -386,7 +387,7 @@ def main():
         f.close()
     # otherwise, save trinuc counts to file, if desired
     elif save_trinuc:
-        if mybed is not None:
+        if is_bed:
             print('unable to save trinuc counts to file because using input bed region...')
         else:
             print('saving trinuc counts to file...')
@@ -396,8 +397,8 @@ def main():
             f.close()
 
     # if for some reason we didn't find any valid input variants, exit gracefully...
-    totalVar = SNP_COUNT + sum(INDEL_COUNT.values())
-    if totalVar == 0:
+    total_var = SNP_COUNT + sum(INDEL_COUNT.values())
+    if total_var == 0:
         print(
             '\nError: No valid variants were found, model could not be created. (Are you using the correct reference?)\n')
         exit(1)
@@ -430,28 +431,28 @@ def main():
                 SNP_TRANS_FREQ[key2] = SNP_TRANSITION_COUNT[key2] / float(rollingTot)
 
     # compute average snp and indel frequencies
-    SNP_FREQ = SNP_COUNT / float(totalVar)
+    SNP_FREQ = SNP_COUNT / float(total_var)
     AVG_INDEL_FREQ = 1. - SNP_FREQ
-    INDEL_FREQ = {k: (INDEL_COUNT[k] / float(totalVar)) / AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
+    INDEL_FREQ = {k: (INDEL_COUNT[k] / float(total_var)) / AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
 
     if is_bed:
         track_sum = float(mybed['track_len'].sum())
-        AVG_MUT_RATE = totalVar / track_sum
+        AVG_MUT_RATE = total_var / track_sum
     else:
-        AVG_MUT_RATE = totalVar / float(TOTAL_REFLEN)
+        AVG_MUT_RATE = total_var / float(TOTAL_REFLEN)
 
     #	if values weren't found in data, appropriately append null entries
-    printTrinucWarning = False
+    print_trinuc_warning = False
     for trinuc in VALID_TRINUC:
         trinuc_mut = [trinuc[0] + n + trinuc[2] for n in VALID_NUCL if n != trinuc[1]]
         if trinuc not in TRINUC_MUT_PROB:
             TRINUC_MUT_PROB[trinuc] = 0.
-            printTrinucWarning = True
+            print_trinuc_warning = True
         for trinuc2 in trinuc_mut:
             if (trinuc, trinuc2) not in TRINUC_TRANS_PROBS:
                 TRINUC_TRANS_PROBS[(trinuc, trinuc2)] = 0.
-                printTrinucWarning = True
-    if printTrinucWarning:
+                print_trinuc_warning = True
+    if print_trinuc_warning:
         print(
             'Warning: Some trinucleotides transitions were not encountered in the input dataset, '
             'probabilities of 0.0 have been assigned to these events.')
@@ -478,7 +479,7 @@ def main():
     print('p(snp)   =', SNP_FREQ)
     print('p(indel) =', AVG_INDEL_FREQ)
     print('overall average mut rate:', AVG_MUT_RATE)
-    print('total variants processed:', totalVar)
+    print('total variants processed:', total_var)
 
     #
     # save variables to file
