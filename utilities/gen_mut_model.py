@@ -105,7 +105,7 @@ def main():
             is_bed = True
         except ValueError:
             print('Problem parsing bed file. Ensure bed file is tab separated, standard bed format')
-            exit(1)
+
         mybed = mybed.rename(columns={0: 'chrom', 1: 'start', 2: 'end'})
         # Adding a couple of columns we'll need for later calculations
         mybed['coords'] = list(zip(mybed.start, mybed.end))
@@ -117,7 +117,6 @@ def main():
         reference = SeqIO.to_dict(SeqIO.parse(ref, "fasta"))
     except ValueError:
         print("Problems parsing reference file. Ensure reference is in proper fasta format")
-        exit(1)
 
     # simplify naming and filter out actual human genomes from scaffolding
     ref_dict = {}
@@ -143,7 +142,6 @@ def main():
         variants = pd.read_csv(vcf, sep='\t', comment='#', index_col=None, header=None)
     except ValueError:
         print("VCF must be in standard VCF format with tab-separated columns")
-        exit(1)
 
     # Narrow chromosomes to those matching the reference
     # This is in part to make sure the names match
@@ -166,7 +164,7 @@ def main():
         matching_variants = variants[variants[0].isin(matching_chromosomes)]
     except ValueError:
         print("Problem matching variants with reference.")
-        exit(1)
+
     if matching_variants.empty:
         print("There is no overlap between reference and variant file. This could be a chromosome naming problem")
         exit(1)
@@ -219,7 +217,7 @@ def main():
             matching_bed = mybed[mybed['chrom'].isin(matching_bed_keys)]
         except ValueError:
             print('Problem matching bed chromosomes to variant file.')
-            exit(1)
+
         if matching_bed.empty:
             print("There is no overlap between bed and variant file. "
                   "This could be a chromosome naming problem")
