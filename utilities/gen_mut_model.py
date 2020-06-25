@@ -78,7 +78,6 @@ def main():
 
     # how many times do we observe each trinucleotide in the reference (and input bed region, if present)?
     TRINUC_REF_COUNT = {}
-    TRINUC_BED_COUNT = {}
     # [(trinuc_a, trinuc_b)] = # of times we observed a mutation from trinuc_a into trinuc_b
     TRINUC_TRANSITION_COUNT = {}
     # total count of SNPs
