@@ -59,9 +59,9 @@ def main():
                         help="Mutation file for organism in VCF format")
     parser.add_argument('-o', type=str, required=True, metavar='/path/to/output/and/prefix',
                         help="Name of output file (final model will append \'.p\')")
-    parser.add_argument('-bi', type=str, required=False, metavar='Bed file of regions to include '
-                                                                 '(use bedtools complement if you have a '
-                                                                 'bed of exclusion areas)', default=None,
+    parser.add_argument('-b', type=str, required=False, metavar='Bed file of regions to include '
+                                                                '(use bedtools complement if you have a '
+                                                                'bed of exclusion areas)', default=None,
                         help="only_use_these_regions.bed")
     parser.add_argument('--save-trinuc', required=False, action='store_true', default=False,
                         help='save trinucleotide counts for reference')
@@ -98,10 +98,10 @@ def main():
     # Process bed file,
     is_bed = False
     mybed = None
-    if args.bi is not None:
+    if args.b is not None:
         print('Processing bed file...')
         try:
-            mybed = pd.read_csv(args.bi, sep='\t', header=None, index_col=None)
+            mybed = pd.read_csv(args.b, sep='\t', header=None, index_col=None)
             is_bed = True
         except ValueError:
             print('Problem parsing bed file. Ensure bed file is tab separated, standard bed format')
