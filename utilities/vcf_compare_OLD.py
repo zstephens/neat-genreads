@@ -68,7 +68,7 @@ GOLDEN_VCF = OPTS.GVCF
 WORKFLOW_VCF = OPTS.WVCF
 OUT_PREFIX = OPTS.OUTF
 MAPTRACK = OPTS.MTRK
-MIN_READLEN = OPTS.MTMM
+MIN_READ_LEN = OPTS.MTMM
 BEDFILE = OPTS.TREG
 DP_THRESH = int(OPTS.DP_THRESH)
 AF_THRESH = float(OPTS.AF_THRESH)
@@ -84,14 +84,14 @@ if len(sys.argv[1:]) == 0:
     exit(1)
 
 if OPTS.MTRL is not None:
-    MINREGIONLEN = int(OPTS.MTRL)
+    MIN_REGION_LEN = int(OPTS.MTRL)
 else:
-    MINREGIONLEN = None
+    MIN_REGION_LEN = None
 
-if MIN_READLEN is None:
-    MIN_READLEN = 0
+if MIN_READ_LEN is None:
+    MIN_READ_LEN = 0
 else:
-    MIN_READLEN = int(MIN_READLEN)
+    MIN_READ_LEN = int(MIN_READ_LEN)
 
 if REFERENCE is None:
     print('Error: No reference provided.')
@@ -105,7 +105,7 @@ if WORKFLOW_VCF is None:
 if OUT_PREFIX is None:
     print('Error: No output prefix provided.')
     exit(1)
-if (BEDFILE is not None and MINREGIONLEN is None) or (BEDFILE is None and MINREGIONLEN is not None):
+if (BEDFILE is not None and MIN_REGION_LEN is None) or (BEDFILE is None and MIN_REGION_LEN is not None):
     print('Error: Both -t and -T must be specified')
     exit(1)
 
@@ -137,13 +137,13 @@ VCF_HEADER = '##fileformat=VCFv4.1\n##reference=' + REFERENCE + '##INFO=<ID=DP,N
 DP_TOKENS = ['DP', 'DPU', 'DPI']  # in the order that we'll look for them
 
 
-def parseLine(splt, colDict, colSamp):
+def parse_line(splt, col_dict, col_samp):
     #	check if we want to proceed..
-    ra = splt[colDict['REF']]
-    aa = splt[colDict['ALT']]
+    ra = splt[col_dict['REF']]
+    aa = splt[col_dict['ALT']]
     if not (INCLUDE_HOMS) and (aa == '.' or aa == '' or aa == ra):
         return None
-    if not (INCLUDE_FAIL) and (splt[colDict['FILTER']] != 'PASS' and splt[colDict['FILTER']] != '.'):
+    if not (INCLUDE_FAIL) and (splt[col_dict['FILTER']] != 'PASS' and splt[col_dict['FILTER']] != '.'):
         return None
 
     #	default vals
@@ -160,28 +160,28 @@ def parseLine(splt, colDict, colSamp):
     #	cov
     for dp_tok in DP_TOKENS:
         #	check INFO for DP first
-        if 'INFO' in colDict and dp_tok + '=' in splt[colDict['INFO']]:
-            cov = int(re.findall(re.escape(dp_tok) + r"=[0-9]+", splt[colDict['INFO']])[0][3:])
+        if 'INFO' in col_dict and dp_tok + '=' in splt[col_dict['INFO']]:
+            cov = int(re.findall(re.escape(dp_tok) + r"=[0-9]+", splt[col_dict['INFO']])[0][3:])
         #	check FORMAT/SAMPLE for DP second:
-        elif 'FORMAT' in colDict and len(colSamp):
-            format = splt[colDict['FORMAT']] + ':'
+        elif 'FORMAT' in col_dict and len(col_samp):
+            format = splt[col_dict['FORMAT']] + ':'
             if ':' + dp_tok + ':' in format:
-                dpInd = format.split(':').index(dp_tok)
-                cov = int(splt[colSamp[0]].split(':')[dpInd])
+                dp_ind = format.split(':').index(dp_tok)
+                cov = int(splt[col_samp[0]].split(':')[dp_ind])
         if cov is not None:
             break
 
     #	check INFO for AF first
     af = None
-    if 'INFO' in colDict and ';AF=' in ';' + splt[colDict['INFO']]:
-        info = splt[colDict['INFO']] + ';'
+    if 'INFO' in col_dict and ';AF=' in ';' + splt[col_dict['INFO']]:
+        info = splt[col_dict['INFO']] + ';'
         af = re.findall(r"AF=.*?(?=;)", info)[0][3:]
     #	check FORMAT/SAMPLE for AF second:
-    elif 'FORMAT' in colDict and len(colSamp):
-        format = splt[colDict['FORMAT']] + ':'
+    elif 'FORMAT' in col_dict and len(col_samp):
+        format = splt[col_dict['FORMAT']] + ':'
         if ':AF:' in format:
-            afInd = splt[colDict['FORMAT']].split(':').index('AF')
-            af = splt[colSamp[0]].split(':')[afInd]
+            af_ind = splt[col_dict['FORMAT']].split(':').index('AF')
+            af = splt[col_samp[0]].split(':')[af_ind]
 
     if af is not None:
         af_splt = af.split(',')
@@ -193,43 +193,43 @@ def parseLine(splt, colDict, colSamp):
         alt_freqs = [None] * max([len(alt_alleles), 1])
 
     #	get QUAL if it's interesting
-    if 'QUAL' in colDict and splt[colDict['QUAL']] != '.':
-        qual = float(splt[colDict['QUAL']])
+    if 'QUAL' in col_dict and splt[col_dict['QUAL']] != '.':
+        qual = float(splt[col_dict['QUAL']])
 
     return (cov, qual, alt_alleles, alt_freqs)
 
 
-def parseVCF(VCF_FILENAME, refName, targRegionsFl, outFile, outBool):
+def parse_vcf(VCF_FILENAME, ref_name, targ_regions_FL, out_file, out_bool):
     v_Hashed = {}
-    v_posHash = {}
+    v_pos_Hash = {}
     v_Alts = {}
     v_Cov = {}
     v_AF = {}
     v_Qual = {}
-    v_TargLen = {}
-    nBelowMinRLen = 0
+    v_Targ_Len = {}
+    n_below_min_R_Len = 0
     line_unique = 0  # number of lines in vcf file containing unique variant
     hash_coll = 0  # number of times we saw a hash collision ("per line" so non-unique alt alleles don't get counted multiple times)
     var_filtered = 0  # number of variants excluded due to filters (e.g. hom-refs, qual)
     var_merged = 0  # number of variants we merged into another due to having the same position specified
-    colDict = {}
-    colSamp = []
+    col_dict = {}
+    col_samp = []
     for line in open(VCF_FILENAME, 'r'):
         if line[0] != '#':
-            if len(colDict) == 0:
+            if len(col_dict) == 0:
                 print('\n\nError: VCF has no header?\n' + VCF_FILENAME + '\n\n')
                 exit(1)
             splt = line[:-1].split('\t')
-            if splt[0] == refName:
+            if splt[0] == ref_name:
 
                 var = (int(splt[1]), splt[3], splt[4])
-                targInd = bisect.bisect(targRegionsFl, var[0])
+                targ_ind = bisect.bisect(targ_regions_FL, var[0])
 
-                if targInd % 2 == 1:
-                    targLen = targRegionsFl[targInd] - targRegionsFl[targInd - 1]
-                    if (BEDFILE is not None and targLen >= MINREGIONLEN) or BEDFILE is None:
+                if targ_ind % 2 == 1:
+                    targ_Len = targ_regions_FL[targ_ind] - targ_regions_FL[targ_ind - 1]
+                    if (BEDFILE is not None and targ_Len >= MIN_REGION_LEN) or BEDFILE is None:
 
-                        pl_out = parseLine(splt, colDict, colSamp)
+                        pl_out = parse_line(splt, col_dict, col_samp)
                         if pl_out is None:
                             var_filtered += 1
                             continue
@@ -237,22 +237,22 @@ def parseVCF(VCF_FILENAME, refName, targRegionsFl, outFile, outBool):
 
                         if var not in v_Hashed:
 
-                            vpos = var[0]
-                            if vpos in v_posHash:
+                            v_pos = var[0]
+                            if v_pos in v_pos_Hash:
                                 if len(aa) == 0:
                                     aa = [var[2]]
-                                aa.extend([n[2] for n in v_Hashed.keys() if n[0] == vpos])
+                                aa.extend([n[2] for n in v_Hashed.keys() if n[0] == v_pos])
                                 var_merged += 1
-                            v_posHash[vpos] = 1
+                            v_pos_Hash[v_pos] = 1
 
                             if len(aa):
-                                allVars = [(var[0], var[1], n) for n in aa]
-                                for i in range(len(allVars)):
-                                    v_Hashed[allVars[i]] = 1
-                                    # if allVars[i] not in v_Alts:
-                                    #	v_Alts[allVars[i]] = []
-                                    # v_Alts[allVars[i]].extend(allVars)
-                                    v_Alts[allVars[i]] = allVars
+                                all_vars = [(var[0], var[1], n) for n in aa]
+                                for i in range(len(all_vars)):
+                                    v_Hashed[all_vars[i]] = 1
+                                    # if all_vars[i] not in v_Alts:
+                                    #	v_Alts[all_vars[i]] = []
+                                    # v_Alts[all_vars[i]].extend(all_vars)
+                                    v_Alts[all_vars[i]] = all_vars
                             else:
                                 v_Hashed[var] = 1
 
@@ -260,78 +260,78 @@ def parseVCF(VCF_FILENAME, refName, targRegionsFl, outFile, outBool):
                                 v_Cov[var] = cov
                             v_AF[var] = af[0]  # only use first AF, even if multiple. fix this later?
                             v_Qual[var] = qual
-                            v_TargLen[var] = targLen
+                            v_Targ_Len[var] = targ_Len
                             line_unique += 1
 
                         else:
                             hash_coll += 1
 
                     else:
-                        nBelowMinRLen += 1
+                        n_below_min_R_Len += 1
         else:
             if line[1] != '#':
                 cols = line[1:-1].split('\t')
                 for i in range(len(cols)):
-                    if 'FORMAT' in colDict:
-                        colSamp.append(i)
-                    colDict[cols[i]] = i
-                if VCF_OUT and outBool:
-                    outBool = False
-                    outFile.write(line)
+                    if 'FORMAT' in col_dict:
+                        col_samp.append(i)
+                    col_dict[cols[i]] = i
+                if VCF_OUT and out_bool:
+                    out_bool = False
+                    out_file.write(line)
 
     return (
-        v_Hashed, v_Alts, v_Cov, v_AF, v_Qual, v_TargLen, nBelowMinRLen, line_unique, var_filtered, var_merged,
+        v_Hashed, v_Alts, v_Cov, v_AF, v_Qual, v_Targ_Len, n_below_min_R_Len, line_unique, var_filtered, var_merged,
         hash_coll)
 
 
-def condenseByPos(listIn):
-    varListOfInterest = [n for n in listIn]
-    indCount = {}
-    for n in varListOfInterest:
+def condense_by_pos(list_in):
+    var_list_of_interest = [n for n in list_in]
+    ind_count = {}
+    for n in var_list_of_interest:
         c = n[0]
-        if c not in indCount:
-            indCount[c] = 0
-        indCount[c] += 1
-    # nonUniqueDict = {n:[] for n in sorted(indCount.keys()) if indCount[n] > 1}		# the python 2.7 way
-    nonUniqueDict = {}
-    for n in sorted(indCount.keys()):
-        if indCount[n] > 1:
-            nonUniqueDict[n] = []
-    delList = []
-    for i in range(len(varListOfInterest)):
-        if varListOfInterest[i][0] in nonUniqueDict:
-            nonUniqueDict[varListOfInterest[i][0]].append(varListOfInterest[i])
-            delList.append(i)
-    delList = sorted(delList, reverse=True)
-    for di in delList:
-        del varListOfInterest[di]
-    for v in nonUniqueDict.values():
+        if c not in ind_count:
+            ind_count[c] = 0
+        ind_count[c] += 1
+    # non_unique_dict = {n:[] for n in sorted(ind_count.keys()) if ind_count[n] > 1}		# the python 2.7 way
+    non_unique_dict = {}
+    for n in sorted(ind_count.keys()):
+        if ind_count[n] > 1:
+            non_unique_dict[n] = []
+    del_list = []
+    for i in range(len(var_list_of_interest)):
+        if var_list_of_interest[i][0] in non_unique_dict:
+            non_unique_dict[var_list_of_interest[i][0]].append(var_list_of_interest[i])
+            del_list.append(i)
+    del_list = sorted(del_list, reverse=True)
+    for di in del_list:
+        del var_list_of_interest[di]
+    for v in non_unique_dict.values():
         var = (v[0][0], v[0][1], ','.join([n[2] for n in v[::-1]]))
-        varListOfInterest.append(var)
-    return varListOfInterest
+        var_list_of_interest.append(var)
+    return var_list_of_interest
 
 
 def main():
     ref = []
     f = open(REFERENCE, 'r')
-    nLines = 0
-    prevR = None
-    prevP = None
+    n_lines = 0
+    prev_R = None
+    prev_P = None
     ref_inds = []
     sys.stdout.write('\nindexing reference fasta... ')
     sys.stdout.flush()
     tt = time.time()
     while 1:
-        nLines += 1
+        n_lines += 1
         data = f.readline()
         if not data:
-            ref_inds.append((prevR, prevP, f.tell() - len(data)))
+            ref_inds.append((prev_R, prev_P, f.tell() - len(data)))
             break
         if data[0] == '>':
-            if prevP is not None:
-                ref_inds.append((prevR, prevP, f.tell() - len(data)))
-            prevP = f.tell()
-            prevR = data[1:-1]
+            if prev_P is not None:
+                ref_inds.append((prev_R, prev_P, f.tell() - len(data)))
+            prev_P = f.tell()
+            prev_R = data[1:-1]
     print('{0:.3f} (sec)'.format(time.time() - tt))
     # ref_inds = [('chrM', 6, 16909), ('chr1', 16915, 254252549), ('chr2', 254252555, 502315916), ('chr3', 502315922, 704298801), ('chr4', 704298807, 899276169), ('chr5', 899276175, 1083809741), ('chr6', 1083809747, 1258347116), ('chr7', 1258347122, 1420668559), ('chr8', 1420668565, 1569959868), ('chr9', 1569959874, 1713997574), ('chr10', 1713997581, 1852243023), ('chr11', 1852243030, 1989949677), ('chr12', 1989949684, 2126478617), ('chr13', 2126478624, 2243951900), ('chr14', 2243951907, 2353448438), ('chr15', 2353448445, 2458030465), ('chr16', 2458030472, 2550192321), ('chr17', 2550192328, 2633011443), ('chr18', 2633011450, 2712650243), ('chr19', 2712650250, 2772961813), ('chr20', 2772961820, 2837247851), ('chr21', 2837247858, 2886340351), ('chr22', 2886340358, 2938671016), ('chrX', 2938671022, 3097046994), ('chrY', 3097047000, 3157608038)]
 
@@ -353,41 +353,41 @@ def main():
     mappability_vs_FN = {0: 0,
                          1: 0}  # [0] = # of FNs that were in mappable regions, [1] = # of FNs that were in unmappable regions
     coverage_vs_FN = {}  # [C] = # of FNs that were covered by C reads
-    alleleBal_vs_FN = {}  # [AF] = # of FNs that were heterozygous genotypes with allele freq AF (quantized to multiples of 1/AF_STEPS)
+    allele_bal_vs_FN = {}  # [AF] = # of FNs that were heterozygous genotypes with allele freq AF (quantized to multiples of 1/AF_STEPS)
     for n in AF_KEYS:
-        alleleBal_vs_FN[n] = 0
+        allele_bal_vs_FN[n] = 0
 
     #
     #	read in mappability track
     #
     mappability_tracks = {}  # indexed by chr string (e.g. 'chr1'), has boolean array
-    prevRef = ''
-    relevantRegions = []
+    prev_Ref = ''
+    relevant_regions = []
     if MAPTRACK is not None:
         mtf = open(MAPTRACK, 'r')
         for line in mtf:
             splt = line.strip().split('\t')
-            if prevRef != '' and splt[0] != prevRef:
+            if prev_Ref != '' and splt[0] != prev_Ref:
                 # do stuff
-                if len(relevantRegions):
-                    myTrack = [0] * (relevantRegions[-1][1] + 100)
-                    for r in relevantRegions:
+                if len(relevant_regions):
+                    my_track = [0] * (relevant_regions[-1][1] + 100)
+                    for r in relevant_regions:
                         for ri in range(r[0], r[1]):
-                            myTrack[ri] = 1
-                    mappability_tracks[prevRef] = [n for n in myTrack]
+                            my_track[ri] = 1
+                    mappability_tracks[prev_Ref] = [n for n in my_track]
                 #
-                relevantRegions = []
-            if int(splt[3]) >= MIN_READLEN:
-                relevantRegions.append((int(splt[1]), int(splt[2])))
-            prevRef = splt[0]
+                relevant_regions = []
+            if int(splt[3]) >= MIN_READ_LEN:
+                relevant_regions.append((int(splt[1]), int(splt[2])))
+            prev_Ref = splt[0]
         mtf.close()
         # do stuff
-        if len(relevantRegions):
-            myTrack = [0] * (relevantRegions[-1][1] + 100)
-            for r in relevantRegions:
+        if len(relevant_regions):
+            my_track = [0] * (relevant_regions[-1][1] + 100)
+            for r in relevant_regions:
                 for ri in range(r[0], r[1]):
-                    myTrack[ri] = 1
-            mappability_tracks[prevRef] = [n for n in myTrack]
+                    my_track[ri] = 1
+            mappability_tracks[prev_Ref] = [n for n in my_track]
     #
 
     #
@@ -395,15 +395,15 @@ def main():
     #
     vcfo2 = None
     vcfo3 = None
-    global vcfo2_firstTime
-    global vcfo3_firstTime
-    vcfo2_firstTime = False
-    vcfo3_firstTime = False
+    global vcfo2_first_time
+    global vcfo3_first_time
+    vcfo2_first_time = False
+    vcfo3_first_time = False
     if VCF_OUT:
         vcfo2 = open(OUT_PREFIX + '_FN.vcf', 'w')
         vcfo3 = open(OUT_PREFIX + '_FP.vcf', 'w')
-        vcfo2_firstTime = True
-        vcfo3_firstTime = True
+        vcfo2_first_time = True
+        vcfo3_first_time = True
 
     #
     #	data for plotting FN analysis
@@ -411,7 +411,7 @@ def main():
     set1 = []
     set2 = []
     set3 = []
-    varAdj = 0
+    var_adj = 0
 
     #
     #
@@ -420,99 +420,99 @@ def main():
     #
     for n_RI in ref_inds:
 
-        refName = n_RI[0]
+        ref_name = n_RI[0]
         if FAST == False:
             f.seek(n_RI[1])
-            print('reading ' + refName + '...', end=' ')
-            myDat = f.read(n_RI[2] - n_RI[1]).split('\n')
-            myLen = sum([len(m) for m in myDat])
+            print('reading ' + ref_name + '...', end=' ')
+            my_dat = f.read(n_RI[2] - n_RI[1]).split('\n')
+            my_len = sum([len(m) for m in my_dat])
             if sys.version_info >= (2, 7):
-                print('{:,} bp'.format(myLen))
+                print('{:,} bp'.format(my_len))
             else:
-                print('{0:} bp'.format(myLen))
-            inWidth = len(myDat[0])
-            if len(myDat[-1]) == 0:  # if last line is empty, remove it.
-                del myDat[-1]
-            if inWidth * (len(myDat) - 1) + len(myDat[-1]) != myLen:
+                print('{0:} bp'.format(my_len))
+            in_width = len(my_dat[0])
+            if len(my_dat[-1]) == 0:  # if last line is empty, remove it.
+                del my_dat[-1]
+            if in_width * (len(my_dat) - 1) + len(my_dat[-1]) != my_len:
                 print('fasta column-width not consistent.')
-                print(myLen, inWidth * (len(myDat) - 1) + len(myDat[-1]))
-                for i in range(len(myDat)):
-                    if len(myDat[i]) != inWidth:
-                        print(i, len(myDat[i]), inWidth)
+                print(my_len, in_width * (len(my_dat) - 1) + len(my_dat[-1]))
+                for i in range(len(my_dat)):
+                    if len(my_dat[i]) != in_width:
+                        print(i, len(my_dat[i]), in_width)
                 exit(1)
 
-            myDat = Seq(''.join(myDat)).upper().tomutable()
-            myLen = len(myDat)
+            my_dat = Seq(''.join(my_dat)).upper().tomutable()
+            my_len = len(my_dat)
 
         #
         #	Parse relevant targeted regions
         #
-        targRegionsFl = []
+        targ_regions_FL = []
         if BEDFILE is not None:
             bedfile = open(BEDFILE, 'r')
             for line in bedfile:
                 splt = line.split('\t')
-                if splt[0] == refName:
-                    targRegionsFl.extend((int(splt[1]), int(splt[2])))
+                if splt[0] == ref_name:
+                    targ_regions_FL.extend((int(splt[1]), int(splt[2])))
             bedfile.close()
         else:
-            targRegionsFl = [-1, MAX_VAL + 1]
+            targ_regions_FL = [-1, MAX_VAL + 1]
 
         #
         #	Parse vcf files
         #
-        sys.stdout.write('comparing variation in ' + refName + '... ')
+        sys.stdout.write('comparing variation in ' + ref_name + '... ')
         sys.stdout.flush()
         tt = time.time()
 
-        (correctHashed, correctAlts, correctCov, correctAF, correctQual, correctTargLen, correctBelowMinRLen,
-         correctUnique, gFiltered, gMerged, gRedundant) = parseVCF(GOLDEN_VCF, refName, targRegionsFl, vcfo2,
-                                                                   vcfo2_firstTime)
-        (workflowHashed, workflowAlts, workflowCov, workflowAF, workflowQual, workflowTarLen, workflowBelowMinRLen,
-         workflowUnique, wFiltered, wMerged, wRedundant) = parseVCF(WORKFLOW_VCF, refName, targRegionsFl, vcfo3,
-                                                                    vcfo3_firstTime)
-        zgF += gFiltered
-        zgR += gRedundant
-        zgM += gMerged
-        zwF += wFiltered
-        zwR += wRedundant
-        zwM += wMerged
+        (correct_hashed, correct_alts, correct_cov, correct_AF, correct_qual, correct_targ_len, correct_below_min_R_len,
+         correct_unique, g_filtered, g_merged, g_redundant) = parse_vcf(GOLDEN_VCF, ref_name, targ_regions_FL, vcfo2,
+                                                                   vcfo2_first_time)
+        (workflow_hashed, workflow_alts, workflow_COV, workflow_AF, workflow_qual, workflow_tar_len, workflow_below_min_R_len,
+         workflow_unique, w_filtered, w_merged, w_redundant) = parse_vcf(WORKFLOW_VCF, ref_name, targ_regions_FL, vcfo3,
+                                                                    vcfo3_first_time)
+        zgF += g_filtered
+        zgR += g_redundant
+        zgM += g_merged
+        zwF += w_filtered
+        zwR += w_redundant
+        zwM += w_merged
 
         #
         #	Deduce which variants are FP / FN
         #
-        solvedInds = {}
-        for var in correctHashed.keys():
-            if var in workflowHashed or var[0] in solvedInds:
-                correctHashed[var] = 2
-                workflowHashed[var] = 20
-                solvedInds[var[0]] = True
-        for var in list(correctHashed.keys()) + list(workflowHashed.keys()):
-            if var[0] in solvedInds:
-                correctHashed[var] = 2
-                workflowHashed[var] = 2
-        nPerfect = len(solvedInds)
+        solved_inds = {}
+        for var in correct_hashed.keys():
+            if var in workflow_hashed or var[0] in solved_inds:
+                correct_hashed[var] = 2
+                workflow_hashed[var] = 20
+                solved_inds[var[0]] = True
+        for var in list(correct_hashed.keys()) + list(workflow_hashed.keys()):
+            if var[0] in solved_inds:
+                correct_hashed[var] = 2
+                workflow_hashed[var] = 2
+        n_perfect = len(solved_inds)
 
-        # correctHashed[var] = 1: were not found
+        # correct_hashed[var] = 1: were not found
         #                    = 2: should be discluded because we were found
         #                    = 3: should be discluded because an alt was found
-        notFound = [n for n in sorted(correctHashed.keys()) if correctHashed[n] == 1]
-        FPvariants = [n for n in sorted(workflowHashed.keys()) if workflowHashed[n] == 1]
+        not_found = [n for n in sorted(correct_hashed.keys()) if correct_hashed[n] == 1]
+        FP_variants = [n for n in sorted(workflow_hashed.keys()) if workflow_hashed[n] == 1]
 
         #
         #	condense all variants who have alternate alleles and were *not* found to have perfect matches
         #	into a single variant again. These will not be included in the candidates for equivalency checking. Sorry!
         #
-        notFound = condenseByPos(notFound)
-        FPvariants = condenseByPos(FPvariants)
+        not_found = condense_by_pos(not_found)
+        FP_variants = condense_by_pos(FP_variants)
 
         #
         #	tally up some values, if there are no golden variants lets save some CPU cycles and move to the next ref
         #
-        totalGoldenVariants = nPerfect + len(notFound)
-        totalWorkflowVariants = nPerfect + len(FPvariants)
-        if totalGoldenVariants == 0:
-            zfP += len(FPvariants)
+        tot_golden_variants = n_perfect + len(not_found)
+        totalWorkflowVariants = n_perfect + len(FP_variants)
+        if tot_golden_variants == 0:
+            zfP += len(FP_variants)
             ztW += totalWorkflowVariants
             print('{0:.3f} (sec)'.format(time.time() - tt))
             continue
@@ -521,146 +521,146 @@ def main():
         #	let's check for equivalent variants
         #
         if FAST == False:
-            delList_i = []
-            delList_j = []
-            regionsToCheck = []
-            for i in range(len(FPvariants)):
-                pos = FPvariants[i][0]
-                regionsToCheck.append((max([pos - EV_BPRANGE - 1, 0]), min([pos + EV_BPRANGE, len(myDat) - 1])))
+            del_list_i = []
+            del_list_j = []
+            regions_to_check = []
+            for i in range(len(FP_variants)):
+                pos = FP_variants[i][0]
+                regions_to_check.append((max([pos - EV_BPRANGE - 1, 0]), min([pos + EV_BPRANGE, len(my_dat) - 1])))
 
-            for n in regionsToCheck:
-                refSection = myDat[n[0]:n[1]]
+            for n in regions_to_check:
+                ref_section = my_dat[n[0]:n[1]]
 
-                fpWithin = []
-                for i in range(len(FPvariants)):
-                    m = FPvariants[i]
+                FP_within = []
+                for i in range(len(FP_variants)):
+                    m = FP_variants[i]
                     if (m[0] > n[0] and m[0] < n[1]):
-                        fpWithin.append((m, i))
-                fpWithin = sorted(fpWithin)
+                        FP_within.append((m, i))
+                FP_within = sorted(FP_within)
                 adj = 0
-                altSection = copy.deepcopy(refSection)
-                for (m, i) in fpWithin:
+                alt_section = copy.deepcopy(ref_section)
+                for (m, i) in FP_within:
                     lr = len(m[1])
                     la = len(m[2])
-                    dpos = m[0] - n[0] + adj
-                    altSection = altSection[:dpos - 1] + m[2] + altSection[dpos - 1 + lr:]
+                    d_pos = m[0] - n[0] + adj
+                    alt_section = alt_section[:d_pos - 1] + m[2] + alt_section[d_pos - 1 + lr:]
                     adj += la - lr
 
-                nfWithin = []
-                for j in range(len(notFound)):
-                    m = notFound[j]
+                nf_within = []
+                for j in range(len(not_found)):
+                    m = not_found[j]
                     if (m[0] > n[0] and m[0] < n[1]):
-                        nfWithin.append((m, j))
-                nfWithin = sorted(nfWithin)
+                        nf_within.append((m, j))
+                nf_within = sorted(nf_within)
                 adj = 0
-                altSection2 = copy.deepcopy(refSection)
-                for (m, j) in nfWithin:
+                alt_section2 = copy.deepcopy(ref_section)
+                for (m, j) in nf_within:
                     lr = len(m[1])
                     la = len(m[2])
-                    dpos = m[0] - n[0] + adj
-                    altSection2 = altSection2[:dpos - 1] + m[2] + altSection2[dpos - 1 + lr:]
+                    d_pos = m[0] - n[0] + adj
+                    alt_section2 = alt_section2[:d_pos - 1] + m[2] + alt_section2[d_pos - 1 + lr:]
                     adj += la - lr
 
-                if altSection == altSection2:
-                    for (m, i) in fpWithin:
-                        if i not in delList_i:
-                            delList_i.append(i)
-                    for (m, j) in nfWithin:
-                        if j not in delList_j:
-                            delList_j.append(j)
+                if alt_section == alt_section2:
+                    for (m, i) in FP_within:
+                        if i not in del_list_i:
+                            del_list_i.append(i)
+                    for (m, j) in nf_within:
+                        if j not in del_list_j:
+                            del_list_j.append(j)
 
-            nEquiv = 0
-            for i in sorted(list(set(delList_i)), reverse=True):
-                del FPvariants[i]
-            for j in sorted(list(set(delList_j)), reverse=True):
-                del notFound[j]
-                nEquiv += 1
-            nPerfect += nEquiv
+            n_equiv = 0
+            for i in sorted(list(set(del_list_i)), reverse=True):
+                del FP_variants[i]
+            for j in sorted(list(set(del_list_j)), reverse=True):
+                del not_found[j]
+                n_equiv += 1
+            n_perfect += n_equiv
 
         #
         #	Tally up errors and whatnot
         #
-        ztV += totalGoldenVariants
+        ztV += tot_golden_variants
         ztW += totalWorkflowVariants
-        znP += nPerfect
-        zfP += len(FPvariants)
-        znF += len(notFound)
+        znP += n_perfect
+        zfP += len(FP_variants)
+        znF += len(not_found)
         if FAST is False:
-            znE += nEquiv
+            znE += n_equiv
         if BEDFILE is not None:
-            zbM += correctBelowMinRLen
+            zbM += correct_below_min_R_len
 
         #
         #	try to identify a reason for FN variants:
         #
 
-        venn_data = [[0, 0, 0] for n in notFound]  # [i] = (unmappable, low cov, low het)
-        for i in range(len(notFound)):
-            var = notFound[i]
+        venn_data = [[0, 0, 0] for n in not_found]  # [i] = (unmappable, low cov, low het)
+        for i in range(len(not_found)):
+            var = not_found[i]
 
-            noReason = True
+            no_reason = True
 
             #	mappability?
             if MAPTRACK is not None:
-                if refName in mappability_tracks and var[0] < len(mappability_tracks[refName]):
-                    if mappability_tracks[refName][var[0]]:
+                if ref_name in mappability_tracks and var[0] < len(mappability_tracks[ref_name]):
+                    if mappability_tracks[ref_name][var[0]]:
                         mappability_vs_FN[1] += 1
                         venn_data[i][0] = 1
-                        noReason = False
+                        no_reason = False
                     else:
                         mappability_vs_FN[0] += 1
 
             #	coverage?
-            if var in correctCov:
-                c = correctCov[var]
+            if var in correct_cov:
+                c = correct_cov[var]
                 if c is not None:
                     if c not in coverage_vs_FN:
                         coverage_vs_FN[c] = 0
                     coverage_vs_FN[c] += 1
                     if c < DP_THRESH:
                         venn_data[i][1] = 1
-                        noReason = False
+                        no_reason = False
 
             #	heterozygous genotype messing things up?
-            # if var in correctAF:
-            #	a = correctAF[var]
+            # if var in correct_AF:
+            #	a = correct_AF[var]
             #	if a != None:
             #		a = AF_KEYS[quantize_AF(a)]
-            #		if a not in alleleBal_vs_FN:
-            #			alleleBal_vs_FN[a] = 0
-            #		alleleBal_vs_FN[a] += 1
+            #		if a not in allele_bal_vs_FN:
+            #			allele_bal_vs_FN[a] = 0
+            #		allele_bal_vs_FN[a] += 1
             #		if a < AF_THRESH:
             #			venn_data[i][2] = 1
 
             #	no reason?
-            if noReason:
+            if no_reason:
                 venn_data[i][2] += 1
 
-        for i in range(len(notFound)):
-            if venn_data[i][0]: set1.append(i + varAdj)
-            if venn_data[i][1]: set2.append(i + varAdj)
-            if venn_data[i][2]: set3.append(i + varAdj)
-        varAdj += len(notFound)
+        for i in range(len(not_found)):
+            if venn_data[i][0]: set1.append(i + var_adj)
+            if venn_data[i][1]: set2.append(i + var_adj)
+            if venn_data[i][2]: set3.append(i + var_adj)
+        var_adj += len(not_found)
 
         #
         #	if desired, write out vcf files.
         #
-        notFound = sorted(notFound)
-        FPvariants = sorted(FPvariants)
+        not_found = sorted(not_found)
+        FP_variants = sorted(FP_variants)
         if VCF_OUT:
             for line in open(GOLDEN_VCF, 'r'):
                 if line[0] != '#':
                     splt = line.split('\t')
-                    if splt[0] == refName:
+                    if splt[0] == ref_name:
                         var = (int(splt[1]), splt[3], splt[4])
-                        if var in notFound:
+                        if var in not_found:
                             vcfo2.write(line)
             for line in open(WORKFLOW_VCF, 'r'):
                 if line[0] != '#':
                     splt = line.split('\t')
-                    if splt[0] == refName:
+                    if splt[0] == ref_name:
                         var = (int(splt[1]), splt[3], splt[4])
-                        if var in FPvariants:
+                        if var in FP_variants:
                             vcfo3.write(line)
 
         print('{0:.3f} (sec)'.format(time.time() - tt))
@@ -679,7 +679,7 @@ def main():
     #	plot some FN stuff
     #
     if NO_PLOT == False:
-        nDetected = len(set(set1 + set2 + set3))
+        n_detected = len(set(set1 + set2 + set3))
         set1 = set(set1)
         set2 = set(set2)
         set3 = set(set3)
@@ -700,7 +700,7 @@ def main():
 
         mpl.figure(0)
         tstr1 = 'False Negative Variants (Missed Detections)'
-        # tstr2 = str(nDetected)+' / '+str(znF)+' FN variants categorized'
+        # tstr2 = str(n_detected)+' / '+str(znF)+' FN variants categorized'
         tstr2 = ''
         if MAPTRACK is not None:
             v = venn3([set1, set2, set3], (s1, s2, s3))

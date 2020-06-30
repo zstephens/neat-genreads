@@ -97,19 +97,19 @@ def main():
 
     # Process bed file,
     is_bed = False
-    mybed = None
+    my_bed = None
     if args.b is not None:
         print('Processing bed file...')
         try:
-            mybed = pd.read_csv(args.b, sep='\t', header=None, index_col=None)
+            my_bed = pd.read_csv(args.b, sep='\t', header=None, index_col=None)
             is_bed = True
         except ValueError:
             print('Problem parsing bed file. Ensure bed file is tab separated, standard bed format')
 
-        mybed = mybed.rename(columns={0: 'chrom', 1: 'start', 2: 'end'})
+        my_bed = my_bed.rename(columns={0: 'chrom', 1: 'start', 2: 'end'})
         # Adding a couple of columns we'll need for later calculations
-        mybed['coords'] = list(zip(mybed.start, mybed.end))
-        mybed['track_len'] = mybed.end - mybed.start + 1
+        my_bed['coords'] = list(zip(my_bed.start, my_bed.end))
+        my_bed['track_len'] = my_bed.end - my_bed.start + 1
 
     # Process reference file
     print('Processing reference...')
@@ -211,10 +211,10 @@ def main():
     # Now we check that the bed and vcf have matching regions
     # This also checks that the vcf and bed have the same naming conventions and cuts out scaffolding.
     if is_bed:
-        bed_chroms = list(set(mybed['chrom']))
+        bed_chroms = list(set(my_bed['chrom']))
         matching_bed_keys = list(set(bed_chroms) & set(variant_chroms))
         try:
-            matching_bed = mybed[mybed['chrom'].isin(matching_bed_keys)]
+            matching_bed = my_bed[my_bed['chrom'].isin(matching_bed_keys)]
         except ValueError:
             print('Problem matching bed chromosomes to variant file.')
 
@@ -368,10 +368,10 @@ def main():
             if HIGH_MUT_REGIONS[i - 1][2] >= HIGH_MUT_REGIONS[i][1] and HIGH_MUT_REGIONS[i - 1][0] == \
                     HIGH_MUT_REGIONS[i][0]:
                 # Might need to research a more accurate way to get the mutation rate for this region
-                avgMutRate = 0.5 * HIGH_MUT_REGIONS[i - 1][3] + 0.5 * HIGH_MUT_REGIONS[i][
+                avg_mut_rate = 0.5 * HIGH_MUT_REGIONS[i - 1][3] + 0.5 * HIGH_MUT_REGIONS[i][
                     3]
                 HIGH_MUT_REGIONS[i - 1] = (
-                    HIGH_MUT_REGIONS[i - 1][0], HIGH_MUT_REGIONS[i - 1][1], HIGH_MUT_REGIONS[i][2], avgMutRate)
+                    HIGH_MUT_REGIONS[i - 1][0], HIGH_MUT_REGIONS[i - 1][1], HIGH_MUT_REGIONS[i][2], avg_mut_rate)
                 del HIGH_MUT_REGIONS[i]
 
     # if we didn't count ref trinucs because we found file, read in ref counts from file now
@@ -411,21 +411,21 @@ def main():
     SNP_TRANS_FREQ = {}
 
     for trinuc in sorted(TRINUC_REF_COUNT.keys()):
-        myCount = 0
+        my_count = 0
         for k in sorted(TRINUC_TRANSITION_COUNT.keys()):
             if k[0] == trinuc:
-                myCount += TRINUC_TRANSITION_COUNT[k]
-        TRINUC_MUT_PROB[trinuc] = myCount / float(TRINUC_REF_COUNT[trinuc])
+                my_count += TRINUC_TRANSITION_COUNT[k]
+        TRINUC_MUT_PROB[trinuc] = my_count / float(TRINUC_REF_COUNT[trinuc])
         for k in sorted(TRINUC_TRANSITION_COUNT.keys()):
             if k[0] == trinuc:
-                TRINUC_TRANS_PROBS[k] = TRINUC_TRANSITION_COUNT[k] / float(myCount)
+                TRINUC_TRANS_PROBS[k] = TRINUC_TRANSITION_COUNT[k] / float(my_count)
 
     for n1 in VALID_NUCL:
-        rollingTot = sum([SNP_TRANSITION_COUNT[(n1, n2)] for n2 in VALID_NUCL if (n1, n2) in SNP_TRANSITION_COUNT])
+        rolling_tot = sum([SNP_TRANSITION_COUNT[(n1, n2)] for n2 in VALID_NUCL if (n1, n2) in SNP_TRANSITION_COUNT])
         for n2 in VALID_NUCL:
             key2 = (n1, n2)
             if key2 in SNP_TRANSITION_COUNT:
-                SNP_TRANS_FREQ[key2] = SNP_TRANSITION_COUNT[key2] / float(rollingTot)
+                SNP_TRANS_FREQ[key2] = SNP_TRANSITION_COUNT[key2] / float(rolling_tot)
 
     # compute average snp and indel frequencies
     SNP_FREQ = SNP_COUNT / float(total_var)
@@ -433,7 +433,7 @@ def main():
     INDEL_FREQ = {k: (INDEL_COUNT[k] / float(total_var)) / AVG_INDEL_FREQ for k in INDEL_COUNT.keys()}
 
     if is_bed:
-        track_sum = float(mybed['track_len'].sum())
+        track_sum = float(my_bed['track_len'].sum())
         AVG_MUT_RATE = total_var / track_sum
     else:
         AVG_MUT_RATE = total_var / float(TOTAL_REFLEN)
