@@ -225,23 +225,23 @@ def main():
 
     # Count Trinucleotides in reference, based on bed or not
     print('Counting trinucleotides in reference...')
-    if is_bed:
-        print("since you're using a bed input, we have to count trinucs in bed region even if\n"
-              "you already have a trinuc count file for the reference...")
-        sub_regions = matching_bed['coords'].to_list()
-        for sr in sub_regions:
-            for ref_name in matching_chromosomes:
+    for ref_name in matching_chromosomes:
+        if is_bed:
+            print("since you're using a bed input, we have to count trinucs in bed region even if "
+                  "you already have a trinuc count file for the reference...")
+            sub_bed = matching_bed[matching_bed['chrom'] == ref_name]
+            sub_regions = sub_bed['coords'].to_list()
+            for sr in sub_regions:
                 for i in range(sr[0], sr[1] - 2):
                     trinuc = str(ref_dict[ref_name][i:i + 3].seq)
                     # skip if trinuc contains invalid characters
-                    if not trinuc in VALID_TRINUC:
+                    if trinuc not in VALID_TRINUC:
                         continue
                     if trinuc not in TRINUC_REF_COUNT:
                         TRINUC_REF_COUNT[trinuc] = 0
                     TRINUC_REF_COUNT[trinuc] += 1
 
-    elif not os.path.isfile(ref + '.trinucCounts'):
-        for ref_name in matching_chromosomes:
+        elif not os.path.isfile(ref + '.trinucCounts'):
             for i in range(len(ref_dict[ref_name]) - 2):
                 trinuc = str(ref_dict[ref_name][i:i + 3].seq)
                 # skip if trinuc contains invalid characters
@@ -250,8 +250,8 @@ def main():
                 if trinuc not in TRINUC_REF_COUNT:
                     TRINUC_REF_COUNT[trinuc] = 0
                 TRINUC_REF_COUNT[trinuc] += 1
-    else:
-        print('Found trinucCounts file, using that.')
+        else:
+            print('Found trinucCounts file, using that.')
 
     # Load and process variants in each reference sequence individually, for memory reasons...
     print('Creating mutational model...')

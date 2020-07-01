@@ -116,11 +116,11 @@ def parse_fq(inf):
 
     init_q = [[0. for m in range(r_q)] for n in range(actual_readlen)]
     for i in range(actual_readlen):
-        row_sum = float(np.sum(prior_q[i, :])) + INIT_SMOOTH * r_q
+        row_sum = float(np.sum(prior_q[i, :])) + init_smooth * r_q
         if row_sum <= 0.:
             continue
         for j in range(r_q):
-            init_q[i][j] = (prior_q[i][j] + INIT_SMOOTH) / row_sum
+            init_q[i][j] = (prior_q[i][j] + init_smooth) / row_sum
 
     if plot_stuff:
         mpl.rcParams.update({'font.size': 14, 'font.weight': 'bold', 'lines.linewidth': 3})
