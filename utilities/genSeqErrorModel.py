@@ -144,7 +144,7 @@ def parse_fq(inf):
         q_labels = [str(n) for n in range(q_range[0], q_range[1] + 1) if n % 5 == 0]
         print(q_labels)
         q_ticks_x = [int(n) + 0.5 for n in q_labels]
-        qTicksy = [(r_q - int(n)) - 0.5 for n in q_labels]
+        q_ticks_y = [(r_q - int(n)) - 0.5 for n in q_labels]
 
         for p in range(1, actual_readlen, 10):
             current_data = np.array(prob_q[p])
@@ -174,7 +174,7 @@ def parse_fq(inf):
             mpl.pcolormesh(x, y, z[::-1, :], vmin=v_min_log[0], vmax=v_min_log[1], cmap='jet')
             mpl.xlim([q_range[0], q_range[1] + 1])
             mpl.ylim([r_q - q_range[1] - 1, r_q - q_range[0]])
-            mpl.yticks(qTicksy, q_labels)
+            mpl.yticks(q_ticks_y, q_labels)
             mpl.xticks(q_ticks_x, q_labels)
             mpl.xlabel('\n' + r'$Q_{i+1}$')
             mpl.ylabel(r'$Q_i$')
@@ -240,7 +240,7 @@ parser.add_argument('--plot', required=False, action='store_true', default=False
 args = parser.parse_args()
 
 (inf, ouf, off_q, max_q, max_reads, n_samp) = (args.i, args.o, args.q, args.Q, args.n, args.s)
-(inf2, pileup) = (args.i2, args.p)
+(inf2, pile_up) = (args.i2, args.p)
 
 r_q = max_q + 1
 
@@ -265,7 +265,7 @@ def main():
     #
     #	embed some default sequencing error parameters if no pileup is provided
     #
-    if pileup == None:
+    if pile_up == None:
 
         print('Using default sequencing error parameters...')
 

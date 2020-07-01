@@ -10,7 +10,7 @@
 import sys
 
 
-def get4lines(fn):
+def get_4_lines(fn):
     l1 = fn.readline().strip()
     l2 = fn.readline().strip()
     l3 = fn.readline().strip()
@@ -26,7 +26,7 @@ ALLOWED_QUAL = '!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJ'
 ALLOWED_NUCL = 'ACGTN'
 
 
-def validate4lines(l1, l2, l3, l4):
+def validate_4_lines(l1, l2, l3, l4):
     failed = 0
     # make sure lines contain correct delimiters
     if l1[0] != '@' or l1[-2] != '/' or l3[0] != '+':
@@ -57,17 +57,17 @@ def validate4lines(l1, l2, l3, l4):
 
 
 f1 = open(sys.argv[1], 'r')
-(l1_r1, l2_r1, l3_r1, l4_r1) = get4lines(f1)
+(l1_r1, l2_r1, l3_r1, l4_r1) = get_4_lines(f1)
 f2 = None
 if len(sys.argv) == 3:
     f2 = open(sys.argv[2], 'r')
-    (l1_r2, l2_r2, l3_r2, l4_r2) = get4lines(f2)
+    (l1_r2, l2_r2, l3_r2, l4_r2) = get_4_lines(f2)
 
 while l1_r1:
     # check line syntax
-    validate4lines(l1_r1, l2_r1, l3_r1, l4_r1)
+    validate_4_lines(l1_r1, l2_r1, l3_r1, l4_r1)
     if f2 != None:
-        validate4lines(l1_r2, l2_r2, l3_r2, l4_r2)
+        validate_4_lines(l1_r2, l2_r2, l3_r2, l4_r2)
         # make sure seq id is same for r1/r2
         if l1_r1[:-1] != l1_r2[:-1]:
             print('\nError: mismatched r1/r2 name:\n')
@@ -75,9 +75,9 @@ while l1_r1:
             exit(1)
 
     # grab next 4 lines...
-    (l1_r1, l2_r1, l3_r1, l4_r1) = get4lines(f1)
+    (l1_r1, l2_r1, l3_r1, l4_r1) = get_4_lines(f1)
     if f2 != None:
-        (l1_r2, l2_r2, l3_r2, l4_r2) = get4lines(f2)
+        (l1_r2, l2_r2, l3_r2, l4_r2) = get_4_lines(f2)
 
 if f2 != None:
     f2.close()

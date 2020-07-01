@@ -11,24 +11,24 @@ BAM_EOF = ['1f', '8b', '08', '04', '00', '00', '00', '00', '00', 'ff', '06', '00
            '03', '00', '00', '00', '00', '00', '00', '00', '00', '00']
 
 
-def getBytes(fmt, amt):
+def get_bytes(fmt, amt):
     if fmt == '<i' or fmt == '<I':
-        mySize = 4
+        my_size = 4
     elif fmt == '<c' or fmt == '<b' or fmt == '<B':
-        mySize = 1
+        my_size = 1
     else:
         print('\nError, unknown format:', fmt, '\n')
         exit(1)
     if amt == 1:
-        fread = f.read(mySize)
-        if not fread:
+        f_read = f.read(my_size)
+        if not f_read:
             return None
-        return unpack(fmt, fread)[0]
+        return unpack(fmt, f_read)[0]
     else:
-        fread = f.read(mySize * amt)
-        if not fread:
+        f_read = f.read(my_size * amt)
+        if not f_read:
             return None
-        return unpack(fmt, fread)
+        return unpack(fmt, f_read)
 
 
 # check eof
@@ -45,44 +45,44 @@ f.close()
 f = gzip.open(IN_BAM, 'rb')
 
 print('MAGIC STRING:', f.read(4))
-l_text = getBytes('<i', 1)
+l_text = get_bytes('<i', 1)
 print('l_text:      ', l_text)
 print('text:      \n', f.read(l_text))
-n_ref = getBytes('<i', 1)
+n_ref = get_bytes('<i', 1)
 print('n_ref:       ', n_ref)
 
 for i in range(n_ref):
-    l_name = getBytes('<i', 1)
+    l_name = get_bytes('<i', 1)
     print('ref' + str(i) + ' - l_name:', l_name)
     print('ref' + str(i) + ' - name:  ', f.read(l_name))
-    print('ref' + str(i) + ' - l_ref: ', getBytes('<i', 1))
+    print('ref' + str(i) + ' - l_ref: ', get_bytes('<i', 1))
 
 print('\nEXAMINING ALIGNMENT DATA:\n')
 aln_N = 0
 while True:
     aln_N += 1
-    blockSize = getBytes('<i', 1)
-    if blockSize == None:
+    block_size = get_bytes('<i', 1)
+    if block_size == None:
         break
-    print('[' + str(aln_N) + ']:', 'blockSize:', blockSize)
-    print('-- refID:', getBytes('<i', 1))
-    print('-- pos:  ', getBytes('<i', 1))
-    bmqnl = getBytes('<I', 1)
+    print('[' + str(aln_N) + ']:', 'block_size:', block_size)
+    print('-- refID:', get_bytes('<i', 1))
+    print('-- pos:  ', get_bytes('<i', 1))
+    bmqnl = get_bytes('<I', 1)
     binv = (bmqnl >> 16) & 65535
     mapq = (bmqnl >> 8) & 255
     lrn = bmqnl & 255
     print('-- bmqnl:', bmqnl, '(bin=' + str(binv) + ', mapq=' + str(mapq) + ', l_readname+1=' + str(lrn) + ')')
-    flgnc = getBytes('<I', 1)
+    flgnc = get_bytes('<I', 1)
     flag = (flgnc >> 16) & 65535
     ncig = flgnc & 65535
     print('-- flgnc:', flgnc, '(flag=' + str(flag) + ', ncig=' + str(ncig) + ')')
-    print('-- l_seq:', getBytes('<i', 1))
-    print('-- nxtID:', getBytes('<i', 1))
-    print('-- nxtPo:', getBytes('<i', 1))
-    print('-- tlen: ', getBytes('<i', 1))
+    print('-- l_seq:', get_bytes('<i', 1))
+    print('-- nxtID:', get_bytes('<i', 1))
+    print('-- nxtPo:', get_bytes('<i', 1))
+    print('-- tlen: ', get_bytes('<i', 1))
     print('-- rname:', str([f.read(lrn)])[1:-1])
 
-    f.read(blockSize - 32 - lrn)
+    f.read(block_size - 32 - lrn)
 # print [block]
 
 f.close()
