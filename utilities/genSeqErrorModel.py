@@ -27,6 +27,7 @@ from probability import DiscreteDistribution
 
 
 def parse_fq(inf):
+    #Takes a gzip or sam file and returns the simulation's average error rate, 
     print('reading ' + inf + '...')
     if inf[-3:] == '.gz':
         print('detected gzip suffix...')
@@ -69,8 +70,8 @@ def parse_fq(inf):
             actual_readlen = len(data4) - 1
             print('assuming read length is uniform...')
             print('detected read length (from first read found):', actual_readlen)
-            prior_q = np.zeros([actual_readlen, r_q])
-            total_q = [None] + [np.zeros([r_q, r_q]) for n in range(actual_readlen - 1)]
+            prior_q = np.zeros([actual_readlen, RQ])
+            total_q = [None] + [np.zeros([RQ, RQ]) for n in range(actual_readlen - 1)]
 
         # sanity-check readlengths
         if len(data4) - 1 != actual_readlen:
@@ -100,26 +101,26 @@ def parse_fq(inf):
     if q_range[0] < 0:
         print('\nError: Read in Q-scores below 0\n')
         exit(1)
-    if q_range[1] > r_q:
-        print('\nError: Read in Q-scores above specified maximum:', q_range[1], '>', r_q, '\n')
+    if q_range[1] > RQ:
+        print('\nError: Read in Q-scores above specified maximum:', q_range[1], '>', RQ, '\n')
         exit(1)
 
     print('computing probabilities...')
-    prob_q = [None] + [[[0. for m in range(r_q)] for n in range(r_q)] for p in range(actual_readlen - 1)]
+    prob_q = [None] + [[[0. for m in range(RQ)] for n in range(RQ)] for p in range(actual_readlen - 1)]
     for p in range(1, actual_readlen):
-        for i in range(r_q):
-            row_sum = float(np.sum(total_q[p][i, :])) + prob_smooth * r_q
+        for i in range(RQ):
+            row_sum = float(np.sum(total_q[p][i, :])) + prob_smooth * RQ
             if row_sum <= 0.:
                 continue
-            for j in range(r_q):
+            for j in range(RQ):
                 prob_q[p][i][j] = (total_q[p][i][j] + prob_smooth) / row_sum
 
-    init_q = [[0. for m in range(r_q)] for n in range(actual_readlen)]
+    init_q = [[0. for m in range(RQ)] for n in range(actual_readlen)]
     for i in range(actual_readlen):
-        row_sum = float(np.sum(prior_q[i, :])) + init_smooth * r_q
+        row_sum = float(np.sum(prior_q[i, :])) + init_smooth * RQ
         if row_sum <= 0.:
             continue
-        for j in range(r_q):
+        for j in range(RQ):
             init_q[i][j] = (prior_q[i][j] + init_smooth) / row_sum
 
     if plot_stuff:
@@ -144,7 +145,7 @@ def parse_fq(inf):
         q_labels = [str(n) for n in range(q_range[0], q_range[1] + 1) if n % 5 == 0]
         print(q_labels)
         q_ticks_x = [int(n) + 0.5 for n in q_labels]
-        q_ticks_y = [(r_q - int(n)) - 0.5 for n in q_labels]
+        q_ticks_y = [(RQ - int(n)) - 0.5 for n in q_labels]
 
         for p in range(1, actual_readlen, 10):
             current_data = np.array(prob_q[p])
@@ -173,7 +174,7 @@ def parse_fq(inf):
             x, y = np.meshgrid(range(0, len(Z[0]) + 1), range(0, len(Z) + 1))
             mpl.pcolormesh(x, y, z[::-1, :], vmin=v_min_log[0], vmax=v_min_log[1], cmap='jet')
             mpl.xlim([q_range[0], q_range[1] + 1])
-            mpl.ylim([r_q - q_range[1] - 1, r_q - q_range[0]])
+            mpl.ylim([RQ - q_range[1] - 1, RQ - q_range[0]])
             mpl.yticks(q_ticks_y, q_labels)
             mpl.xticks(q_ticks_x, q_labels)
             mpl.xlabel('\n' + r'$Q_{i+1}$')
@@ -187,7 +188,7 @@ def parse_fq(inf):
         mpl.show()
 
     print('estimating average error rate via simulation...')
-    q_scores = range(r_q)
+    q_scores = range(RQ)
     # print (len(init_q), len(init_q[0]))
     # print (len(prob_q), len(prob_q[1]), len(prob_q[1][0]))
 
@@ -242,7 +243,7 @@ args = parser.parse_args()
 (inf, ouf, off_q, max_q, max_reads, n_samp) = (args.i, args.o, args.q, args.Q, args.n, args.s)
 (inf2, pile_up) = (args.i2, args.p)
 
-r_q = max_q + 1
+RQ = max_q + 1
 
 init_smooth = 0.
 prob_smooth = 0.
@@ -254,7 +255,7 @@ if plot_stuff:
 
 
 def main():
-    q_scores = range(r_q)
+    q_scores = range(RQ)
     if inf2 == None:
         (init_q, prob_q, avg_err) = parse_fq(inf)
     else:
@@ -305,3 +306,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+main('C:/Users/Meridith/Documents/SPIN Internship/Python Code/test.fasta')
