@@ -306,5 +306,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
-main('C:/Users/Meridith/Documents/SPIN Internship/Python Code/test.fasta')
