@@ -225,33 +225,29 @@ def main():
 
     # Count Trinucleotides in reference, based on bed or not
     print('Counting trinucleotides in reference...')
-    for ref_name in matching_chromosomes:
-        if is_bed:
-            print("since you're using a bed input, we have to count trinucs in bed region even if "
-                  "you already have a trinuc count file for the reference...")
+
+    if is_bed:
+        print("since you're using a bed input, we have to count trinucs in bed region even if "
+              "you already have a trinuc count file for the reference...")
+        for ref_name in matching_chromosomes:
             sub_bed = matching_bed[matching_bed['chrom'] == ref_name]
             sub_regions = sub_bed['coords'].to_list()
             for sr in sub_regions:
-                for i in range(sr[0], sr[1] - 2):
-                    trinuc = str(ref_dict[ref_name][i:i + 3].seq)
-                    # skip if trinuc contains invalid characters
-                    if trinuc not in VALID_TRINUC:
-                        continue
+                sub_seq = ref_dict[ref_name][sr[0]: sr[1]].seq
+                for trinuc in VALID_TRINUC:
                     if trinuc not in TRINUC_REF_COUNT:
                         TRINUC_REF_COUNT[trinuc] = 0
-                    TRINUC_REF_COUNT[trinuc] += 1
+                    TRINUC_REF_COUNT[trinuc] += sub_seq.count_overlap(trinuc)
 
-        elif not os.path.isfile(ref + '.trinucCounts'):
-            for i in range(len(ref_dict[ref_name]) - 2):
-                trinuc = str(ref_dict[ref_name][i:i + 3].seq)
-                # skip if trinuc contains invalid characters
-                if not trinuc in VALID_TRINUC:
-                    continue
+    elif not os.path.isfile(ref + '.trinucCounts'):
+        for ref_name in matching_chromosomes:
+            sub_seq = ref_dict[ref_name].seq
+            for trinuc in VALID_TRINUC:
                 if trinuc not in TRINUC_REF_COUNT:
                     TRINUC_REF_COUNT[trinuc] = 0
-                TRINUC_REF_COUNT[trinuc] += 1
-        else:
-            print('Found trinucCounts file, using that.')
+                TRINUC_REF_COUNT[trinuc] += sub_seq.count_overlap(trinuc)
+    else:
+        print('Found trinucCounts file, using that.')
 
     # Load and process variants in each reference sequence individually, for memory reasons...
     print('Creating mutational model...')
