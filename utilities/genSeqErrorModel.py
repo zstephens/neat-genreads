@@ -23,7 +23,7 @@ import pickle
 sim_path = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
 sys.path.append(sim_path)
 
-from py.probability import DiscreteDistribution
+from probability import DiscreteDistribution
 
 
 def parse_fq(inf):
