@@ -18,16 +18,21 @@ import numpy as np
 import argparse
 import sys
 import pickle
+import matplotlib.pyplot as mpl
 
-# absolute path to this script
-sim_path = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
-sys.path.append(sim_path)
+# # absolute path to this script
+# sim_path = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
+# sys.path.append(sim_path)
 
-from probability import DiscreteDistribution
+from py.probability import DiscreteDistribution
 
 
-def parse_fq(inf):
-    #Takes a gzip or sam file and returns the simulation's average error rate, 
+def parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff):
+    init_smooth = 0.
+    prob_smooth = 0.
+    print_every = 10000
+
+    #Takes a gzip or sam file and returns the simulation's average error rate,
     print('reading ' + inf + '...')
     if inf[-3:] == '.gz':
         print('detected gzip suffix...')
@@ -70,8 +75,8 @@ def parse_fq(inf):
             actual_readlen = len(data4) - 1
             print('assuming read length is uniform...')
             print('detected read length (from first read found):', actual_readlen)
-            prior_q = np.zeros([actual_readlen, RQ])
-            total_q = [None] + [np.zeros([RQ, RQ]) for n in range(actual_readlen - 1)]
+            prior_q = np.zeros([actual_readlen, real_q])
+            total_q = [None] + [np.zeros([real_q, real_q]) for n in range(actual_readlen - 1)]
 
         # sanity-check readlengths
         if len(data4) - 1 != actual_readlen:
@@ -87,7 +92,7 @@ def parse_fq(inf):
             else:
                 total_q[i][prev_q, q] += 1
                 prior_q[i][q] += 1
-            
+
 
         r_read += 1
         if r_read % print_every == 0:
@@ -101,26 +106,26 @@ def parse_fq(inf):
     if q_range[0] < 0:
         print('\nError: Read in Q-scores below 0\n')
         exit(1)
-    if q_range[1] > RQ:
-        print('\nError: Read in Q-scores above specified maximum:', q_range[1], '>', RQ, '\n')
+    if q_range[1] > real_q:
+        print('\nError: Read in Q-scores above specified maximum:', q_range[1], '>', real_q, '\n')
         exit(1)
 
     print('computing probabilities...')
-    prob_q = [None] + [[[0. for m in range(RQ)] for n in range(RQ)] for p in range(actual_readlen - 1)]
+    prob_q = [None] + [[[0. for m in range(real_q)] for n in range(real_q)] for p in range(actual_readlen - 1)]
     for p in range(1, actual_readlen):
-        for i in range(RQ):
-            row_sum = float(np.sum(total_q[p][i, :])) + prob_smooth * RQ
+        for i in range(real_q):
+            row_sum = float(np.sum(total_q[p][i, :])) + prob_smooth * real_q
             if row_sum <= 0.:
                 continue
-            for j in range(RQ):
+            for j in range(real_q):
                 prob_q[p][i][j] = (total_q[p][i][j] + prob_smooth) / row_sum
 
-    init_q = [[0. for m in range(RQ)] for n in range(actual_readlen)]
+    init_q = [[0. for m in range(real_q)] for n in range(actual_readlen)]
     for i in range(actual_readlen):
-        row_sum = float(np.sum(prior_q[i, :])) + init_smooth * RQ
+        row_sum = float(np.sum(prior_q[i, :])) + init_smooth * real_q
         if row_sum <= 0.:
             continue
-        for j in range(RQ):
+        for j in range(real_q):
             init_q[i][j] = (prior_q[i][j] + init_smooth) / row_sum
 
     if plot_stuff:
@@ -145,7 +150,7 @@ def parse_fq(inf):
         q_labels = [str(n) for n in range(q_range[0], q_range[1] + 1) if n % 5 == 0]
         print(q_labels)
         q_ticks_x = [int(n) + 0.5 for n in q_labels]
-        q_ticks_y = [(RQ - int(n)) - 0.5 for n in q_labels]
+        q_ticks_y = [(real_q - int(n)) - 0.5 for n in q_labels]
 
         for p in range(1, actual_readlen, 10):
             current_data = np.array(prob_q[p])
@@ -174,7 +179,7 @@ def parse_fq(inf):
             x, y = np.meshgrid(range(0, len(Z[0]) + 1), range(0, len(Z) + 1))
             mpl.pcolormesh(x, y, z[::-1, :], vmin=v_min_log[0], vmax=v_min_log[1], cmap='jet')
             mpl.xlim([q_range[0], q_range[1] + 1])
-            mpl.ylim([RQ - q_range[1] - 1, RQ - q_range[0]])
+            mpl.ylim([real_q - q_range[1] - 1, real_q - q_range[0]])
             mpl.yticks(q_ticks_y, q_labels)
             mpl.xticks(q_ticks_x, q_labels)
             mpl.xlabel('\n' + r'$Q_{i+1}$')
@@ -188,7 +193,7 @@ def parse_fq(inf):
         mpl.show()
 
     print('estimating average error rate via simulation...')
-    q_scores = range(RQ)
+    q_scores = range(real_q)
     # print (len(init_q), len(init_q[0]))
     # print (len(prob_q), len(prob_q[1]), len(prob_q[1][0]))
 
@@ -225,42 +230,36 @@ def parse_fq(inf):
     return init_q, prob_q, avg_err
 
 
-parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
-parser.add_argument('-i', type=str, required=True, metavar='<str>', help="* input_read1.fq (.gz) / input_read1.sam")
-parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output.p")
-parser.add_argument('-i2', type=str, required=False, metavar='<str>', default=None,
-                    help="input_read2.fq (.gz) / input_read2.sam")
-parser.add_argument('-p', type=str, required=False, metavar='<str>', default=None, help="input_alignment.pileup")
-parser.add_argument('-q', type=int, required=False, metavar='<int>', default=33, help="quality score offset [33]")
-parser.add_argument('-Q', type=int, required=False, metavar='<int>', default=41, help="maximum quality score [41]")
-parser.add_argument('-n', type=int, required=False, metavar='<int>', default=-1,
-                    help="maximum number of reads to process [all]")
-parser.add_argument('-s', type=int, required=False, metavar='<int>', default=1000000,
-                    help="number of simulation iterations [1000000]")
-parser.add_argument('--plot', required=False, action='store_true', default=False, help='perform some optional plotting')
-args = parser.parse_args()
-
-(inf, ouf, off_q, max_q, max_reads, n_samp) = (args.i, args.o, args.q, args.Q, args.n, args.s)
-(inf2, pile_up) = (args.i2, args.p)
-
-RQ = max_q + 1
-
-init_smooth = 0.
-prob_smooth = 0.
-print_every = 10000
-plot_stuff = args.plot
-if plot_stuff:
-    print('plotting is desired, lets import matplotlib...')
-    import matplotlib.pyplot as mpl
-
-
 def main():
-    q_scores = range(RQ)
+    parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
+    parser.add_argument('-i', type=str, required=True, metavar='<str>', help="* input_read1.fq (.gz) / input_read1.sam")
+    parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output.p")
+    parser.add_argument('-i2', type=str, required=False, metavar='<str>', default=None,
+                        help="input_read2.fq (.gz) / input_read2.sam")
+    parser.add_argument('-p', type=str, required=False, metavar='<str>', default=None, help="input_alignment.pileup")
+    parser.add_argument('-q', type=int, required=False, metavar='<int>', default=33, help="quality score offset [33]")
+    parser.add_argument('-Q', type=int, required=False, metavar='<int>', default=41, help="maximum quality score [41]")
+    parser.add_argument('-n', type=int, required=False, metavar='<int>', default=-1,
+                        help="maximum number of reads to process [all]")
+    parser.add_argument('-s', type=int, required=False, metavar='<int>', default=1000000,
+                        help="number of simulation iterations [1000000]")
+    parser.add_argument('--plot', required=False, action='store_true', default=False,
+                        help='perform some optional plotting')
+    args = parser.parse_args()
+
+    (inf, ouf, off_q, max_q, max_reads, n_samp) = (args.i, args.o, args.q, args.Q, args.n, args.s)
+    (inf2, pile_up) = (args.i2, args.p)
+
+    real_q = max_q + 1
+
+    plot_stuff = args.plot
+
+    q_scores = range(real_q)
     if inf2 == None:
-        (init_q, prob_q, avg_err) = parse_fq(inf)
+        (init_q, prob_q, avg_err) = parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff)
     else:
-        (init_q, prob_q, avg_err1) = parse_fq(inf)
-        (init_q2, prob_q2, avg_err2) = parse_fq(inf2)
+        (init_q, prob_q, avg_err1) = parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff)
+        (init_q2, prob_q2, avg_err2) = parse_fq(inf2, real_q, off_q, max_reads, n_samp, plot_stuff)
         avg_err = (avg_err1 + avg_err2) / 2.
 
     #
