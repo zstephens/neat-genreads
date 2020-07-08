@@ -37,7 +37,7 @@ from py.SequenceContainer import SequenceContainer, ReadContainer, parseInputMut
 //////////////////////////////////////////////////"""
 
 
-def main():
+def main(raw_args=None):
     parser = argparse.ArgumentParser(description='NEAT-genReads V2.0')
     parser.add_argument('-r', type=str, required=True, metavar='<str>', help="* ref.fa")
     parser.add_argument('-R', type=int, required=True, metavar='<int>', help="* read length")
@@ -82,8 +82,7 @@ def main():
     parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
     parser.add_argument('--no-fastq', required=False, action='store_true', default=False,
                         help='bypass fastq generation')
-    args = parser.parse_args()
-
+    args = parser.parse_args(raw_args)
 
     """
     Set variables for processing

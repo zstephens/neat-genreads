@@ -3,21 +3,25 @@
 import genReads
 import argparse
 
-def cull(bacteria):
+
+def cull(fasta):
     """
     The purpose of this function will be to cull the bacteria created in the model
-    :param bacteria:
+    :param fasta:
     :return:
     """
-    return None
+    return fasta
+
 
 def evolve(reference, read_length, output_prefix):
     """
     The purpose of this function is to evolve the bacteria
-    :param bacteria:
+    :param reference:
+    :param read_length:
+    :param output_prefix
     :return:
     """
-    args = ['-r', reference, '-R', read_length, '-o', output_prefix]
+    args = ['-r', reference, '-R', str(read_length), '-o', output_prefix]
     new_fasta = genReads.main(args)
     return new_fasta
 
