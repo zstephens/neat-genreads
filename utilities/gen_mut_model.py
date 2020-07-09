@@ -260,8 +260,9 @@ def main():
 
         # Create a view that narrows variants list to current ref
         variants_to_process = matching_variants[matching_variants["CHROM"] == ref_name].copy()
-        bed_to_process = matching_bed[matching_bed['chrom'] == ref_name].copy()
         ref_sequence = str(ref_dict[ref_name].seq)
+        if is_bed:
+            bed_to_process = matching_bed[matching_bed['chrom'] == ref_name].copy()
 
         # we want only snps
         # so, no '-' characters allowed, and chrStart must be same as chrEnd
