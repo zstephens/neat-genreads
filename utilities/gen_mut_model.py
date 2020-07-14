@@ -261,13 +261,16 @@ def main():
         # Create a view that narrows variants list to current ref
         variants_to_process = matching_variants[matching_variants["CHROM"] == ref_name].copy()
         ref_sequence = str(ref_dict[ref_name].seq)
-        if is_bed:
-            bed_to_process = matching_bed[matching_bed['chrom'] == ref_name].copy()
 
         # we want only snps
         # so, no '-' characters allowed, and chrStart must be same as chrEnd
         snp_df = variants_to_process[~variants_to_process.index.isin(indices_to_indels)]
         snp_df = snp_df.loc[snp_df['chr_start'] == snp_df['chr_end']]
+        if is_bed:
+            bed_to_process = matching_bed[matching_bed['chrom'] == ref_name].copy()
+            # TODO fix this line (need the intersection of these two, I think)
+            snp_df = bed_to_process.join(snp_df)
+
         if not snp_df.empty:
             # only consider positions where ref allele in vcf matches the nucleotide in our reference
             for index, row in snp_df.iterrows():
