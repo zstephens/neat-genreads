@@ -9,24 +9,24 @@ INCLUDE_FAIL = False
 CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND = True
 
 
-def parseLine(splt, colDict, colSamp):
+def parseLine(splt, col_dict, col_samp):
     #	check if we want to proceed..
-    ra = splt[colDict['REF']]
-    aa = splt[colDict['ALT']]
+    ra = splt[col_dict['REF']]
+    aa = splt[col_dict['ALT']]
     # enough columns?
-    if len(splt) != len(colDict):
+    if len(splt) != len(col_dict):
         return None
     # exclude homs / filtered?
     if not (INCLUDE_HOMS) and (aa == '.' or aa == '' or aa == ra):
         return None
-    if not (INCLUDE_FAIL) and (splt[colDict['FILTER']] != 'PASS' and splt[colDict['FILTER']] != '.'):
+    if not (INCLUDE_FAIL) and (splt[col_dict['FILTER']] != 'PASS' and splt[col_dict['FILTER']] != '.'):
         return None
 
     #	default vals
     alt_alleles = [aa]
     alt_freqs = []
 
-    gt_perSamp = []
+    gt_per_samp = []
 
     #	any alt alleles?
     alt_split = aa.split(',')
@@ -35,8 +35,8 @@ def parseLine(splt, colDict, colSamp):
 
     #	check INFO for AF
     af = None
-    if 'INFO' in colDict and ';AF=' in ';' + splt[colDict['INFO']]:
-        info = splt[colDict['INFO']] + ';'
+    if 'INFO' in col_dict and ';AF=' in ';' + splt[col_dict['INFO']]:
+        info = splt[col_dict['INFO']] + ';'
         af = re.findall(r"AF=.*?(?=;)", info)[0][3:]
     if af != None:
         af_splt = af.split(',')
@@ -47,83 +47,83 @@ def parseLine(splt, colDict, colSamp):
     else:
         alt_freqs = [None] * max([len(alt_alleles), 1])
 
-    gt_perSamp = None
+    gt_per_samp = None
     #	if available (i.e. we simulated it) look for WP in info
-    if len(colSamp) == 0 and 'INFO' in colDict and 'WP=' in splt[colDict['INFO']]:
-        info = splt[colDict['INFO']] + ';'
-        gt_perSamp = [re.findall(r"WP=.*?(?=;)", info)[0][3:]]
+    if len(col_samp) == 0 and 'INFO' in col_dict and 'WP=' in splt[col_dict['INFO']]:
+        info = splt[col_dict['INFO']] + ';'
+        gt_per_samp = [re.findall(r"WP=.*?(?=;)", info)[0][3:]]
     else:
         #	if no sample columns, check info for GT
-        if len(colSamp) == 0 and 'INFO' in colDict and 'GT=' in splt[colDict['INFO']]:
-            info = splt[colDict['INFO']] + ';'
-            gt_perSamp = [re.findall(r"GT=.*?(?=;)", info)[0][3:]]
-        elif len(colSamp):
-            fmt = ':' + splt[colDict['FORMAT']] + ':'
+        if len(col_samp) == 0 and 'INFO' in col_dict and 'GT=' in splt[col_dict['INFO']]:
+            info = splt[col_dict['INFO']] + ';'
+            gt_per_samp = [re.findall(r"GT=.*?(?=;)", info)[0][3:]]
+        elif len(col_samp):
+            fmt = ':' + splt[col_dict['FORMAT']] + ':'
             if ':GT:' in fmt:
-                gtInd = fmt.split(':').index('GT')
-                gt_perSamp = [splt[colSamp[iii]].split(':')[gtInd - 1] for iii in range(len(colSamp))]
-                for i in range(len(gt_perSamp)):
-                    gt_perSamp[i] = gt_perSamp[i].replace('.', '0')
-        if gt_perSamp == None:
-            gt_perSamp = [None] * max([len(colSamp), 1])
+                gt_ind = fmt.split(':').index('GT')
+                gt_per_samp = [splt[col_samp[iii]].split(':')[gt_ind - 1] for iii in range(len(col_samp))]
+                for i in range(len(gt_per_samp)):
+                    gt_per_samp[i] = gt_per_samp[i].replace('.', '0')
+        if gt_per_samp == None:
+            gt_per_samp = [None] * max([len(col_samp), 1])
 
-    return (alt_alleles, alt_freqs, gt_perSamp)
+    return (alt_alleles, alt_freqs, gt_per_samp)
 
 
-def parseVCF(vcfPath, tumorNormal=False, ploidy=2):
+def parseVCF(vcf_path, tumor_normal=False, ploidy=2):
     tt = time.time()
     print('--------------------------------')
     sys.stdout.write('reading input VCF...\n')
     sys.stdout.flush()
 
-    colDict = {}
-    colSamp = []
-    nSkipped = 0
-    nSkipped_becauseHash = 0
-    allVars = {}  # [ref][pos]
-    sampNames = []
-    alreadyPrintedWarning = False
-    f = open(vcfPath, 'r')
+    col_dict = {}
+    col_samp = []
+    n_skipped = 0
+    n_skipped_because_hash = 0
+    all_vars = {}  # [ref][pos]
+    samp_names = []
+    printed_warning = False
+    f = open(vcf_path, 'r')
     for line in f:
 
         if line[0] != '#':
-            if len(colDict) == 0:
-                print('\n\nERROR: VCF has no header?\n' + vcfPath + '\n\n')
+            if len(col_dict) == 0:
+                print('\n\nERROR: VCF has no header?\n' + vcf_path + '\n\n')
                 f.close()
                 exit(1)
             splt = line[:-1].split('\t')
-            plOut = parseLine(splt, colDict, colSamp)
-            if plOut == None:
-                nSkipped += 1
+            pl_out = parseLine(splt, col_dict, col_samp)
+            if pl_out == None:
+                n_skipped += 1
             else:
-                (aa, af, gt) = plOut
+                (aa, af, gt) = pl_out
 
                 # make sure at least one allele somewhere contains the variant
-                if tumorNormal:
-                    gtEval = gt[:2]
+                if tumor_normal:
+                    gt_eval = gt[:2]
                 else:
-                    gtEval = gt[:1]
-                if None in gtEval:
+                    gt_eval = gt[:1]
+                if None in gt_eval:
                     if CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND:
-                        if not alreadyPrintedWarning:
+                        if not printed_warning:
                             print('Warning: Found variants without a GT field, assuming heterozygous...')
-                            alreadyPrintedWarning = True
-                        for i in range(len(gtEval)):
+                            printed_warning = True
+                        for i in range(len(gt_eval)):
                             tmp = ['0'] * ploidy
                             tmp[random.randint(0, ploidy - 1)] = '1'
-                            gtEval[i] = '/'.join(tmp)
+                            gt_eval[i] = '/'.join(tmp)
                     else:
                         # skip because no GT field was found
-                        nSkipped += 1
+                        n_skipped += 1
                         continue
-                isNonReference = False
-                for gtVal in gtEval:
+                non_reference = False
+                for gtVal in gt_eval:
                     if gtVal != None:
                         if '1' in gtVal:
-                            isNonReference = True
-                if not isNonReference:
+                            non_reference = True
+                if not non_reference:
                     # skip if no genotype actually contains this variant
-                    nSkipped += 1
+                    n_skipped += 1
                     continue
 
                 chrom = splt[0]
@@ -131,54 +131,54 @@ def parseVCF(vcfPath, tumorNormal=False, ploidy=2):
                 ref = splt[3]
                 # skip if position is <= 0
                 if pos <= 0:
-                    nSkipped += 1
+                    n_skipped += 1
                     continue
 
                 # hash variants to avoid inserting duplicates (there are some messy VCFs out there...)
-                if chrom not in allVars:
-                    allVars[chrom] = {}
-                if pos not in allVars[chrom]:
-                    allVars[chrom][pos] = (pos, ref, aa, af, gtEval)
+                if chrom not in all_vars:
+                    all_vars[chrom] = {}
+                if pos not in all_vars[chrom]:
+                    all_vars[chrom][pos] = (pos, ref, aa, af, gt_eval)
                 else:
-                    nSkipped_becauseHash += 1
+                    n_skipped_because_hash += 1
 
         else:
             if line[1] != '#':
                 cols = line[1:-1].split('\t')
                 for i in range(len(cols)):
-                    if 'FORMAT' in colDict:
-                        colSamp.append(i)
-                    colDict[cols[i]] = i
-                if len(colSamp):
-                    sampNames = cols[-len(colSamp):]
-                    if len(colSamp) == 1:
+                    if 'FORMAT' in col_dict:
+                        col_samp.append(i)
+                    col_dict[cols[i]] = i
+                if len(col_samp):
+                    samp_names = cols[-len(col_samp):]
+                    if len(col_samp) == 1:
                         pass
-                    elif len(colSamp) == 2 and tumorNormal:
+                    elif len(col_samp) == 2 and tumor_normal:
                         print('Detected 2 sample columns in input VCF, assuming tumor/normal.')
                     else:
                         print(
                             'Warning: Multiple sample columns present in input VCF. By default genReads uses only the first column.')
                 else:
-                    sampNames = ['Unknown']
-                if tumorNormal:
-                    # tumorInd  = sampNames.index('TUMOR')
-                    # normalInd = sampNames.index('NORMAL')
-                    if 'NORMAL' not in sampNames or 'TUMOR' not in sampNames:
+                    samp_names = ['Unknown']
+                if tumor_normal:
+                    # tumorInd  = samp_names.index('TUMOR')
+                    # normalInd = samp_names.index('NORMAL')
+                    if 'NORMAL' not in samp_names or 'TUMOR' not in samp_names:
                         print('\n\nERROR: Input VCF must have a "NORMAL" and "TUMOR" column.\n')
     f.close()
 
-    varsOut = {}
-    for r in allVars.keys():
-        varsOut[r] = [list(allVars[r][k]) for k in sorted(allVars[r].keys())]
+    vars_out = {}
+    for r in all_vars.keys():
+        vars_out[r] = [list(all_vars[r][k]) for k in sorted(all_vars[r].keys())]
         # prune unnecessary sequence from ref/alt alleles
-        for i in range(len(varsOut[r])):
-            while len(varsOut[r][i][1]) > 1 and all([n[-1] == varsOut[r][i][1][-1] for n in varsOut[r][i][2]]):
-                varsOut[r][i][1] = varsOut[r][i][1][:-1]
-                varsOut[r][i][2] = [n[:-1] for n in varsOut[r][i][2]]
-            varsOut[r][i] = tuple(varsOut[r][i])
+        for i in range(len(vars_out[r])):
+            while len(vars_out[r][i][1]) > 1 and all([n[-1] == vars_out[r][i][1][-1] for n in vars_out[r][i][2]]):
+                vars_out[r][i][1] = vars_out[r][i][1][:-1]
+                vars_out[r][i][2] = [n[:-1] for n in vars_out[r][i][2]]
+            vars_out[r][i] = tuple(vars_out[r][i])
 
-    print('found', sum([len(n) for n in allVars.values()]), 'valid variants in input vcf.')
-    print(' *', nSkipped, 'variants skipped: (qual filtered / ref genotypes / invalid syntax)')
-    print(' *', nSkipped_becauseHash, 'variants skipped due to multiple variants found per position')
+    print('found', sum([len(n) for n in all_vars.values()]), 'valid variants in input vcf.')
+    print(' *', n_skipped, 'variants skipped: (qual filtered / ref genotypes / invalid syntax)')
+    print(' *', n_skipped_because_hash, 'variants skipped due to multiple variants found per position')
     print('--------------------------------')
-    return (sampNames, varsOut)
+    return (samp_names, vars_out)
