@@ -37,7 +37,7 @@ from py.SequenceContainer import SequenceContainer, ReadContainer, parseInputMut
 //////////////////////////////////////////////////"""
 
 
-def main():
+def main(raw_args=None):
     parser = argparse.ArgumentParser(description='NEAT-genReads V2.0')
     parser.add_argument('-r', type=str, required=True, metavar='<str>', help="* ref.fa")
     parser.add_argument('-R', type=int, required=True, metavar='<int>', help="* read length")
@@ -82,15 +82,15 @@ def main():
     parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
     parser.add_argument('--no-fastq', required=False, action='store_true', default=False,
                         help='bypass fastq generation')
-    args = parser.parse_args()
+    args = parser.parse_args(raw_args)
 
     """
     Set variables for processing
     """
     # absolute path to this script
     SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-1])
-    sys.path.append(SIM_PATH + '/py/')
-    print('The SIM_PATH variable is {}.'.format(SIM_PATH))
+    print("The sim path is: ", SIM_PATH)
+
     # if coverage val for a given window/position is below this value, consider it effectively zero.
     LOW_COV_THRESH = 50
 
@@ -170,7 +170,6 @@ def main():
         SE_RATE = None
     if SE_MODEL is None:
         print('Using default sequencing error model.')
-        print('The SIM_PATH variable is {}.'.format(SIM_PATH))
         SE_MODEL = SIM_PATH + '/models/errorModel_toy.p'
         SE_CLASS = ReadContainer(READLEN, SE_MODEL, SE_RATE)
     else:
