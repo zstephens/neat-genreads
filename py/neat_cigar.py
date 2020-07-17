@@ -1,7 +1,7 @@
 import re
 
 
-class CigarString:
+class cigar_string:
     def __init__(self, stringIn=None, listIn=None):
 
         if stringIn is None and listIn is None:
