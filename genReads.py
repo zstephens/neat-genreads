@@ -90,7 +90,6 @@ def main(raw_args=None):
     # TODO change these to pathlib.Path objects so they are machine agnostic
     # absolute path to this script
     SIM_PATH = '/'.join(os.path.realpath(__file__).split('/')[:-1])
-    print("sim path is ", SIM_PATH)
 
     # if coverage val for a given window/position is below this value, consider it effectively zero.
     LOW_COV_THRESH = 50
