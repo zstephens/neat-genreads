@@ -550,7 +550,7 @@ def main(raw_args=None):
                 # construct sequence data that we will sample reads from
                 if sequences is None:
                     sequences = SequenceContainer(start, refSequence[start:end], PLOIDS, overlap, READLEN,
-                                                  [MUT_MODEL] * PLOIDS, MUT_RATE, onlyVCF=ONLY_VCF)
+                                                  [MUT_MODEL] * PLOIDS, MUT_RATE, only_vcf=ONLY_VCF)
                 else:
                     sequences.update(start, refSequence[start:end], PLOIDS, overlap, READLEN, [MUT_MODEL] * PLOIDS,
                                      MUT_RATE)
