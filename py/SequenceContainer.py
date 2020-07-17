@@ -75,7 +75,8 @@ class SequenceContainer:
 			self.coverage_distribution = []
 			avg_out = []
 			for i in xrange(len(self.sequences)):
-				max_coord = min([len(self.sequences[i])-self.readLen, len(self.allCigar[i])-self.readLen])
+				max_coord = min([len(self.sequences[i])-self.readLen, len(self.allCigar[i])-1])
+
 				# compute gc-bias
 				j = 0
 				while j+self.windowSize < len(self.sequences[i]):
@@ -84,7 +85,8 @@ class SequenceContainer:
 					j += self.windowSize
 				gc_c = self.sequences[i][-self.windowSize:].count('G') + self.sequences[i][-self.windowSize:].count('C')
 				gcCov_vals[i].extend([gc_scalars[gc_c]]*(len(self.sequences[i])-len(gcCov_vals[i])))
-				#
+				
+				# targeted values
 				trCov_vals[i].append(targetCov_vals[0])
 				prevVal = self.FM_pos[i][0]
 				for j in xrange(1,max_coord):
@@ -95,7 +97,8 @@ class SequenceContainer:
 					else:
 						trCov_vals[i].append(sum(targetCov_vals[self.FM_pos[i][j]:self.FM_span[i][j]])/float(self.FM_span[i][j]-self.FM_pos[i][j]))
 						prevVal = self.FM_pos[i][j]
-					#print (i,j), self.adj[i][j], self.allCigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
+					#print (i,j), self.allCigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
+				
 				# shift by half of read length
 				if len(trCov_vals[i]) > int(self.readLen/2.):
 					trCov_vals[i] = [0.0]*int(self.readLen/2) + trCov_vals[i][:-int(self.readLen/2.)]
@@ -107,9 +110,12 @@ class SequenceContainer:
 				coverage_vals = []
 				for j in xrange(0,max_coord):
 					coverage_vals.append(covvec[j+self.readLen] - covvec[j])
-				avg_out.append(np.mean(coverage_vals)/float(self.readLen))
+				#avg_out.append(np.mean(coverage_vals)/float(self.readLen))
+				avg_out.append(np.mean(coverage_vals)/float(min([self.readLen, max_coord])))
+				#print avg_out, np.mean(avg_out)
 
 				if fragDist == None:
+					#print '++++', max_coord, len(self.sequences[i]), len(self.allCigar[i]), len(coverage_vals)
 					self.coverage_distribution.append(DiscreteDistribution(coverage_vals,range(len(coverage_vals))))
 			
 				# fragment length nightmare

@@ -32,7 +32,7 @@ sys.path.append(SIM_PATH+'/py/')
 from inputChecking		import requiredField, checkFileOpen, checkDir, isInRange
 from refFunc			import indexRef, readRef, getAllRefRegions, partitionRefRegions, ALLOWED_NUCL
 from vcfFunc			import parseVCF
-from OutputFileWriter	import OutputFileWriter
+from OutputFileWriter	import OutputFileWriter, RC, sam_flag
 from probability		import DiscreteDistribution, mean_ind_of_weighted_list
 from SequenceContainer	import SequenceContainer, ReadContainer, parseInputMutationModel
 
@@ -52,7 +52,8 @@ parser.add_argument('-c', type=float, required=False, metavar='<float>', default
 parser.add_argument('-e', type=str,   required=False, metavar='<str>',   default=None,  help="sequencing error model")
 parser.add_argument('-E', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg sequencing error rate to this")
 parser.add_argument('-p', type=int,   required=False, metavar='<int>',   default=2,     help="ploidy")
-parser.add_argument('-t', type=str,   required=False, metavar='<str>',   default=None,  help="bed file containing targeted regions")
+parser.add_argument('-t', type=str,   required=False, metavar='<str>',   default=None,  help="targeted_regions.bed")
+parser.add_argument('-d', type=str,   required=False, metavar='<str>',   default=None,  help="discard_regions.bed")
 parser.add_argument('-to',type=float, required=False, metavar='<float>', default=0.00,  help="off-target coverage scalar")
 parser.add_argument('-m', type=str,   required=False, metavar='<str>',   default=None,  help="mutation model pickle file")
 parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,    help="rescale avg mutation rate to this")
@@ -75,16 +76,18 @@ parser.add_argument('--fa',                            required=False, action='s
 parser.add_argument('--rng',               type=int,   required=False, metavar='<int>',           default=-1,    help='rng seed value; identical RNG value should produce identical runs of the program, so things like read locations, variant positions, error positions, etc, should all be the same.')
 parser.add_argument('--gz',                            required=False, action='store_true',       default=False, help='gzip output FQ and VCF')
 parser.add_argument('--no-fastq',                      required=False, action='store_true',       default=False, help='bypass fastq generation')
+parser.add_argument('--discard-offtarget',             required=False, action='store_true',       default=False, help='discard reads outside of targeted regions')
+parser.add_argument('--force-coverage',                required=False, action='store_true',       default=False, help='[debug] ignore fancy models, force coverage to be constant')
 args = parser.parse_args()
 
 # required args
 (REFERENCE, READLEN, OUT_PREFIX) = (args.r, args.R, args.o)
 # various dataset parameters
-(COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = (args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.Mb, args.v)
+(COVERAGE, PLOIDS, INPUT_BED, DISCARD_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = (args.c, args.p, args.t, args.d, args.e, args.E, args.m, args.M, args.Mb, args.v)
 # cancer params (disabled currently)
 #(CANCER, CANCER_MODEL, CANCER_PURITY) = (args.cancer, args.cm, args.cp)
 (CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
-(OFFTARGET_SCALAR) = (args.to)
+(OFFTARGET_SCALAR, OFFTARGET_DISCARD, FORCE_COVERAGE) = (args.to, args.discard_offtarget, args.force_coverage)
 # important flags
 (SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
 
@@ -279,15 +282,16 @@ def main():
 			inputVariants[k].sort()
 
 	# parse input targeted regions, if present
-	inputRegions = {}
 	refList      = [n[0] for n in refIndex]
+	inputRegions = {}
 	if INPUT_BED != None:
-		with open(INPUT_BED,'r') as f:
-			for line in f:
-				[myChr,pos1,pos2] = line.strip().split('\t')[:3]
-				if myChr not in inputRegions:
-					inputRegions[myChr] = [-1]
-				inputRegions[myChr].extend([int(pos1),int(pos2)])
+		f = open(INPUT_BED,'r')
+		for line in f:
+			[myChr,pos1,pos2] = line.strip().split('\t')[:3]
+			if myChr not in inputRegions:
+				inputRegions[myChr] = [-1]
+			inputRegions[myChr].extend([int(pos1),int(pos2)])
+		f.close()
 		# some validation
 		nInBedOnly = 0
 		nInRefOnly = 0
@@ -302,7 +306,16 @@ def main():
 			print 'Warning: Reference contains sequences not found in targeted regions BED file.'
 		if nInBedOnly > 0:
 			print 'Warning: Targeted regions BED file contains sequence names not found in reference (regions ignored).'
-
+	# parse discard bed similarly
+	discardRegions = {}
+	if DISCARD_BED != None:
+		f = open(DISCARD_BED,'r')
+		for line in f:
+			[myChr,pos1,pos2] = line.strip().split('\t')[:3]
+			if myChr not in discardRegions:
+				discardRegions[myChr] = [-1]
+			discardRegions[myChr].extend([int(pos1),int(pos2)])
+		f.close()
 
 	# parse input mutation rate rescaling regions, if present
 	mutRateRegions = {}
@@ -507,7 +520,7 @@ def main():
 					isLastTime = True
 
 				# print progress indicator
-				####print 'PROCESSING WINDOW:',(start,end), [buffer_added], 'next:', (next_start,next_end)
+				#print 'PROCESSING WINDOW:',(start,end), [buffer_added], 'next:', (next_start,next_end), 'isLastTime:', isLastTime
 				currentProgress += end-start
 				newPercent = int((currentProgress*100)/float(total_bp_span))
 				if newPercent > currentPercent:
@@ -523,6 +536,7 @@ def main():
 				# compute coverage modifiers
 				coverage_avg = None
 				coverage_dat = [GC_WINDOW_SIZE,GC_SCALE_VAL,[]]
+				target_hits  = 0
 				if INPUT_BED == None:
 					coverage_dat[2] = [1.0]*(end-start)
 				else:
@@ -532,8 +546,14 @@ def main():
 						for j in xrange(start,end):
 							if not(bisect.bisect(inputRegions[refIndex[RI][0]],j)%2):
 								coverage_dat[2].append(1.0)
+								target_hits += 1
 							else:
 								coverage_dat[2].append(OFFTARGET_SCALAR)
+
+				# offtarget and we're not interested?
+				if OFFTARGET_DISCARD and target_hits <= READLEN:
+					coverage_avg = 0.0
+					skip_this_window = True
 
 				#print len(coverage_dat[2]), sum(coverage_dat[2])
 				if sum(coverage_dat[2]) < LOW_COV_THRESH:
@@ -594,10 +614,17 @@ def main():
 				if ONLY_VCF:
 					pass
 				else:
+					windowSpan = end-start
 					if PAIRED_END:
-						readsToSample = int(((end-start)*float(COVERAGE)*coverage_avg)/(2*READLEN))+1
+						if FORCE_COVERAGE:
+							readsToSample = int((windowSpan*float(COVERAGE))/(2*READLEN))+1
+						else:
+							readsToSample = int((windowSpan*float(COVERAGE)*coverage_avg)/(2*READLEN))+1
 					else:
-						readsToSample = int(((end-start)*float(COVERAGE)*coverage_avg)/(READLEN))+1
+						if FORCE_COVERAGE:
+							readsToSample = int((windowSpan*float(COVERAGE))/READLEN)+1
+						else:
+							readsToSample = int((windowSpan*float(COVERAGE)*coverage_avg)/READLEN)+1
 
 					# if coverage is so low such that no reads are to be sampled, skip region
 					#      (i.e., remove buffer of +1 reads we add to every window)
@@ -634,6 +661,17 @@ def main():
 								isUnmapped = [False]
 								myReadData[0][0] += start	# adjust mapping position based on window start
 
+						# are we discarding offtargets?
+						outside_boundaries = []
+						if OFFTARGET_DISCARD and INPUT_BED != None:
+							outside_boundaries += [bisect.bisect(inputRegions[refIndex[RI][0]],n[0])%2 for n in myReadData]
+							outside_boundaries += [bisect.bisect(inputRegions[refIndex[RI][0]],n[0]+len(n[2]))%2 for n in myReadData]
+						if DISCARD_BED != None:
+							outside_boundaries += [bisect.bisect(discardRegions[refIndex[RI][0]],n[0])%2 for n in myReadData]
+							outside_boundaries += [bisect.bisect(discardRegions[refIndex[RI][0]],n[0]+len(n[2]))%2 for n in myReadData]
+						if len(outside_boundaries) and any(outside_boundaries):
+							continue
+
 						if NJOBS > 1:
 							myReadName = OUT_PREFIX_NAME+'-j'+str(MYJOB)+'-'+refIndex[RI][0]+'-r'+str(readNameCount)
 						else:
@@ -650,35 +688,77 @@ def main():
 										myReadString[k] = 'N'
 								myReadData[j][2] = ''.join(myReadString)
 
+						# flip a coin, are we forward or reverse strand?
+						isForward = (random.random() < 0.5)
+
 						# if read (or read + mate for PE) are unmapped, put them at end of bam file
 						if all(isUnmapped):
 							if PAIRED_END:
-								unmapped_records.append((myReadName+'/1',myReadData[0],109))
-								unmapped_records.append((myReadName+'/2',myReadData[1],157))
+								if isForward:
+									flag1 = sam_flag(['paired','unmapped','mate_unmapped','first','mate_reverse'])
+									flag2 = sam_flag(['paired','unmapped','mate_unmapped','second','reverse'])
+								else:
+									flag1 = sam_flag(['paired','unmapped','mate_unmapped','second','mate_reverse'])
+									flag2 = sam_flag(['paired','unmapped','mate_unmapped','first','reverse'])
+								unmapped_records.append((myReadName+'/1',myReadData[0],flag1))
+								unmapped_records.append((myReadName+'/2',myReadData[1],flag2))
 							else:
-								unmapped_records.append((myReadName+'/1',myReadData[0],4))
+								flag1 = sam_flag(['unmapped'])
+								unmapped_records.append((myReadName+'/1',myReadData[0],flag1))
 
-						# write read data out to FASTQ and BAM files, bypass FASTQ if option specified
 						myRefIndex = indices_by_refName[refIndex[RI][0]]
+						
+						#
+						# write SE output
+						#
 						if len(myReadData) == 1:
 							if NO_FASTQ != True:
-								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
+								if isForward:
+									OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3])
+								else:
+									OFW.writeFASTQRecord(myReadName,RC(myReadData[0][2]),myReadData[0][3][::-1])
 							if SAVE_BAM:
 								if isUnmapped[0] == False:
-									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
+									if isForward:
+										flag1 = 0
+										OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=flag1)
+									else:
+										flag1 = sam_flag(['reverse'])
+										OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=flag1)
+						#
+						# write PE output
+						#
 						elif len(myReadData) == 2:
 							if NO_FASTQ != True:
-								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3])
+								OFW.writeFASTQRecord(myReadName,myReadData[0][2],myReadData[0][3],read2=myReadData[1][2],qual2=myReadData[1][3],orientation=isForward)
 							if SAVE_BAM:
 								if isUnmapped[0] == False and isUnmapped[1] == False:
-									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,  matePos=myReadData[1][0])
-									OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=147, matePos=myReadData[0][0])
+									if isForward:
+										flag1 = sam_flag(['paired','proper','first','mate_reverse'])
+										flag2 = sam_flag(['paired','proper','second','reverse'])
+									else:
+										flag1 = sam_flag(['paired','proper','second','mate_reverse'])
+										flag2 = sam_flag(['paired','proper','first','reverse'])
+									OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=flag1, matePos=myReadData[1][0])
+									OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=flag2, matePos=myReadData[0][0])
 								elif isUnmapped[0] == False and isUnmapped[1] == True:
-									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=105,  matePos=myReadData[0][0])
-									OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[0][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=149, matePos=myReadData[0][0], alnMapQual=0)
+									if isForward:
+										flag1 = sam_flag(['paired','first', 'mate_unmapped', 'mate_reverse'])
+										flag2 = sam_flag(['paired','second', 'unmapped', 'reverse'])
+									else:
+										flag1 = sam_flag(['paired','second', 'mate_unmapped', 'mate_reverse'])
+										flag2 = sam_flag(['paired','first', 'unmapped', 'reverse'])
+									OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[0][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=flag1, matePos=myReadData[0][0])
+									OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[0][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=flag2, matePos=myReadData[0][0], alnMapQual=0)
 								elif isUnmapped[0] == True and isUnmapped[1] == False:
-									OFW.writeBAMRecord(myRefIndex, myReadName+'/1', myReadData[1][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=101,  matePos=myReadData[1][0], alnMapQual=0)
-									OFW.writeBAMRecord(myRefIndex, myReadName+'/2', myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=153, matePos=myReadData[1][0])
+									if isForward:
+										flag1 = sam_flag(['paired','first', 'unmapped', 'mate_reverse'])
+										flag2 = sam_flag(['paired','second', 'mate_unmapped', 'reverse'])
+									else:
+										flag1 = sam_flag(['paired','second', 'unmapped', 'mate_reverse'])
+										flag2 = sam_flag(['paired','first', 'mate_unmapped', 'reverse'])
+									OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[1][0], myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=flag1, matePos=myReadData[1][0], alnMapQual=0)
+									OFW.writeBAMRecord(myRefIndex, myReadName, myReadData[1][0], myReadData[1][1], myReadData[1][2], myReadData[1][3], samFlag=flag2, matePos=myReadData[1][0])
 						else:
 							print '\nError: Unexpected number of reads generated...\n'
 							exit(1)

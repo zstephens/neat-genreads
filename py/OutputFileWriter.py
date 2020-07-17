@@ -23,6 +23,25 @@ def reg2bin(a,b):
 	if (a>>26 == b>>26): return  ((1<<3)-1)/7 + (a>>26)
 	return 0
 
+# takes list of strings, returns numerical flag
+def sam_flag(l):
+	outVal = 0
+	l = list(set(l))
+	for n in l:
+		if n == 'paired':          outVal += 1
+		elif n == 'proper':        outVal += 2
+		elif n == 'unmapped':      outVal += 4
+		elif n == 'mate_unmapped': outVal += 8
+		elif n == 'reverse':       outVal += 16
+		elif n == 'mate_reverse':  outVal += 32
+		elif n == 'first':         outVal += 64
+		elif n == 'second':        outVal += 128
+		elif n == 'not_primary':   outVal += 256
+		elif n == 'low_quality':   outVal += 512
+		elif n == 'duplicate':     outVal += 1024
+		elif n == 'supplementary': outVal += 2048
+	return outVal
+
 CIGAR_PACKED = {'M':0, 'I':1, 'D':2, 'N':3, 'S':4, 'H':5, 'P':6, '=':7, 'X':8}
 SEQ_PACKED   = {'=':0, 'A':1, 'C':2, 'M':3, 'G':4, 'R':5, 'S':6, 'V':7,
                 'T':8, 'W':9, 'Y':10,'H':11,'K':12,'D':13,'B':14,'N':15}
@@ -130,15 +149,22 @@ class OutputFileWriter:
 		self.fq2_buffer = []
 		self.bam_buffer = []
 
-	def writeFASTQRecord(self,readName,read1,qual1,read2=None,qual2=None):
+	def writeFASTQRecord(self,readName,read1,qual1,read2=None,qual2=None,orientation=None):
+		(r1, q1) = (read1, qual1)
+		if read2 != None and orientation == True:
+			(r2, q2) = (RC(read2), qual2[::-1])
+		elif read2 != None and orientation == False:
+			(r1, q1) = (RC(read2), qual2[::-1])
+			(r2, q2) = (read1, qual1)
+
 		if self.FASTA_instead:
-			self.fq1_buffer.append('>'+readName+'/1\n'+read1+'\n')
+			self.fq1_buffer.append('>'+readName+'/1\n'+r1+'\n')
 			if read2 != None:
-				self.fq2_buffer.append('>'+readName+'/2\n'+RC(read2)+'\n')
+				self.fq2_buffer.append('>'+readName+'/2\n'+r2+'\n')
 		else:
-			self.fq1_buffer.append('@'+readName+'/1\n'+read1+'\n+\n'+qual1+'\n')
+			self.fq1_buffer.append('@'+readName+'/1\n'+r1+'\n+\n'+q1+'\n')
 			if read2 != None:
-				self.fq2_buffer.append('@'+readName+'/2\n'+RC(read2)+'\n+\n'+qual2[::-1]+'\n')
+				self.fq2_buffer.append('@'+readName+'/2\n'+r2+'\n+\n'+q2+'\n')
 
 	def writeVCFRecord(self, chrom, pos, idStr, ref, alt, qual, filt, info):
 		self.vcf_file.write(str(chrom)+'\t'+str(pos)+'\t'+str(idStr)+'\t'+str(ref)+'\t'+str(alt)+'\t'+str(qual)+'\t'+str(filt)+'\t'+str(info)+'\n')
@@ -158,10 +184,10 @@ class OutputFileWriter:
 			my_tlen  = 0
 		else:
 			next_pos = matePos
-			if pos_0 < next_pos:
-				my_tlen = next_pos + len(seq) - pos_0
+			if next_pos > pos_0:
+				my_tlen = next_pos - pos_0 + len(seq)
 			else:
-				my_tlen = -pos_0 - len(seq) + next_pos
+				my_tlen = next_pos - pos_0 - len(seq)
 
 		encodedCig = ''
 		for i in xrange(cig_ops):
