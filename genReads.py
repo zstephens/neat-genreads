@@ -563,7 +563,7 @@ def main(raw_args=None):
                 # init coverage
                 if sum(coverage_dat[2]) >= LOW_COV_THRESH:
                     if PAIRED_END:
-                        coverage_avg = sequences.init_coverage(tuple(coverage_dat), fragDist=FRAGLEN_DISTRIBUTION)
+                        coverage_avg = sequences.init_coverage(tuple(coverage_dat), frag_dist=FRAGLEN_DISTRIBUTION)
                     else:
                         coverage_avg = sequences.init_coverage(tuple(coverage_dat))
 
