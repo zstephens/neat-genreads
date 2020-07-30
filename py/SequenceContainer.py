@@ -768,6 +768,7 @@ class ReadContainer:
 
 			if self.rescaleQ == True:	# do we want to rescale qual scores to match rescaled error?
 				qOut = [max([0, int(-10.*np.log10(self.errorScale*self.qErrRate[n])+0.5)]) for n in qOut]
+				qOut = [min([max(Qscores), n]) for n in qOut]
 				qOut = ''.join([chr(n + self.offQ) for n in qOut])
 			else:
 				qOut = ''.join([chr(n + self.offQ) for n in qOut])
