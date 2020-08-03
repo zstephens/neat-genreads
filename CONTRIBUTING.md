@@ -22,3 +22,8 @@ In general, we follow the "fork-and-pull" Git workflow.
  5. Submit a **Pull request** so that we can review your changes
  
 Note: Be sure to merge the latest changes before making the pull request. You can increase your chances of a successfull pull request by indicating clearly what branch you are contributing to and making a detailed commit message. It also helps if you open an issue first to let us know you are working on this project.
+
+License
+-------
+
+NEAT is licensed under [BSD 3-Clause License](https://github.com/zstephens/neat-genreads/blob/master/LICENSE.md). Because we also use some of the software frmo Biopython, we additionally have included the Bpipython License Agreement
