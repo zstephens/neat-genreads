@@ -26,4 +26,4 @@ Note: Be sure to merge the latest changes before making the pull request. You ca
 License
 -------
 
-NEAT is licensed under [BSD 3-Clause License](https://github.com/zstephens/neat-genreads/blob/master/LICENSE.md). Because we also use some of the software frmo Biopython, we additionally have included the Bpipython License Agreement
+NEAT is licensed under [BSD 3-Clause License](https://github.com/zstephens/neat-genreads/blob/master/LICENSE.md). Because we also use some of the software from Biopython, we additionally have included the Biopython License Agreement
