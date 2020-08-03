@@ -1,7 +1,7 @@
 BSD 3-Clause License
 --------------------
 
-Copyright (c) 1999-2020, The Biopython Contributors
+Copyright (c) 1999-2020, NEAT Contributors
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
