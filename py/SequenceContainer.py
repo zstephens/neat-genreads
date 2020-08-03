@@ -655,9 +655,10 @@ class SequenceContainer:
 #	Container for read data, computes quality scores and positions to insert errors
 #
 class ReadContainer:
-	def __init__(self, readLen, errorModel, reScaledError):
+	def __init__(self, readLen, errorModel, reScaledError, rescaleQual=False):
 
-		self.readLen = readLen
+		self.readLen  = readLen
+		self.rescaleQ = rescaleQual
 
 		errorDat = pickle.load(open(errorModel,'rb'))
 		self.UNIFORM = False
@@ -677,7 +678,6 @@ class ReadContainer:
 				print '\nError: R1 and R2 quality score models are of different length.\n'
 				exit(1)
 
-
 		self.qErrRate = [0.]*(max(Qscores)+1)
 		for q in Qscores:
 			self.qErrRate[q] = 10.**(-q/10.)
@@ -694,7 +694,8 @@ class ReadContainer:
 			self.errorScale = 1.0
 		else:
 			self.errorScale = reScaledError/avgError
-			print 'Warning: Quality scores no longer exactly representative of error probability. Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale)
+			if self.rescaleQ == False:
+				print 'Warning: Quality scores no longer exactly representative of error probability. Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale)
 			if self.UNIFORM:
 				if reScaledError <= 0.:
 					self.uniform_qscore = max(Qscores)
@@ -765,7 +766,12 @@ class ReadContainer:
 				if random.random() < self.errorScale * self.qErrRate[qOut[i]]:
 					sErr.append(i)
 
-			qOut = ''.join([chr(n + self.offQ) for n in qOut])
+			if self.rescaleQ == True:	# do we want to rescale qual scores to match rescaled error?
+				qOut = [max([0, int(-10.*np.log10(self.errorScale*self.qErrRate[n])+0.5)]) for n in qOut]
+				qOut = [min([int(self.qErrRate[-1]), n]) for n in qOut]
+				qOut = ''.join([chr(n + self.offQ) for n in qOut])
+			else:
+				qOut = ''.join([chr(n + self.offQ) for n in qOut])
 
 		if self.errorScale == 0.0:
 			return (qOut,[])

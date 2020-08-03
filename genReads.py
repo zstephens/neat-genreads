@@ -78,6 +78,7 @@ parser.add_argument('--gz',                            required=False, action='s
 parser.add_argument('--no-fastq',                      required=False, action='store_true',       default=False, help='bypass fastq generation')
 parser.add_argument('--discard-offtarget',             required=False, action='store_true',       default=False, help='discard reads outside of targeted regions')
 parser.add_argument('--force-coverage',                required=False, action='store_true',       default=False, help='[debug] ignore fancy models, force coverage to be constant')
+parser.add_argument('--rescale-qual',                  required=False, action='store_true',       default=False, help='rescale quality scores to match -E input')
 args = parser.parse_args()
 
 # required args
@@ -87,7 +88,7 @@ args = parser.parse_args()
 # cancer params (disabled currently)
 #(CANCER, CANCER_MODEL, CANCER_PURITY) = (args.cancer, args.cm, args.cp)
 (CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
-(OFFTARGET_SCALAR, OFFTARGET_DISCARD, FORCE_COVERAGE) = (args.to, args.discard_offtarget, args.force_coverage)
+(OFFTARGET_SCALAR, OFFTARGET_DISCARD, FORCE_COVERAGE, RESCALE_QUAL) = (args.to, args.discard_offtarget, args.force_coverage, args.rescale_qual)
 # important flags
 (SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
 
@@ -163,10 +164,10 @@ if SE_RATE < 0.:
 if SE_MODEL == None:
 	print 'Using default sequencing error model.'
 	SE_MODEL = SIM_PATH+'/models/errorModel_toy.p'
-	SE_CLASS = ReadContainer(READLEN,SE_MODEL,SE_RATE)
+	SE_CLASS = ReadContainer(READLEN, SE_MODEL, SE_RATE, RESCALE_QUAL)
 else:
 	# probably need to do some sanity checking
-	SE_CLASS = ReadContainer(READLEN,SE_MODEL,SE_RATE)
+	SE_CLASS = ReadContainer(READLEN, SE_MODEL, SE_RATE, RESCALE_QUAL)
 
 #	GC-bias model
 #
