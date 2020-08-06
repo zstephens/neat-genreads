@@ -25,7 +25,7 @@ import pickle
 import numpy as np
 import argparse
 
-from py.inputChecking import requiredField, checkFileOpen, isInRange
+from py.input_checking import required_field, check_file_open, is_in_range
 from py.ref_func import index_ref, readRef, getAllRefRegions, partitionRefRegions
 from py.vcfFunc import parseVCF
 from py.OutputFileWriter import OutputFileWriter
@@ -146,10 +146,10 @@ def main(raw_args=None):
     ****            INPUT ERROR CHECKING
     ************************************************"""
 
-    checkFileOpen(REFERENCE, 'ERROR: could not open reference', required=True)
-    checkFileOpen(INPUT_VCF, 'ERROR: could not open input VCF', required=False)
-    checkFileOpen(INPUT_BED, 'ERROR: could not open input BED', required=False)
-    requiredField(OUT_PREFIX, 'ERROR: no output prefix provided')
+    check_file_open(REFERENCE, 'ERROR: could not open reference', required=True)
+    check_file_open(INPUT_VCF, 'ERROR: could not open input VCF', required=False)
+    check_file_open(INPUT_BED, 'ERROR: could not open input BED', required=False)
+    required_field(OUT_PREFIX, 'ERROR: no output prefix provided')
     if (FRAGMENT_SIZE is None and FRAGMENT_STD is not None) or (FRAGMENT_SIZE is not None and FRAGMENT_STD is None):
         print('\nError: --pe argument takes 2 space-separated arguments.\n')
         exit(1)
@@ -241,20 +241,20 @@ def main(raw_args=None):
     ****          MORE INPUT ERROR CHECKING
     ************************************************"""
 
-    isInRange(READLEN, 10, 1000000, 'Error: -R must be between 10 and 1,000,000')
-    isInRange(COVERAGE, 0, 1000000, 'Error: -c must be between 0 and 1,000,000')
-    isInRange(PLOIDS, 1, 100, 'Error: -p must be between 1 and 100')
-    isInRange(OFFTARGET_SCALAR, 0, 1, 'Error: -to must be between 0 and 1')
+    is_in_range(READLEN, 10, 1000000, 'Error: -R must be between 10 and 1,000,000')
+    is_in_range(COVERAGE, 0, 1000000, 'Error: -c must be between 0 and 1,000,000')
+    is_in_range(PLOIDS, 1, 100, 'Error: -p must be between 1 and 100')
+    is_in_range(OFFTARGET_SCALAR, 0, 1, 'Error: -to must be between 0 and 1')
     if MUT_RATE != -1 and MUT_RATE is not None:
-        isInRange(MUT_RATE, 0, 0.3, 'Error: -M must be between 0 and 0.3')
+        is_in_range(MUT_RATE, 0, 0.3, 'Error: -M must be between 0 and 0.3')
     if SE_RATE != -1 and SE_RATE is not None:
-        isInRange(SE_RATE, 0, 0.3, 'Error: -E must be between 0 and 0.3')
+        is_in_range(SE_RATE, 0, 0.3, 'Error: -E must be between 0 and 0.3')
     if NJOBS != 1:
-        isInRange(NJOBS, 1, 1000, 'Error: --job must be between 1 and 1,000')
-        isInRange(MYJOB, 1, 1000, 'Error: --job must be between 1 and 1,000')
-        isInRange(MYJOB, 1, NJOBS, 'Error: job id must be less than or equal to number of jobs')
+        is_in_range(NJOBS, 1, 1000, 'Error: --job must be between 1 and 1,000')
+        is_in_range(MYJOB, 1, 1000, 'Error: --job must be between 1 and 1,000')
+        is_in_range(MYJOB, 1, NJOBS, 'Error: job id must be less than or equal to number of jobs')
     if N_MAX_QUAL != -1:
-        isInRange(N_MAX_QUAL, 1, 40, 'Error: -N must be between 1 and 40')
+        is_in_range(N_MAX_QUAL, 1, 40, 'Error: -N must be between 1 and 40')
 
     """************************************************
     ****   Process Inputs
