@@ -8,7 +8,7 @@ from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
-from py.neat_cigar import cigar_string
+from py.neat_cigar import CigarString
 
 MAX_ATTEMPTS = 100	# max attempts to insert a mutation into a valid position
 MAX_MUTFRAC  = 0.3	# the maximum percentage of a window that can contain mutations
@@ -457,7 +457,7 @@ class SequenceContainer:
 
             # precompute cigar strings
             for j in range(len(temp_symbol_string)-self.read_len):
-                self.all_cigar[i].append(cigar_string(listIn=temp_symbol_string[j:j+self.read_len]).getString())
+                self.all_cigar[i].append(CigarString(listIn=temp_symbol_string[j:j + self.read_len]).get_string())
 
             # create some data structures we will need later:
             # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e. corresponding to the unmodified reference genome)
@@ -591,11 +591,11 @@ class SequenceContainer:
                     if totalD > availB:	# if not enough bases to fill-in deletions, skip all indel erors
                         continue
                     if expanded_cigar == []:
-                        expanded_cigar = cigar_string(stringIn=myCigar).getList()
+                        expanded_cigar = CigarString(stringIn=myCigar).get_list()
                         fillToGo = totalD - totalI + 1
                         if fillToGo > 0:
                             try:
-                                extraCigarVal = cigar_string(stringIn=self.all_cigar[my_ploid][r[0]+fillToGo]).getList()[-fillToGo:]
+                                extraCigarVal = CigarString(stringIn=self.all_cigar[my_ploid][r[0] + fillToGo]).get_list()[-fillToGo:]
                             except IndexError:	# applying the deletions we want requires going beyond region boundaries. skip all indel errors
                                 skip_indels = True
 
@@ -645,7 +645,7 @@ class SequenceContainer:
             if any_indel_err:
                 if len(expanded_cigar):
                     relevantCigar = (expanded_cigar+extraCigarVal)[:self.read_len]
-                    myCigar = cigar_string(listIn=relevantCigar).getString()
+                    myCigar = CigarString(listIn=relevantCigar).get_string()
 
                 r[3] = r[3][:self.read_len]
 
