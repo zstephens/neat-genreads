@@ -6,17 +6,17 @@ import numpy as np
 LOW_PROB_THRESH = 1e-12
 
 
-def mean_ind_of_weighted_list(l):
-    myMid = sum(l) / 2.0
-    mySum = 0.0
-    for i in range(len(l)):
-        mySum += l[i]
-        if mySum >= myMid:
+def mean_ind_of_weighted_list(candidate_list: list) -> int:
+    my_mid = sum(candidate_list) / 2.0
+    my_sum = 0.0
+    for i in range(len(candidate_list)):
+        my_sum += candidate_list[i]
+        if my_sum >= my_mid:
             return i
 
 
 class DiscreteDistribution:
-    def __init__(self, weights, values, degenerateVal=None, method='bisect'):
+    def __init__(self, weights, values, degenerate_val=None, method='bisect'):
 
         # some sanity checking
         if not len(weights) or not len(values):
@@ -24,18 +24,18 @@ class DiscreteDistribution:
             exit(1)
 
         self.method = method
-        sumWeight = float(sum(weights))
+        sum_weight = float(sum(weights))
 
         # if probability of all input events is 0, consider it degenerate and always return the first value
-        if sumWeight < LOW_PROB_THRESH:
+        if sum_weight < LOW_PROB_THRESH:
             self.degenerate = values[0]
         else:
-            self.weights = [n / sumWeight for n in weights]
+            self.weights = [n / sum_weight for n in weights]
             self.values = copy.deepcopy(values)
             if len(self.values) != len(self.weights):
                 print('\nError: length and weights and values vectors must be the same.\n')
                 exit(1)
-            self.degenerate = degenerateVal
+            self.degenerate = degenerate_val
             # prune values with probability too low to be worth using [DOESN'T REALLY IMPROVE PERFORMANCE]
             ####if self.degenerate != None:
             ####	for i in xrange(len(self.weights)-1,-1,-1):
@@ -47,101 +47,101 @@ class DiscreteDistribution:
             ####		exit(1)
 
             if self.method == 'alias':
-                K = len(self.weights)
-                q = np.zeros(K)
-                J = np.zeros(K, dtype=np.int)
+                len_weights = len(self.weights)
+                prob_vector = np.zeros(len_weights)
+                count_vector = np.zeros(len_weights, dtype=np.int)
                 smaller = []
                 larger = []
                 for kk, prob in enumerate(self.weights):
-                    q[kk] = K * prob
-                    if q[kk] < 1.0:
+                    prob_vector[kk] = len_weights * prob
+                    if prob_vector[kk] < 1.0:
                         smaller.append(kk)
                     else:
                         larger.append(kk)
                 while len(smaller) > 0 and len(larger) > 0:
                     small = smaller.pop()
                     large = larger.pop()
-                    J[small] = large
-                    q[large] = (q[large] + q[small]) - 1.0
-                    if q[large] < 1.0:
+                    count_vector[small] = large
+                    prob_vector[large] = (prob_vector[large] + prob_vector[small]) - 1.0
+                    if prob_vector[large] < 1.0:
                         smaller.append(large)
                     else:
                         larger.append(large)
 
-                self.a1 = len(J) - 1
-                self.a2 = J.tolist()
-                self.a3 = q.tolist()
+                self.a1 = len(count_vector) - 1
+                self.a2 = count_vector.tolist()
+                self.a3 = prob_vector.tolist()
 
             elif self.method == 'bisect':
-                self.cumP = np.cumsum(self.weights).tolist()[:-1]
-                self.cumP.insert(0, 0.)
+                self.cum_prob = np.cumsum(self.weights).tolist()[:-1]
+                self.cum_prob.insert(0, 0.)
 
     def __str__(self):
         return str(self.weights) + ' ' + str(self.values) + ' ' + self.method
 
     def sample(self):
 
-        if self.degenerate != None:
+        if self.degenerate is not None:
             return self.degenerate
 
         else:
 
             if self.method == 'alias':
-                r1 = random.randint(0, self.a1)
-                r2 = random.random()
-                if r2 < self.a3[r1]:
-                    return self.values[r1]
+                random1 = random.randint(0, self.a1)
+                random2 = random.random()
+                if random2 < self.a3[random1]:
+                    return self.values[random1]
                 else:
-                    return self.values[self.a2[r1]]
+                    return self.values[self.a2[random1]]
 
             elif self.method == 'bisect':
                 r = random.random()
-                return self.values[bisect.bisect(self.cumP, r) - 1]
+                return self.values[bisect.bisect(self.cum_prob, r) - 1]
 
 
 # takes k_range, lambda, [0,1,2,..], returns a DiscreteDistribution object with the corresponding to a poisson distribution
 
-def poisson_list(k_range, l):
-    MIN_WEIGHT = 1e-12
-    if l < MIN_WEIGHT:
-        return DiscreteDistribution([1], [0], degenerateVal=0)
-    logFactorial_list = [0.0]
+def poisson_list(k_range, input_lambda):
+    min_weight = 1e-12
+    if input_lambda < min_weight:
+        return DiscreteDistribution([1], [0], degenerate_val=0)
+    log_factorial_list = [0.0]
     for k in k_range[1:]:
-        logFactorial_list.append(np.log(float(k)) + logFactorial_list[k - 1])
-    w_range = [np.exp(k * np.log(l) - l - logFactorial_list[k]) for k in k_range]
-    w_range = [n for n in w_range if n >= MIN_WEIGHT]
+        log_factorial_list.append(np.log(float(k)) + log_factorial_list[k - 1])
+    w_range = [np.exp(k * np.log(input_lambda) - input_lambda - log_factorial_list[k]) for k in k_range]
+    w_range = [n for n in w_range if n >= min_weight]
     if len(w_range) <= 1:
-        return DiscreteDistribution([1], [0], degenerateVal=0)
+        return DiscreteDistribution([1], [0], degenerate_val=0)
     return DiscreteDistribution(w_range, k_range[:len(w_range)])
 
 
 # quantize a list of values into blocks
-def quantize_list(l):
-    MIN_PROB = 1e-12
-    QUANT_BLOCKS = 10
-    suml = float(sum(l))
-    ls = sorted([n for n in l if n >= MIN_PROB * suml])
-    if len(ls) == 0:
+def quantize_list(list_to_quantize):
+    min_prob = 1e-12
+    quant_blocks = 10
+    sum_list = float(sum(list_to_quantize))
+    sorted_list = sorted([n for n in list_to_quantize if n >= min_prob * sum_list])
+    if len(sorted_list) == 0:
         return None
     qi = []
-    for i in range(QUANT_BLOCKS):
-        # qi.append(ls[int((i)*(len(ls)/float(QUANT_BLOCKS)))])
-        qi.append(ls[0] + (i / float(QUANT_BLOCKS)) * (ls[-1] - ls[0]))
+    for i in range(quant_blocks):
+        # qi.append(sorted_list[int((i)*(len(sorted_list)/float(quant_blocks)))])
+        qi.append(sorted_list[0] + (i / float(quant_blocks)) * (sorted_list[-1] - sorted_list[0]))
     qi.append(1e12)
-    runningList = []
-    prevBi = None
-    previ = None
-    for i in range(len(l)):
-        if l[i] >= MIN_PROB * suml:
-            bi = bisect.bisect(qi, l[i])
+    running_list = []
+    prev_bi = None
+    prev_i = None
+    for i in range(len(list_to_quantize)):
+        if list_to_quantize[i] >= min_prob * sum_list:
+            bi = bisect.bisect(qi, list_to_quantize[i])
             # print i, l[i], qi[bi-1]
-            if prevBi != None:
-                if bi == prevBi and previ == i - 1:
-                    runningList[-1][1] += 1
+            if prev_bi is not None:
+                if bi == prev_bi and prev_i == i - 1:
+                    running_list[-1][1] += 1
                 else:
-                    runningList.append([i, i, qi[bi - 1]])
+                    running_list.append([i, i, qi[bi - 1]])
             else:
-                runningList.append([i, i, qi[bi - 1]])
-            prevBi = bi
-            previ = i
-    return runningList
+                running_list.append([i, i, qi[bi - 1]])
+            prev_bi = bi
+            prev_i = i
+    return running_list

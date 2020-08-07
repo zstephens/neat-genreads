@@ -120,9 +120,9 @@ class SequenceContainer:
                 else:
                     current_thresh = 0.
                     index_list    = [0]
-                    for j in range(len(frag_dist.cumP)):
-                        if frag_dist.cumP[j] >= current_thresh + COV_FRAGLEN_PERCENTILE/100.0:
-                            current_thresh = frag_dist.cumP[j]
+                    for j in range(len(frag_dist.cum_prob)):
+                        if frag_dist.cum_prob[j] >= current_thresh + COV_FRAGLEN_PERCENTILE/100.0:
+                            current_thresh = frag_dist.cum_prob[j]
                             index_list.append(j)
                     flq = [frag_dist.values[nnn] for nnn in index_list]
                     if frag_dist.values[-1] not in flq:
@@ -718,7 +718,7 @@ class ReadContainer:
                 self.probDistByPosByPrevQ1.append([])
                 for j in range(len(initQ1[0])):
                     if np.sum(probQ1[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
-                        self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution([1], [Qscores[j]], degenerateVal=Qscores[j]))
+                        self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution([1], [Qscores[j]], degenerate_val=Qscores[j]))
                     else:
                         self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(probQ1[i][j], Qscores))
 
@@ -729,7 +729,7 @@ class ReadContainer:
                     self.probDistByPosByPrevQ2.append([])
                     for j in range(len(initQ2[0])):
                         if np.sum(probQ2[i][j]) <= 0.:	# if we don't have sufficient data for a transition, use the previous qscore
-                            self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution([1], [Qscores[j]], degenerateVal=Qscores[j]))
+                            self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution([1], [Qscores[j]], degenerate_val=Qscores[j]))
                         else:
                             self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(probQ2[i][j], Qscores))
 

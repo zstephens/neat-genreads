@@ -227,7 +227,7 @@ def main(raw_args=None):
     if PAIRED_END and PAIRED_END_ARTIFICIAL:
         print('Using artificial fragment length distribution. mean=' + str(FRAGMENT_SIZE) + ', std=' + str(FRAGMENT_STD))
         if FRAGMENT_STD == 0:
-            FRAGLEN_DISTRIBUTION = DiscreteDistribution([1], [FRAGMENT_SIZE], degenerateVal=FRAGMENT_SIZE)
+            FRAGLEN_DISTRIBUTION = DiscreteDistribution([1], [FRAGMENT_SIZE], degenerate_val=FRAGMENT_SIZE)
         else:
             potential_vals = range(FRAGMENT_SIZE - 6 * FRAGMENT_STD, FRAGMENT_SIZE + 6 * FRAGMENT_STD + 1)
             FRAGLEN_VALS = []

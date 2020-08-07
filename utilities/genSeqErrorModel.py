@@ -203,7 +203,7 @@ def parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff):
         prob_dist_by_pos_by_prev_q.append([])
         for j in range(len(init_q[0])):
             if np.sum(prob_q[i][j]) <= 0.:  # if we don't have sufficient data for a transition, use the previous qscore
-                prob_dist_by_pos_by_prev_q[-1].append(DiscreteDistribution([1], [q_scores[j]], degenerateVal=q_scores[j]))
+                prob_dist_by_pos_by_prev_q[-1].append(DiscreteDistribution([1], [q_scores[j]], degenerate_val=q_scores[j]))
             else:
                 prob_dist_by_pos_by_prev_q[-1].append(DiscreteDistribution(prob_q[i][j], q_scores))
 
