@@ -26,7 +26,7 @@ import numpy as np
 import argparse
 
 from py.input_checking import required_field, check_file_open, is_in_range
-from py.ref_func import index_ref, readRef, getAllRefRegions, partitionRefRegions
+from py.ref_func import index_ref, read_ref, get_all_ref_regions, partition_ref_regions
 from py.vcfFunc import parseVCF
 from py.output_file_writer import OutputFileWriter
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
@@ -330,8 +330,8 @@ def main(raw_args=None):
 
     # If processing jobs in parallel, precompute the independent regions that can be process separately
     if NJOBS > 1:
-        parallelRegionList = getAllRefRegions(REFERENCE, refIndex, N_HANDLING, saveOutput=SAVE_NON_N)
-        (myRefs, myRegions) = partitionRefRegions(parallelRegionList, refIndex, MYJOB, NJOBS)
+        parallelRegionList = get_all_ref_regions(REFERENCE, refIndex, N_HANDLING, save_output=SAVE_NON_N)
+        (myRefs, myRegions) = partition_ref_regions(parallelRegionList, refIndex, MYJOB, NJOBS)
         if not len(myRegions):
             print('This job id has no regions to process, exiting...')
             exit(1)
@@ -359,7 +359,7 @@ def main(raw_args=None):
     for RI in range(len(refIndex)):
 
         # read in reference sequence and notate blocks of Ns
-        (refSequence, N_regions) = readRef(REFERENCE, refIndex[RI], N_HANDLING)
+        (refSequence, N_regions) = read_ref(REFERENCE, refIndex[RI], N_HANDLING)
 
         # if we're processing jobs in parallel only take the regions relevant for the current job
         if NJOBS > 1:

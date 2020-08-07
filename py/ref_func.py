@@ -7,58 +7,58 @@ from Bio.Alphabet import IUPAC
 
 
 #	Index reference fasta
-def index_ref(refPath):
+def index_ref(reference_path):
     tt = time.time()
 
-    fn = None
-    if os.path.isfile(refPath + 'i'):
-        print('found index ' + refPath + 'i')
-        fn = refPath + 'i'
-    if os.path.isfile(refPath + '.fai'):
-        print('found index ' + refPath + '.fai')
-        fn = refPath + '.fai'
+    filename = None
+    if os.path.isfile(reference_path + 'i'):
+        print('found index ' + reference_path + 'i')
+        filename = reference_path + 'i'
+    if os.path.isfile(reference_path + '.fai'):
+        print('found index ' + reference_path + '.fai')
+        filename = reference_path + '.fai'
 
     ref_inds = []
-    if fn is not None:
-        fai = open(fn, 'r')
+    if filename is not None:
+        fai = open(filename, 'r')
         for line in fai:
             splt = line[:-1].split('\t')
-            seqLen = int(splt[1])
+            seq_len = int(splt[1])
             offset = int(splt[2])
-            lineLn = int(splt[3])
-            nLines = seqLen // lineLn
-            if seqLen % lineLn != 0:
-                nLines += 1
-            ref_inds.append((splt[0], offset, offset + seqLen + nLines, seqLen))
+            line_ln = int(splt[3])
+            n_lines = seq_len // line_ln
+            if seq_len % line_ln != 0:
+                n_lines += 1
+            ref_inds.append((splt[0], offset, offset + seq_len + n_lines, seq_len))
         fai.close()
         return ref_inds
 
     sys.stdout.write('index not found, creating one... ')
     sys.stdout.flush()
-    refFile = open(refPath, 'r')
-    prevR = None
-    prevP = None
-    seqLen = 0
+    ref_file = open(reference_path, 'r')
+    prev_r = None
+    prev_p = None
+    seq_len = 0
     while 1:
-        data = refFile.readline()
+        data = ref_file.readline()
         if not data:
-            ref_inds.append((prevR, prevP, refFile.tell() - len(data), seqLen))
+            ref_inds.append((prev_r, prev_p, ref_file.tell() - len(data), seq_len))
             break
         if data[0] == '>':
-            if prevP is not None:
-                ref_inds.append((prevR, prevP, refFile.tell() - len(data), seqLen))
-            seqLen = 0
-            prevP = refFile.tell()
-            prevR = data[1:-1]
+            if prev_p is not None:
+                ref_inds.append((prev_r, prev_p, ref_file.tell() - len(data), seq_len))
+            seq_len = 0
+            prev_p = ref_file.tell()
+            prev_r = data[1:-1]
         else:
-            seqLen += len(data) - 1
-    refFile.close()
+            seq_len += len(data) - 1
+    ref_file.close()
 
     print('{0:.3f} (sec)'.format(time.time() - tt))
     return ref_inds
 
 
-def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
+def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
     OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
     ALLOWED_NUCL = ['A', 'C', 'G', 'T']
     tt = time.time()
@@ -66,129 +66,126 @@ def readRef(refPath, ref_inds_i, N_handling, N_unknowns=True, quiet=False):
         sys.stdout.write('reading ' + ref_inds_i[0] + '... ')
         sys.stdout.flush()
 
-    refFile = open(refPath, 'r')
-    refFile.seek(ref_inds_i[1])
-    myDat = ''.join(refFile.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
-    myDat = Seq(myDat.upper(), IUPAC.unambiguous_dna)
-    myDat = myDat.tomutable()
+    ref_file = open(ref_path, 'r')
+    ref_file.seek(ref_inds_i[1])
+    my_dat = ''.join(ref_file.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
+    my_dat = Seq(my_dat.upper(), IUPAC.unambiguous_dna)
+    my_dat = my_dat.tomutable()
 
     # find N regions
-    # data explanation: myDat[N_atlas[0][0]:N_atlas[0][1]] = solid block of Ns
-    prevNI = 0
-    nCount = 0
-    N_atlas = []
-    for i in range(len(myDat)):
-        if myDat[i] == 'N' or (N_unknowns and myDat[i] not in OK_CHR_ORD):
-            if nCount == 0:
-                prevNI = i
-            nCount += 1
-            if i == len(myDat) - 1:
-                N_atlas.append((prevNI, prevNI + nCount))
+    # data explanation: my_dat[n_atlas[0][0]:n_atlas[0][1]] = solid block of Ns
+    prev_ni = 0
+    n_count = 0
+    n_atlas = []
+    for i in range(len(my_dat)):
+        if my_dat[i] == 'N' or (n_unknowns and my_dat[i] not in OK_CHR_ORD):
+            if n_count == 0:
+                prev_ni = i
+            n_count += 1
+            if i == len(my_dat) - 1:
+                n_atlas.append((prev_ni, prev_ni + n_count))
         else:
-            if nCount > 0:
-                N_atlas.append((prevNI, prevNI + nCount))
-            nCount = 0
+            if n_count > 0:
+                n_atlas.append((prev_ni, prev_ni + n_count))
+            n_count = 0
 
     # handle N base-calls as desired
-    N_info = {}
-    N_info['all'] = []
-    N_info['big'] = []
-    N_info['non_N'] = []
-    if N_handling[0] == 'random':
-        for region in N_atlas:
-            N_info['all'].extend(region)
-            if region[1] - region[0] <= N_handling[1]:
+    n_info = {'all': [], 'big': [], 'non_N': []}
+    if n_handling[0] == 'random':
+        for region in n_atlas:
+            n_info['all'].extend(region)
+            if region[1] - region[0] <= n_handling[1]:
                 for i in range(region[0], region[1]):
-                    myDat[i] = random.choice(ALLOWED_NUCL)
+                    my_dat[i] = random.choice(ALLOWED_NUCL)
             else:
-                N_info['big'].extend(region)
-    elif N_handling[0] == 'allChr' and N_handling[2] in OK_CHR_ORD:
-        for region in N_atlas:
-            N_info['all'].extend(region)
-            if region[1] - region[0] <= N_handling[1]:
+                n_info['big'].extend(region)
+    elif n_handling[0] == 'allChr' and n_handling[2] in OK_CHR_ORD:
+        for region in n_atlas:
+            n_info['all'].extend(region)
+            if region[1] - region[0] <= n_handling[1]:
                 for i in range(region[0], region[1]):
-                    myDat[i] = N_handling[2]
+                    my_dat[i] = n_handling[2]
             else:
-                N_info['big'].extend(region)
-    elif N_handling[0] == 'ignore':
-        for region in N_atlas:
-            N_info['all'].extend(region)
-            N_info['big'].extend(region)
+                n_info['big'].extend(region)
+    elif n_handling[0] == 'ignore':
+        for region in n_atlas:
+            n_info['all'].extend(region)
+            n_info['big'].extend(region)
     else:
         print('\nERROR: UNKNOWN N_HANDLING MODE\n')
         exit(1)
 
-    habitableRegions = []
-    if N_info['big'] == []:
-        N_info['non_N'] = [(0, len(myDat))]
+    habitable_regions = []
+    if not n_info['big']:
+        n_info['non_N'] = [(0, len(my_dat))]
     else:
-        for i in range(0, len(N_info['big']), 2):
+        for i in range(0, len(n_info['big']), 2):
             if i == 0:
-                habitableRegions.append((0, N_info['big'][0]))
+                habitable_regions.append((0, n_info['big'][0]))
             else:
-                habitableRegions.append((N_info['big'][i - 1], N_info['big'][i]))
-        habitableRegions.append((N_info['big'][-1], len(myDat)))
-    for n in habitableRegions:
+                habitable_regions.append((n_info['big'][i - 1], n_info['big'][i]))
+        habitable_regions.append((n_info['big'][-1], len(my_dat)))
+    for n in habitable_regions:
         if n[0] != n[1]:
-            N_info['non_N'].append(n)
+            n_info['non_N'].append(n)
 
     if not quiet:
         print('{0:.3f} (sec)'.format(time.time() - tt))
-    return (myDat, N_info)
+    return my_dat, n_info
 
 
 #	find all non-N regions in reference sequence ahead of time, for computing jobs in parallel
-def getAllRefRegions(refPath, ref_inds, N_handling, saveOutput=False):
-    outRegions = {}
-    fn = refPath + '.nnr'
-    if os.path.isfile(fn) and not (saveOutput):
+def get_all_ref_regions(ref_path, ref_inds, n_handling, save_output=False):
+    out_regions = {}
+    fn = ref_path + '.nnr'
+    if os.path.isfile(fn) and not (save_output):
         print('found list of preidentified non-N regions...')
         f = open(fn, 'r')
         for line in f:
             splt = line.strip().split('\t')
-            if splt[0] not in outRegions:
-                outRegions[splt[0]] = []
-            outRegions[splt[0]].append((int(splt[1]), int(splt[2])))
+            if splt[0] not in out_regions:
+                out_regions[splt[0]] = []
+            out_regions[splt[0]].append((int(splt[1]), int(splt[2])))
         f.close()
-        return outRegions
+        return out_regions
     else:
         print('enumerating all non-N regions in reference sequence...')
         for RI in range(len(ref_inds)):
-            (refSequence, N_regions) = readRef(refPath, ref_inds[RI], N_handling, quiet=True)
-            refName = ref_inds[RI][0]
-            outRegions[refName] = [n for n in N_regions['non_N']]
-        if saveOutput:
+            (refSequence, N_regions) = read_ref(ref_path, ref_inds[RI], n_handling, quiet=True)
+            ref_name = ref_inds[RI][0]
+            out_regions[ref_name] = [n for n in N_regions['non_N']]
+        if save_output:
             f = open(fn, 'w')
-            for k in outRegions.keys():
-                for n in outRegions[k]:
+            for k in out_regions.keys():
+                for n in out_regions[k]:
                     f.write(k + '\t' + str(n[0]) + '\t' + str(n[1]) + '\n')
             f.close()
-        return outRegions
+        return out_regions
 
 
 #	find which of the non-N regions are going to be used for this job
-def partitionRefRegions(inRegions, ref_inds, myjob, njobs):
-    totSize = 0
+def partition_ref_regions(in_regions, ref_inds, my_job, n_jobs):
+    tot_size = 0
     for RI in range(len(ref_inds)):
-        refName = ref_inds[RI][0]
-        for region in inRegions[refName]:
-            totSize += region[1] - region[0]
-    sizePerJob = int(totSize / float(njobs) - 0.5)
+        ref_name = ref_inds[RI][0]
+        for region in in_regions[ref_name]:
+            tot_size += region[1] - region[0]
+    size_per_job = int(tot_size / float(n_jobs) - 0.5)
 
-    regionsPerJob = [[] for n in range(njobs)]
-    refsPerJob = [{} for n in range(njobs)]
-    currentInd = 0
-    currentCount = 0
+    regions_per_job = [[] for n in range(n_jobs)]
+    refs_per_job = [{} for n in range(n_jobs)]
+    current_ind = 0
+    current_count = 0
     for RI in range(len(ref_inds)):
-        refName = ref_inds[RI][0]
-        for region in inRegions[refName]:
-            regionsPerJob[currentInd].append((refName, region[0], region[1]))
-            refsPerJob[currentInd][refName] = True
-            currentCount += region[1] - region[0]
-            if currentCount >= sizePerJob:
-                currentCount = 0
-                currentInd = min([currentInd + 1, njobs - 1])
+        ref_name = ref_inds[RI][0]
+        for region in in_regions[ref_name]:
+            regions_per_job[current_ind].append((ref_name, region[0], region[1]))
+            refs_per_job[current_ind][ref_name] = True
+            current_count += region[1] - region[0]
+            if current_count >= size_per_job:
+                current_count = 0
+                current_ind = min([current_ind + 1, n_jobs - 1])
 
-    relevantRefs = refsPerJob[myjob - 1].keys()
-    relevantRegs = regionsPerJob[myjob - 1]
-    return (relevantRefs, relevantRegs)
+    relevant_refs = refs_per_job[my_job - 1].keys()
+    relevant_regs = regions_per_job[my_job - 1]
+    return relevant_refs, relevant_regs
