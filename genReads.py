@@ -28,7 +28,7 @@ import argparse
 from py.input_checking import required_field, check_file_open, is_in_range
 from py.ref_func import index_ref, readRef, getAllRefRegions, partitionRefRegions
 from py.vcfFunc import parseVCF
-from py.OutputFileWriter import OutputFileWriter
+from py.output_file_writer import OutputFileWriter
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
 from py.SequenceContainer import SequenceContainer, ReadContainer, parseInputMutationModel
 
@@ -344,9 +344,9 @@ def main(raw_args=None):
         corrected_nJobs = 1
 
     # initialize output files (part II)
-    OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, BAM_header=bamHeader, VCF_header=vcfHeader,
-                           gzipped=GZIPPED_OUT, jobTuple=(MYJOB, corrected_nJobs), noFASTQ=NO_FASTQ,
-                           FASTA_instead=FASTA_INSTEAD)
+    OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, bam_header=bamHeader, vcf_header=vcfHeader,
+                           gzipped=GZIPPED_OUT, job_tuple=(MYJOB, corrected_nJobs), no_fastq=NO_FASTQ,
+                           fasta_instead=FASTA_INSTEAD)
     OUT_PREFIX_NAME = OUT_PREFIX.split('/')[-1]
 
     """************************************************
@@ -646,46 +646,46 @@ def main(raw_args=None):
                         myRefIndex = indices_by_refName[refIndex[RI][0]]
                         if len(myReadData) == 1:
                             if NO_FASTQ != True:
-                                OFW.writeFASTQRecord(myReadName, myReadData[0][2], myReadData[0][3])
+                                OFW.write_fastq_record(myReadName, myReadData[0][2], myReadData[0][3])
                             if SAVE_BAM:
                                 if isUnmapped[0] == False:
-                                    OFW.writeBAMRecord(myRefIndex, myReadName + '/1', myReadData[0][0],
-                                                       myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=0)
+                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[0][0],
+                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3], sam_flag=0)
                         elif len(myReadData) == 2:
                             if NO_FASTQ != True:
-                                OFW.writeFASTQRecord(myReadName, myReadData[0][2], myReadData[0][3],
-                                                     read2=myReadData[1][2], qual2=myReadData[1][3])
+                                OFW.write_fastq_record(myReadName, myReadData[0][2], myReadData[0][3],
+                                                       read2=myReadData[1][2], qual2=myReadData[1][3])
                             if SAVE_BAM:
                                 if isUnmapped[0] == False and isUnmapped[1] == False:
-                                    OFW.writeBAMRecord(myRefIndex, myReadName + '/1', myReadData[0][0],
-                                                       myReadData[0][1], myReadData[0][2], myReadData[0][3], samFlag=99,
-                                                       matePos=myReadData[1][0])
-                                    OFW.writeBAMRecord(myRefIndex, myReadName + '/2', myReadData[1][0],
-                                                       myReadData[1][1], myReadData[1][2], myReadData[1][3],
-                                                       samFlag=147, matePos=myReadData[0][0])
+                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[0][0],
+                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3], sam_flag=99,
+                                                         mate_pos=myReadData[1][0])
+                                    OFW.write_bam_record(myRefIndex, myReadName + '/2', myReadData[1][0],
+                                                         myReadData[1][1], myReadData[1][2], myReadData[1][3],
+                                                         sam_flag=147, mate_pos=myReadData[0][0])
                                 elif isUnmapped[0] == False and isUnmapped[1] == True:
-                                    OFW.writeBAMRecord(myRefIndex, myReadName + '/1', myReadData[0][0],
-                                                       myReadData[0][1], myReadData[0][2], myReadData[0][3],
-                                                       samFlag=105, matePos=myReadData[0][0])
-                                    OFW.writeBAMRecord(myRefIndex, myReadName + '/2', myReadData[0][0],
-                                                       myReadData[1][1], myReadData[1][2], myReadData[1][3],
-                                                       samFlag=149, matePos=myReadData[0][0], alnMapQual=0)
+                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[0][0],
+                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3],
+                                                         sam_flag=105, mate_pos=myReadData[0][0])
+                                    OFW.write_bam_record(myRefIndex, myReadName + '/2', myReadData[0][0],
+                                                         myReadData[1][1], myReadData[1][2], myReadData[1][3],
+                                                         sam_flag=149, mate_pos=myReadData[0][0], aln_map_qual=0)
                                 elif isUnmapped[0] == True and isUnmapped[1] == False:
-                                    OFW.writeBAMRecord(myRefIndex, myReadName + '/1', myReadData[1][0],
-                                                       myReadData[0][1], myReadData[0][2], myReadData[0][3],
-                                                       samFlag=101, matePos=myReadData[1][0], alnMapQual=0)
-                                    OFW.writeBAMRecord(myRefIndex, myReadName + '/2', myReadData[1][0],
-                                                       myReadData[1][1], myReadData[1][2], myReadData[1][3],
-                                                       samFlag=153, matePos=myReadData[1][0])
+                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[1][0],
+                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3],
+                                                         sam_flag=101, mate_pos=myReadData[1][0], aln_map_qual=0)
+                                    OFW.write_bam_record(myRefIndex, myReadName + '/2', myReadData[1][0],
+                                                         myReadData[1][1], myReadData[1][2], myReadData[1][3],
+                                                         sam_flag=153, mate_pos=myReadData[1][0])
                         else:
                             print('\nError: Unexpected number of reads generated...\n')
                             exit(1)
                     # print 'READS:',time.time()-ASDF2_TT
 
                     if not isLastTime:
-                        OFW.flushBuffers(bamMax=next_start)
+                        OFW.flush_buffers(bam_max=next_start)
                     else:
-                        OFW.flushBuffers(bamMax=end + 1)
+                        OFW.flush_buffers(bam_max=end + 1)
 
                 # tally up all the variants that got successfully introduced
                 for n in all_inserted_variants:
@@ -718,7 +718,7 @@ def main(raw_args=None):
                 myQual = '.'
                 myFilt = 'PASS'
                 # k[0] + 1 because we're going back to 1-based vcf coords
-                OFW.writeVCFRecord(currentRef, str(int(k[0]) + 1), myID, k[1], k[2], myQual, myFilt, k[4])
+                OFW.write_vcf_record(currentRef, str(int(k[0]) + 1), myID, k[1], k[2], myQual, myFilt, k[4])
 
     # break
 
@@ -727,13 +727,13 @@ def main(raw_args=None):
         print('writing unmapped reads to bam file...')
         for umr in unmapped_records:
             if PAIRED_END:
-                OFW.writeBAMRecord(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], samFlag=umr[2], matePos=0,
-                                   alnMapQual=0)
+                OFW.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2], mate_pos=0,
+                                     aln_map_qual=0)
             else:
-                OFW.writeBAMRecord(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], samFlag=umr[2], alnMapQual=0)
+                OFW.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2], aln_map_qual=0)
 
     # close output files
-    OFW.closeFiles()
+    OFW.close_files()
 
 if __name__ == '__main__':
     main()
