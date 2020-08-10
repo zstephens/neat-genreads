@@ -36,8 +36,9 @@ def initialize_population(reference: str, pop_size):
         names.append("name" + str(j))
     population = []
     for i in range(pop_size):
-        args = ['-r', reference, '-R', '151', '-o', names[i], '--fa']
-        new_member = genReads.main(args)
+        args = ['-r', reference, '-R', '101', '-o', names[i], '--fa']
+        genReads.main(args)
+        new_member = names[i] + "_read1.fa"
         population.append(new_member)
     return population
 
