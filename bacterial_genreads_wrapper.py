@@ -2,6 +2,7 @@
 
 import genReads
 import argparse
+from Bio import SeqIO
 
 
 def cull(population: list) -> list:
@@ -11,17 +12,6 @@ def cull(population: list) -> list:
     :return:
     """
     return population
-
-
-def create_fasta(neat_input):
-    """
-    The purpose of this function will be to convert the output from neat-genreads into something
-    that can be an input back into neat genreads
-    :param neat_input:
-    :return fasta_output:
-    """
-    fasta_output = None
-    return fasta_output
 
 
 def crossover(population: list) -> list:
@@ -34,43 +24,47 @@ def crossover(population: list) -> list:
     return new_population
 
 
-def evolve(reference, read_length, output_prefix, pop_size):
+def initialize_population(reference: str, pop_size):
     """
     The purpose of this function is to evolve the bacteria
     :param reference:
-    :param read_length:
-    :param output_prefix:
-    :param cycles:
+    :param pop_size:
     :return population:
     """
-    args = ['-r', reference, '-R', str(read_length), '-o', output_prefix]
+    names = []
+    for j in range(pop_size):
+        names.append("name" + str(j))
     population = []
     for i in range(pop_size):
-        new_evolution = genReads.main(args)
-        new_member = create_fasta(new_evolution)
+        args = ['-r', reference, '-R', '151', '-o', names[i], '--fa']
+        new_member = genReads.main(args)
         population.append(new_member)
     return population
+
+
+def evolve(new_population, param):
+    pass
 
 
 def main():
     parser = argparse.ArgumentParser(description='bacterial_genreads_wrapper.py')
     parser.add_argument('-r', type=str, required=True, metavar='/path/to/reference.fasta',
                         help="Reference file for organism in fasta format")
-    parser.add_argument('-R', type=int, required=True, metavar='<int>', help="read length")
-    parser.add_argument('-o', type=str, required=True, metavar='<str>', help="output prefix")
     parser.add_argument('-C', type=int, required=True, metavar='<str>', help="Number of cycles to run")
-    parser.add_argument('-p', type=int, required=True, metavar='<str>', help="Population size per cycle")
+    parser.add_argument('-i', type=int, required=True, metavar='<str>', help="Initial population size")
+    parser.add_argument('-c', type=float, required=False, metavar='<float>',
+                        help="Percentage of population to cull each cycle (0.5 will keep population relatively stable)",
+                        default=0.5)
     args = parser.parse_args()
 
-    (ref_fasta, read_len, out_pref, population_size) = (args.r, args.R, args.o, args.p)
-    cycles = args.C
+    (ref_fasta, init_population_size, cycles) = (args.r, args.i, args.C)
+    cull_percentage = args.c
 
-    old_fasta = ref_fasta
-    candidate_population = evolve(old_fasta, read_len, out_pref, population_size)
+    population = initialize_population(ref_fasta, init_population_size)
     for i in range(cycles):
-        new_population = cull(candidate_population)
+        new_population = cull(population)
         # If all elements get culled, then break and quit
         if not new_population:
             break
         new_population = crossover(new_population)
-        candidate_population = evolve(new_population)
+        population = evolve(new_population, 2)
