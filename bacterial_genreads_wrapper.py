@@ -62,6 +62,7 @@ def main():
     cull_percentage = args.c
 
     population = initialize_population(ref_fasta, init_population_size)
+    print(population)
     for i in range(cycles):
         new_population = cull(population)
         # If all elements get culled, then break and quit
