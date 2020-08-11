@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import genReads
+# import genReads
 import argparse
-from Bio import SeqIO
+# from Bio import SeqIO
 
 
 def cull(population: list) -> list:
@@ -35,11 +35,11 @@ def initialize_population(reference: str, pop_size):
     for j in range(pop_size):
         names.append("name" + str(j))
     population = []
-    for i in range(pop_size):
-        args = ['-r', reference, '-R', '101', '-o', names[i], '--fa']
-        genReads.main(args)
-        new_member = names[i] + "_read1.fa"
-        population.append(new_member)
+    # for i in range(pop_size):
+    #     args = ['-r', reference, '-R', '101', '-o', names[i], '--fa']
+    #     genReads.main(args)
+    #     new_member = names[i] + "_read1.fa"
+    #     population.append(new_member)
     return population
 
 
@@ -63,10 +63,10 @@ def main():
 
     population = initialize_population(ref_fasta, init_population_size)
     print(population)
-    for i in range(cycles):
-        new_population = cull(population)
-        # If all elements get culled, then break and quit
-        if not new_population:
-            break
-        new_population = crossover(new_population)
-        population = evolve(new_population, 2)
+    # for i in range(cycles):
+    #     new_population = cull(population)
+    #     # If all elements get culled, then break and quit
+    #     if not new_population:
+    #         break
+    #     new_population = crossover(new_population)
+    #     population = evolve(new_population, 2)
