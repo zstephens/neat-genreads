@@ -2,17 +2,24 @@
 
 import genReads
 import argparse
+import random
 
 
 # from Bio import SeqIO
 
 
-def cull(population: list) -> list:
+def cull(population: list, percentage: float = 0.5) -> list:
     """
     The purpose of this function will be to cull the bacteria created in the model
-    :param population:
-    :return:
+    :param percentage: percentage of the population to eliminate
+    :param population: the list of members to cull
+    :return: The list of remaining members
     """
+    cull_amount = round(len(population) * percentage)
+    print("Culling {} members from population".format(cull_amount))
+    for i in range(cull_amount):
+        selection = random.choice(population)
+        population.remove(selection)
     return population
 
 
@@ -35,7 +42,7 @@ def initialize_population(reference: str, pop_size):
     """
     names = []
     for j in range(pop_size):
-        names.append("name" + str(j))
+        names.append("name" + str(j+1))
     population = []
     for i in range(pop_size):
         args = ['-r', reference, '-R', '101', '-o', names[i], '--fa']
@@ -66,7 +73,7 @@ def main():
     population = initialize_population(ref_fasta, init_population_size)
     print(population)
     for i in range(cycles):
-        new_population = cull(population)
+        new_population = cull(population, cull_percentage)
         # If all elements get culled, then break and quit
         if not new_population:
             break
