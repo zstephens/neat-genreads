@@ -3,9 +3,18 @@
 import genReads
 import argparse
 import random
-
-
+import pathlib
 # from Bio import SeqIO
+
+
+class Bacterium:
+    def __init__(self, reference: str, name: str, parent):
+        self.reference = pathlib.Path(reference)
+        self.parent = parent
+        self.name = name
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
+        genReads.main(args)
+        self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
 
 
 def cull(population: list, percentage: float = 0.5) -> list:
@@ -45,20 +54,33 @@ def initialize_population(reference: str, pop_size):
         names.append("name" + str(j+1))
     population = []
     for i in range(pop_size):
-        args = ['-r', reference, '-R', '101', '-o', names[i], '--fa']
-        genReads.main(args)
-        new_member = names[i] + "_read1.fa"
+        new_member = Bacterium(reference, names[i], None)
         population.append(new_member)
     return population
 
 
-def evolve(new_population, param):
-    pass
+def evolve(population: list) -> list:
+    """
+    This evolves an existing population by doubling them (binary fission), then introducing random mutation to
+    each member of the population.
+    :param population: A list of fasta files representing the bacteria.
+    :return:
+    """
+    new_population = population + population
+    names = []
+    for j in range(len(new_population)):
+        names.append("name" + str(j+1))
+    for i in range(len(new_population)):
+        args = ['-r', new_population[i], '-R', '101', '-o', names[i], '--fa']
+        genReads.main(args)
+        new_member = names[i] + "_read1.fa"
+        population.append(new_member)
+    return new_population
 
 
 def main():
     parser = argparse.ArgumentParser(description='bacterial_genreads_wrapper.py')
-    parser.add_argument('-r', type=str, required=True, metavar='reference.fasta',
+    parser.add_argument('-r', type=str, required=True, metavar='reference fasta',
                         help="Reference file for organism in fasta format")
     parser.add_argument('-C', type=int, required=True, metavar='Cycles', help="Number of cycles to run")
     parser.add_argument('-i', type=int, required=True, metavar='initial population', help="Initial population size")
@@ -74,11 +96,12 @@ def main():
     print(population)
     for i in range(cycles):
         new_population = cull(population, cull_percentage)
+        print(new_population)
         # If all elements get culled, then break and quit
         if not new_population:
             break
         new_population = crossover(new_population)
-        population = evolve(new_population, 2)
+        population = evolve(new_population)
 
 
 if __name__ == '__main__':
