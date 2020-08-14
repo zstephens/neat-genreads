@@ -16,6 +16,12 @@ class Bacterium:
         genReads.main(args)
         self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
 
+    def __repr__(self):
+        return "Bacterium {}".format(self.name)
+
+    def __str__(self):
+        return "Bacterium {}".format(self.name)
+
 
 def cull(population: list, percentage: float = 0.5) -> list:
     """
