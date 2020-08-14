@@ -10,17 +10,25 @@ import pathlib
 class Bacterium:
     def __init__(self, reference: str, name: str, parent):
         self.reference = pathlib.Path(reference)
+        print(type(parent))
         self.parent = parent
         self.name = name
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
-        genReads.main(args)
-        self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
+        self.history = []
+        self.file = ""
+
+        if type(self.parent) is None:
+            self.analyze()
 
     def __repr__(self):
         return "Bacterium {}".format(self.name)
 
     def __str__(self):
         return "Bacterium {}".format(self.name)
+
+    def analyze(self):
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
+        genReads.main(args)
+        self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
 
 
 def cull(population: list, percentage: float = 0.5) -> list:
@@ -100,6 +108,7 @@ def main():
 
     population = initialize_population(ref_fasta, init_population_size)
     print(population)
+    bacterium3 = ()
     for i in range(cycles):
         new_population = cull(population, cull_percentage)
         print(new_population)
