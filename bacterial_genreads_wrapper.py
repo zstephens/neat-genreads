@@ -22,6 +22,9 @@ class Bacterium:
     def __str__(self):
         return str(self.name)
 
+    def get_file(self):
+        return self.file
+
     def analyze(self):
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
         genReads.main(args)
@@ -57,7 +60,7 @@ def crossover(population: list) -> list:
     return new_population
 
 
-def initialize_population(reference: str, pop_size):
+def initialize_population(reference: str, pop_size) -> list:
     """
     The purpose of this function is to evolve the bacteria
     :param reference:
@@ -74,7 +77,7 @@ def initialize_population(reference: str, pop_size):
     return population
 
 
-def evolve(population: list, generation: int) -> list:
+def evolve_population(population: list, generation: int) -> list:
     """
     This evolves an existing population by doubling them (binary fission), then introducing random mutation to
     each member of the population.
@@ -88,7 +91,7 @@ def evolve(population: list, generation: int) -> list:
     for j in range(len(children_population)):
         names.append("bacterium_{}_{}".format(generation, j+1))
     for i in range(len(children_population)):
-        child = Bacterium(children_population[i], names[i], True)
+        child = Bacterium(children_population[i].get_file(), names[i], True)
         new_population.append(child)
     return new_population
 
@@ -104,13 +107,13 @@ def main():
                         default=0.5)
     args = parser.parse_args()
 
-    (ref_fasta, init_population_size, cycles) = (args.r, args.i, args.g)
+    (ref_fasta, init_population_size, generations) = (args.r, args.i, args.g)
     cull_percentage = args.c
 
     population = initialize_population(ref_fasta, init_population_size)
 
-    for i in range(cycles):
-        new_population = evolve(population, i + 1)
+    for i in range(generations):
+        new_population = evolve_population(population, i+1)
 
         new_population = crossover(new_population)
 
