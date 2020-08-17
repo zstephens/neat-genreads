@@ -104,7 +104,7 @@ def main():
                         default=0.5)
     args = parser.parse_args()
 
-    (ref_fasta, init_population_size, cycles) = (args.r, args.i, args.C)
+    (ref_fasta, init_population_size, cycles) = (args.r, args.i, args.g)
     cull_percentage = args.c
 
     population = initialize_population(ref_fasta, init_population_size)
@@ -115,7 +115,8 @@ def main():
         new_population = crossover(new_population)
 
         new_population = cull(new_population, cull_percentage)
-        # If all elements get culled, then break and quit
+
+        # If all elements get culled, then break the loop
         if not new_population:
             break
 
