@@ -66,7 +66,7 @@ def initialize_population(reference: str, pop_size):
     """
     names = []
     for j in range(pop_size):
-        names.append("bacterium_0_" + str(j+1))
+        names.append("bacterium_0_{}".format(j+1))
     population = []
     for i in range(pop_size):
         new_member = Bacterium(reference, names[i], True)
@@ -86,7 +86,7 @@ def evolve(population: list, generation: int) -> list:
     names = []
     new_population = []
     for j in range(len(children_population)):
-        names.append("bacterium" + '_' + generation + '_' + str(j+1))
+        names.append("bacterium_{}_{}".format(generation, j+1))
     for i in range(len(children_population)):
         child = Bacterium(children_population[i], names[i], True)
         new_population.append(child)
