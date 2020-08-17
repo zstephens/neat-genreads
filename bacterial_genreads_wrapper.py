@@ -41,6 +41,7 @@ class Bacterium:
         print(self.file)
         true_path = pathlib.Path().absolute() / (self.name + "_read1.fa")
         unzip_file(self.file, true_path)
+        pathlib.Path.unlink(pathlib.Path().absolute() / (self.name + "_read1.fa.gz"))
         self.file = true_path
         # end workaround
 
