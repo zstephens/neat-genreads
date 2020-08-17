@@ -8,13 +8,12 @@ import pathlib
 
 
 class Bacterium:
-    def __init__(self, reference: str, name: str, analyze: bool = True):
+    def __init__(self, reference: str, name: str):
         self.reference = pathlib.Path(reference)
         self.name = name
-        self.file = ""
-
-        if analyze:
-            self.analyze()
+        # Temporarily set the reference as the bacterium's file, until it is analyzed
+        self.file = pathlib.Path(reference)
+        self.analyze()
 
     def __repr__(self):
         return str(self.name)
@@ -29,9 +28,11 @@ class Bacterium:
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
         genReads.main(args)
         self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
+        new_name = self.name + "_read1.fa.gz"
+        self.file.rename(pathlib.Path(pathlib.Path().absolute(), new_name))
 
     def remove(self):
-        pathlib.unlink(self.file)
+        pathlib.Path.unlink(self.file)
 
 
 def cull(population: list, percentage: float = 0.5) -> list:
@@ -72,7 +73,7 @@ def initialize_population(reference: str, pop_size) -> list:
         names.append("bacterium_0_{}".format(j+1))
     population = []
     for i in range(pop_size):
-        new_member = Bacterium(reference, names[i], True)
+        new_member = Bacterium(reference, names[i])
         population.append(new_member)
     return population
 
@@ -92,7 +93,7 @@ def evolve_population(population: list, generation: int) -> list:
         names.append("bacterium_{}_{}".format(generation, j+1))
     for i in range(len(children_population)):
         print(children_population[i].get_file())
-        child = Bacterium(children_population[i].get_file(), names[i], True)
+        child = Bacterium(children_population[i].get_file(), names[i])
         new_population.append(child)
     return new_population
 
