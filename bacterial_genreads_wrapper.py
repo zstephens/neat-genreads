@@ -34,8 +34,10 @@ class Bacterium:
         # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
         # fasta files, so we further have to unzip it for it to actually work.
         self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
+        print(self.file)
         new_name = self.name + "_read1.fa.gz"
         self.file.rename(pathlib.Path(pathlib.Path().absolute(), new_name))
+        print(self.file)
         true_path = pathlib.Path().absolute() / (self.name + "_read1.fa")
         unzip_file(self.file, true_path)
         self.file = true_path
