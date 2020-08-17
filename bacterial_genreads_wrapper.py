@@ -4,6 +4,8 @@ import genReads
 import argparse
 import random
 import pathlib
+import gzip
+import shutil
 # from Bio import SeqIO
 
 
@@ -27,12 +29,26 @@ class Bacterium:
     def analyze(self):
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
         genReads.main(args)
+
+        # The following workaround is due to the fact that genReads writes out a compressed
+        # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
+        # fasta files, so we further have to unzip it for it to actually work.
         self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
         new_name = self.name + "_read1.fa.gz"
         self.file.rename(pathlib.Path(pathlib.Path().absolute(), new_name))
+        true_path = pathlib.Path().absolute() / (self.name + "_read1.fa")
+        unzip_file(self.file, true_path)
+        self.file = true_path
+        # end workaround
 
     def remove(self):
         pathlib.Path.unlink(self.file)
+
+
+def unzip_file(zipped_file: pathlib, unzipped_file: pathlib):
+    with gzip.open(zipped_file, 'rb') as f_in:
+        with open(unzipped_file, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
 
 
 def cull(population: list, percentage: float = 0.5) -> list:
