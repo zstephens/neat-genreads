@@ -8,7 +8,7 @@ import pathlib
 
 
 class Bacterium:
-    def __init__(self, reference: str, name: str, analyze: bool):
+    def __init__(self, reference: str, name: str, analyze: bool = True):
         self.reference = pathlib.Path(reference)
         self.name = name
         self.file = ""
@@ -91,6 +91,7 @@ def evolve_population(population: list, generation: int) -> list:
     for j in range(len(children_population)):
         names.append("bacterium_{}_{}".format(generation, j+1))
     for i in range(len(children_population)):
+        print(children_population[i].get_file())
         child = Bacterium(children_population[i].get_file(), names[i], True)
         new_population.append(child)
     return new_population
