@@ -27,6 +27,11 @@ class Bacterium:
         return self.file
 
     def analyze(self):
+        """
+        This function is supposed to just run genreads for the bacterium, but doing so requires some file
+        manipulation to unzip the file and fix genreads horribly formatted fasta file.
+        :return: None
+        """
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
         genReads.main(args)
 
@@ -34,14 +39,12 @@ class Bacterium:
         # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
         # fasta files, so we further have to unzip it for it to actually work.
         self.file = pathlib.Path().absolute() / (self.name + "_read1.fa")
-        print(self.file)
         new_name = self.name + "_read1.fa.gz"
         self.file.rename(pathlib.Path(pathlib.Path().absolute(), new_name))
         self.file = pathlib.Path().absolute() / (self.name + "_read1.fa.gz")
-        print(self.file)
         true_path = pathlib.Path().absolute() / (self.name + "_read1.fa")
         unzip_file(self.file, true_path)
-        pathlib.Path.unlink(pathlib.Path().absolute() / (self.name + "_read1.fa.gz")) # deletes unused zip file
+        pathlib.Path.unlink(pathlib.Path().absolute() / (self.name + "_read1.fa.gz"))  # deletes unused zip file
         self.file = true_path
         # end workaround
 
@@ -65,13 +68,21 @@ class Bacterium:
         # re-write file with just the chrom name and sequence
         self.file.open('w').write(chromosome_name + sequence)
 
-
+    def sample(self):
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name]
+        genReads.main(args)
 
     def remove(self):
         pathlib.Path.unlink(self.file)
 
 
 def unzip_file(zipped_file: pathlib, unzipped_file: pathlib):
+    """
+    This unzips a gzipped file, then saves the unzipped file as a new file.
+    :param zipped_file: pathlib object that points to the zipped file
+    :param unzipped_file: pathlib object that points to the unzipped file
+    :return:
+    """
     with gzip.open(zipped_file, 'rb') as f_in:
         with open(unzipped_file, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
@@ -93,22 +104,13 @@ def cull(population: list, percentage: float = 0.5) -> list:
     return population
 
 
-def crossover(population: list) -> list:
-    """
-    This function will take a list of individuals and do crossover type mixing
-    :param population:
-    :return new_population:
-    """
-    new_population = population
-    return new_population
-
-
 def initialize_population(reference: str, pop_size) -> list:
     """
-    The purpose of this function is to evolve the bacteria
-    :param reference:
-    :param pop_size:
-    :return population:
+    The purpose of this function is to evolve the initial population of bacteria. All bacteria are stored as
+    Bacterium objects.
+    :param reference: string path to the reference fasta file
+    :param pop_size: size of the population to initialize.
+    :return population: returns a list of bacterium objects.
     """
     names = []
     for j in range(pop_size):
@@ -140,6 +142,16 @@ def evolve_population(population: list, generation: int) -> list:
     return new_population
 
 
+def sample_population(population: list):
+    """
+    This will create a fastq based on each member of the population.
+    :param population: a list of bacteria
+    :return: None
+    """
+    for bacterium in population:
+        bacterium.sample()
+
+
 def main():
     parser = argparse.ArgumentParser(description='bacterial_genreads_wrapper.py')
     parser.add_argument('-r', type=str, required=True, metavar='reference fasta',
@@ -159,13 +171,15 @@ def main():
     for i in range(generations):
         new_population = evolve_population(population, i+1)
 
-        new_population = crossover(new_population)
-
         new_population = cull(new_population, cull_percentage)
 
         # If all elements get culled, then break the loop
         if not new_population:
             break
+
+        population = new_population
+
+    sample_population(population)
 
 
 if __name__ == '__main__':
