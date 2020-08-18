@@ -47,7 +47,24 @@ class Bacterium:
 
         # Now we further have to fix the fasta file, which outputs in a form that doesn't make much sense,
         # so that it can be properly analyzed in the next generation by genreads.
-        # TODO see above comment
+        chromosome_name = ""
+        sequence = ""
+        with self.file.open() as f:
+            first_line = f.readline()
+            if first_line.startswith(">"):
+                chromosome_name = first_line
+            else:
+                print("Something went wrong with the fasta file")
+                exit(1)
+            for line in f:
+                if line.startswith(">"):
+                    continue
+                else:
+                    sequence = sequence + line
+            f.close()
+        # re-write file with just the chrom name and sequence
+        self.file.open('w').write(chromosome_name + sequence)
+
 
 
     def remove(self):
