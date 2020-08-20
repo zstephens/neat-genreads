@@ -1,7 +1,7 @@
 #
 #
 #   compute_gc.py
-#   Compute GC and coverage model for genReads.py
+#   Compute GC and coverage model for gen_reads.py
 #
 #   Takes output file from bedtools genomecov to generate GC/coverage model
 #

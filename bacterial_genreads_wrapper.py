@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import genReads
+import gen_reads
 import argparse
 import random
 import pathlib
@@ -33,7 +33,7 @@ class Bacterium:
         :return: None
         """
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
-        genReads.main(args)
+        gen_reads.main(args)
 
         # The following workaround is due to the fact that genReads writes out a compressed
         # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
@@ -70,7 +70,7 @@ class Bacterium:
 
     def sample(self):
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name]
-        genReads.main(args)
+        gen_reads.main(args)
 
     def remove(self):
         pathlib.Path.unlink(self.file)

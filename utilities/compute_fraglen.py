@@ -1,6 +1,6 @@
 #
 #
-#      Compute Fragment Length Model for genReads.py
+#      Compute Fragment Length Model for gen_reads.py
 #                  compute_fraglen.py
 #
 #

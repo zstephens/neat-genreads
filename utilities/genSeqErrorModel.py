@@ -3,7 +3,7 @@
 #
 #
 #          genSeqErrorModel.py
-#          Computes sequencing error model for genReads.py
+#          Computes sequencing error model for gen_reads.py
 #
 #         
 #          Usage: python genSeqErrorModel.py -i input_reads.fq -o path/to/output_name.p
