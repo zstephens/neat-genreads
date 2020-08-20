@@ -9,7 +9,7 @@ INCLUDE_FAIL = False
 CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND = True
 
 
-def parseLine(splt, col_dict, col_samp):
+def parse_line(splt, col_dict, col_samp):
     #	check if we want to proceed..
     ra = splt[col_dict['REF']]
     aa = splt[col_dict['ALT']]
@@ -38,7 +38,7 @@ def parseLine(splt, col_dict, col_samp):
     if 'INFO' in col_dict and ';AF=' in ';' + splt[col_dict['INFO']]:
         info = splt[col_dict['INFO']] + ';'
         af = re.findall(r"AF=.*?(?=;)", info)[0][3:]
-    if af != None:
+    if af is not None:
         af_splt = af.split(',')
         while (len(af_splt) < len(alt_alleles)):  # are we lacking enough AF values for some reason?
             af_splt.append(af_splt[-1])  # phone it in.
@@ -64,13 +64,13 @@ def parseLine(splt, col_dict, col_samp):
                 gt_per_samp = [splt[col_samp[iii]].split(':')[gt_ind - 1] for iii in range(len(col_samp))]
                 for i in range(len(gt_per_samp)):
                     gt_per_samp[i] = gt_per_samp[i].replace('.', '0')
-        if gt_per_samp == None:
+        if gt_per_samp is None:
             gt_per_samp = [None] * max([len(col_samp), 1])
 
-    return (alt_alleles, alt_freqs, gt_per_samp)
+    return alt_alleles, alt_freqs, gt_per_samp
 
 
-def parseVCF(vcf_path, tumor_normal=False, ploidy=2):
+def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
     tt = time.time()
     print('--------------------------------')
     sys.stdout.write('reading input VCF...\n')
@@ -92,8 +92,8 @@ def parseVCF(vcf_path, tumor_normal=False, ploidy=2):
                 f.close()
                 exit(1)
             splt = line[:-1].split('\t')
-            pl_out = parseLine(splt, col_dict, col_samp)
-            if pl_out == None:
+            pl_out = parse_line(splt, col_dict, col_samp)
+            if pl_out is None:
                 n_skipped += 1
             else:
                 (aa, af, gt) = pl_out
@@ -118,7 +118,7 @@ def parseVCF(vcf_path, tumor_normal=False, ploidy=2):
                         continue
                 non_reference = False
                 for gtVal in gt_eval:
-                    if gtVal != None:
+                    if gtVal is not None:
                         if '1' in gtVal:
                             non_reference = True
                 if not non_reference:
@@ -181,4 +181,4 @@ def parseVCF(vcf_path, tumor_normal=False, ploidy=2):
     print(' *', n_skipped, 'variants skipped: (qual filtered / ref genotypes / invalid syntax)')
     print(' *', n_skipped_because_hash, 'variants skipped due to multiple variants found per position')
     print('--------------------------------')
-    return (samp_names, vars_out)
+    return samp_names, vars_out

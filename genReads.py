@@ -27,10 +27,10 @@ import argparse
 
 from py.input_checking import required_field, check_file_open, is_in_range
 from py.ref_func import index_ref, read_ref, get_all_ref_regions, partition_ref_regions
-from py.vcfFunc import parseVCF
+from py.vcfFunc import parse_vcf
 from py.output_file_writer import OutputFileWriter
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
-from py.SequenceContainer import SequenceContainer, ReadContainer, parseInputMutationModel
+from py.SequenceContainer import SequenceContainer, ReadContainer, parse_input_mutation_model
 
 """//////////////////////////////////////////////////
 ////////////    PARSE INPUT ARGUMENTS    ////////////
@@ -94,7 +94,6 @@ def main(raw_args=None):
     # if coverage val for a given window/position is below this value, consider it effectively zero.
     LOW_COV_THRESH = 50
 
-
     # required args
     (REFERENCE, READLEN, OUT_PREFIX) = (args.r, args.R, args.o)
     # various dataset parameters
@@ -105,7 +104,7 @@ def main(raw_args=None):
     (SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = \
         (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
 
-    ONLY_VCF = (NO_FASTQ and SAVE_VCF and not (SAVE_BAM))
+    ONLY_VCF = (NO_FASTQ and SAVE_VCF and not SAVE_BAM)
     if ONLY_VCF:
         print('Only producing VCF output, that should speed things up a bit...')
 
@@ -160,7 +159,7 @@ def main(raw_args=None):
 
     #	mutation models
     #
-    MUT_MODEL = parseInputMutationModel(MUT_MODEL, 1)
+    MUT_MODEL = parse_input_mutation_model(MUT_MODEL, 1)
     if MUT_RATE < 0.:
         MUT_RATE = None
 
@@ -191,12 +190,12 @@ def main(raw_args=None):
     #
     if PAIRED_END and not (PAIRED_END_ARTIFICIAL):
         print('Using empirical fragment length distribution.')
-        [potential_vals, potential_prob] = pickle.load(open(FRAGLEN_MODEL, 'rb'))
+        [potential_values, potential_prob] = pickle.load(open(FRAGLEN_MODEL, 'rb'))
         FRAGLEN_VALS = []
         FRAGLEN_PROB = []
-        for i in range(len(potential_vals)):
-            if potential_vals[i] > READLEN:
-                FRAGLEN_VALS.append(potential_vals[i])
+        for i in range(len(potential_values)):
+            if potential_values[i] > READLEN:
+                FRAGLEN_VALS.append(potential_values[i])
                 FRAGLEN_PROB.append(potential_prob[i])
         # should probably add some validation and sanity-checking code here...
         FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB, FRAGLEN_VALS)
@@ -225,16 +224,18 @@ def main(raw_args=None):
 
     # fragment length distribution: normal distribution that goes out to +- 6 standard deviations
     if PAIRED_END and PAIRED_END_ARTIFICIAL:
-        print('Using artificial fragment length distribution. mean=' + str(FRAGMENT_SIZE) + ', std=' + str(FRAGMENT_STD))
+        print(
+            'Using artificial fragment length distribution. mean=' + str(FRAGMENT_SIZE) + ', std=' + str(FRAGMENT_STD))
         if FRAGMENT_STD == 0:
             FRAGLEN_DISTRIBUTION = DiscreteDistribution([1], [FRAGMENT_SIZE], degenerate_val=FRAGMENT_SIZE)
         else:
-            potential_vals = range(FRAGMENT_SIZE - 6 * FRAGMENT_STD, FRAGMENT_SIZE + 6 * FRAGMENT_STD + 1)
+            potential_values = range(FRAGMENT_SIZE - 6 * FRAGMENT_STD, FRAGMENT_SIZE + 6 * FRAGMENT_STD + 1)
             FRAGLEN_VALS = []
-            for i in range(len(potential_vals)):
-                if potential_vals[i] > READLEN:
-                    FRAGLEN_VALS.append(potential_vals[i])
-            FRAGLEN_PROB = [np.exp(-(((n - float(FRAGMENT_SIZE)) ** 2) / (2 * (FRAGMENT_STD ** 2)))) for n in FRAGLEN_VALS]
+            for i in range(len(potential_values)):
+                if potential_values[i] > READLEN:
+                    FRAGLEN_VALS.append(potential_values[i])
+            FRAGLEN_PROB = [np.exp(-(((n - float(FRAGMENT_SIZE)) ** 2) / (2 * (FRAGMENT_STD ** 2)))) for n in
+                            FRAGLEN_VALS]
             FRAGLEN_DISTRIBUTION = DiscreteDistribution(FRAGLEN_PROB, FRAGLEN_VALS)
 
     """************************************************
@@ -262,90 +263,90 @@ def main(raw_args=None):
 
     ALLOWED_NUCL = ['A', 'C', 'G', 'T']
     # index reference
-    refIndex = index_ref(REFERENCE)
+    ref_index = index_ref(REFERENCE)
     if PAIRED_END:
         N_HANDLING = ('random', FRAGMENT_SIZE)
     else:
         N_HANDLING = ('ignore', READLEN)
-    indices_by_refName = {refIndex[n][0]: n for n in range(len(refIndex))}
+    indices_by_ref_name = {ref_index[n][0]: n for n in range(len(ref_index))}
 
     # parse input variants, if present
-    inputVariants = []
+    input_variants = []
     if INPUT_VCF is not None:
-        (sampNames, inputVariants) = parseVCF(INPUT_VCF, ploidy=PLOIDS)
-        for k in sorted(inputVariants.keys()):
-            inputVariants[k].sort()
+        (sampNames, input_variants) = parse_vcf(INPUT_VCF, ploidy=PLOIDS)
+        for k in sorted(input_variants.keys()):
+            input_variants[k].sort()
 
     # parse input targeted regions, if present
-    inputRegions = {}
-    refList = [n[0] for n in refIndex]
+    input_regions = {}
+    ref_list = [n[0] for n in ref_index]
     if INPUT_BED is not None:
         with open(INPUT_BED, 'r') as f:
             for line in f:
-                [myChr, pos1, pos2] = line.strip().split('\t')[:3]
-                if myChr not in inputRegions:
-                    inputRegions[myChr] = [-1]
-                inputRegions[myChr].extend([int(pos1), int(pos2)])
+                [my_chr, pos1, pos2] = line.strip().split('\t')[:3]
+                if my_chr not in input_regions:
+                    input_regions[my_chr] = [-1]
+                input_regions[my_chr].extend([int(pos1), int(pos2)])
         # some validation
-        nInBedOnly = 0
-        nInRefOnly = 0
-        for k in refList:
-            if k not in inputRegions:
-                nInRefOnly += 1
-        for k in inputRegions.keys():
-            if not k in refList:
-                nInBedOnly += 1
-                del inputRegions[k]
-        if nInRefOnly > 0:
+        n_in_bed_only = 0
+        n_in_ref_only = 0
+        for k in ref_list:
+            if k not in input_regions:
+                n_in_ref_only += 1
+        for k in input_regions.keys():
+            if not k in ref_list:
+                n_in_bed_only += 1
+                del input_regions[k]
+        if n_in_ref_only > 0:
             print('Warning: Reference contains sequences not found in targeted regions BED file.')
-        if nInBedOnly > 0:
+        if n_in_bed_only > 0:
             print(
                 'Warning: Targeted regions BED file contains sequence names not found in reference (regions ignored).')
 
     # parse input mutation rate rescaling regions, if present
-    mutRateRegions = {}
-    mutRateValues = {}
+    mut_rate_regions = {}
+    mut_rate_values = {}
     if MUT_BED is not None:
         with open(MUT_BED, 'r') as f:
             for line in f:
-                [myChr, pos1, pos2, metaData] = line.strip().split('\t')[:4]
-                mutStr = re.findall(r"MUT_RATE=.*?(?=;)", metaData + ';')
+                [my_chr, pos1, pos2, meta_data] = line.strip().split('\t')[:4]
+                mut_str = re.findall(r"MUT_RATE=.*?(?=;)", meta_data + ';')
                 (pos1, pos2) = (int(pos1), int(pos2))
-                if len(mutStr) and (pos2 - pos1) > 1:
-                    # mutRate = #_mutations / length_of_region, let's bound it by a reasonable amount
-                    mutRate = max([0.0, min([float(mutStr[0][9:]), 0.3])])
-                    if myChr not in mutRateRegions:
-                        mutRateRegions[myChr] = [-1]
-                        mutRateValues[myChr] = [0.0]
-                    mutRateRegions[myChr].extend([pos1, pos2])
-                    mutRateValues.extend([mutRate * (pos2 - pos1)] * 2)
+                if len(mut_str) and (pos2 - pos1) > 1:
+                    # mut_rate = #_mutations / length_of_region, let's bound it by a reasonable amount
+                    mut_rate = max([0.0, min([float(mut_str[0][9:]), 0.3])])
+                    if my_chr not in mut_rate_regions:
+                        mut_rate_regions[my_chr] = [-1]
+                        mut_rate_values[my_chr] = [0.0]
+                    mut_rate_regions[my_chr].extend([pos1, pos2])
+                    mut_rate_values.extend([mut_rate * (pos2 - pos1)] * 2)
 
     # initialize output files (part I)
-    bamHeader = None
+    bam_header = None
     if SAVE_BAM:
-        bamHeader = [copy.deepcopy(refIndex)]
-    vcfHeader = None
+        bam_header = [copy.deepcopy(ref_index)]
+    vcf_header = None
     if SAVE_VCF:
-        vcfHeader = [REFERENCE]
+        vcf_header = [REFERENCE]
 
     # If processing jobs in parallel, precompute the independent regions that can be process separately
     if NJOBS > 1:
-        parallelRegionList = get_all_ref_regions(REFERENCE, refIndex, N_HANDLING, save_output=SAVE_NON_N)
-        (myRefs, myRegions) = partition_ref_regions(parallelRegionList, refIndex, MYJOB, NJOBS)
+        parallel_region_list = get_all_ref_regions(REFERENCE, ref_index, N_HANDLING, save_output=SAVE_NON_N)
+        (myRefs, myRegions) = partition_ref_regions(parallel_region_list, ref_index, MYJOB, NJOBS)
         if not len(myRegions):
             print('This job id has no regions to process, exiting...')
             exit(1)
-        for i in range(len(refIndex) - 1, -1, -1):  # delete reference not used in our job
-            if not refIndex[i][0] in myRefs:
-                del refIndex[i]
+        for i in range(len(ref_index) - 1, -1, -1):  # delete reference not used in our job
+            if not ref_index[i][0] in myRefs:
+                del ref_index[i]
         # if value of NJOBS is too high, let's change it to the maximum possible, to avoid output filename confusion
-        corrected_nJobs = min([NJOBS, sum([len(n) for n in parallelRegionList.values()])])
+        corrected_n_jobs = min([NJOBS, sum([len(n) for n in parallel_region_list.values()])])
     else:
-        corrected_nJobs = 1
+        corrected_n_jobs = 1
 
     # initialize output files (part II)
-    OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, bam_header=bamHeader, vcf_header=vcfHeader,
-                           gzipped=GZIPPED_OUT, job_tuple=(MYJOB, corrected_nJobs), no_fastq=NO_FASTQ,
+    OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, bam_header=bam_header, vcf_header=vcf_header,
+                           gzipped=GZIPPED_OUT, job_tuple=(MYJOB, corrected_n_jobs), no_fastq=NO_FASTQ,
                            fasta_instead=FASTA_INSTEAD)
     OUT_PREFIX_NAME = OUT_PREFIX.split('/')[-1]
 
@@ -353,55 +354,55 @@ def main(raw_args=None):
 	****        LET'S GET THIS PARTY STARTED...
 	************************************************"""
 
-    readNameCount = 1  # keep track of the number of reads we've sampled, for read-names
+    read_name_count = 1  # keep track of the number of reads we've sampled, for read-names
     unmapped_records = []
 
-    for RI in range(len(refIndex)):
+    for RI in range(len(ref_index)):
 
         # read in reference sequence and notate blocks of Ns
-        (refSequence, N_regions) = read_ref(REFERENCE, refIndex[RI], N_HANDLING)
+        (refSequence, n_regions) = read_ref(REFERENCE, ref_index[RI], N_HANDLING)
 
         # if we're processing jobs in parallel only take the regions relevant for the current job
         if NJOBS > 1:
-            for i in range(len(N_regions['non_N']) - 1, -1, -1):
-                if not (refIndex[RI][0], N_regions['non_N'][i][0], N_regions['non_N'][i][1]) in myRegions:
-                    del N_regions['non_N'][i]
+            for i in range(len(n_regions['non_N']) - 1, -1, -1):
+                if not (ref_index[RI][0], n_regions['non_N'][i][0], n_regions['non_N'][i][1]) in myRegions:
+                    del n_regions['non_N'][i]
 
         # count total bp we'll be spanning so we can get an idea of how far along we are (for printing progress indicators)
-        total_bp_span = sum([n[1] - n[0] for n in N_regions['non_N']])
-        currentProgress = 0
-        currentPercent = 0
-        havePrinted100 = False
+        total_bp_span = sum([n[1] - n[0] for n in n_regions['non_N']])
+        current_progress = 0
+        current_percent = 0
+        have_printed100 = False
 
         # prune invalid input variants, e.g variants that:
         #		- try to delete or alter any N characters
         #		- don't match the reference base at their specified position
         #		- any alt allele contains anything other than allowed characters
-        validVariants = []
-        nSkipped = [0, 0, 0]
-        if refIndex[RI][0] in inputVariants:
-            for n in inputVariants[refIndex[RI][0]]:
+        valid_variants = []
+        n_skipped = [0, 0, 0]
+        if ref_index[RI][0] in input_variants:
+            for n in input_variants[ref_index[RI][0]]:
                 span = (n[0], n[0] + len(n[1]))
-                rseq = str(refSequence[span[0] - 1:span[1] - 1])  # -1 because going from VCF coords to array coords
-                anyBadChr = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
-                if rseq != n[1]:
-                    nSkipped[0] += 1
+                r_seq = str(refSequence[span[0] - 1:span[1] - 1])  # -1 because going from VCF coords to array coords
+                any_bad_chr = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
+                if r_seq != n[1]:
+                    n_skipped[0] += 1
                     continue
-                elif 'N' in rseq:
-                    nSkipped[1] += 1
+                elif 'N' in r_seq:
+                    n_skipped[1] += 1
                     continue
-                elif anyBadChr:
-                    nSkipped[2] += 1
+                elif any_bad_chr:
+                    n_skipped[2] += 1
                     continue
-                # if bisect.bisect(N_regions['big'],span[0])%2 or bisect.bisect(N_regions['big'],span[1])%2:
-                #	continue
-                validVariants.append(n)
-            print('found', len(validVariants), 'valid variants for ' + refIndex[RI][0] + ' in input VCF...')
-            if any(nSkipped):
-                print(sum(nSkipped), 'variants skipped...')
-                print(' - [' + str(nSkipped[0]) + '] ref allele does not match reference')
-                print(' - [' + str(nSkipped[1]) + '] attempting to insert into N-region')
-                print(' - [' + str(nSkipped[2]) + '] alt allele contains non-ACGT characters')
+                # if bisect.bisect(n_regions['big'],span[0])%2 or bisect.bisect(n_regions['big'],span[1])%2:
+                # continue
+                valid_variants.append(n)
+            print('found', len(valid_variants), 'valid variants for ' + ref_index[RI][0] + ' in input VCF...')
+            if any(n_skipped):
+                print(sum(n_skipped), 'variants skipped...')
+                print(' - [' + str(n_skipped[0]) + '] ref allele does not match reference')
+                print(' - [' + str(n_skipped[1]) + '] attempting to insert into N-region')
+                print(' - [' + str(n_skipped[2]) + '] alt allele contains non-ACGT characters')
 
         # add large random structural variants
         #
@@ -413,17 +414,17 @@ def main(raw_args=None):
         #		- FRAGMENT_SIZE (mean), if paired-end reads
         # ploidy is fixed per large sampling window,
         # coverage distributions due to GC% and targeted regions are specified within these windows
-        samplingWindows = []
+        sampling_windows = []
         ALL_VARIANTS_OUT = {}
         sequences = None
         if PAIRED_END:
-            targSize = WINDOW_TARGET_SCALE * FRAGMENT_SIZE
+            target_size = WINDOW_TARGET_SCALE * FRAGMENT_SIZE
             overlap = FRAGMENT_SIZE
-            overlap_minWindowSize = max(FRAGLEN_DISTRIBUTION.values) + 10
+            overlap_min_window_size = max(FRAGLEN_DISTRIBUTION.values) + 10
         else:
-            targSize = WINDOW_TARGET_SCALE * READLEN
+            target_size = WINDOW_TARGET_SCALE * READLEN
             overlap = READLEN
-            overlap_minWindowSize = READLEN + 10
+            overlap_min_window_size = READLEN + 10
 
         print('--------------------------------')
         if ONLY_VCF:
@@ -432,56 +433,56 @@ def main(raw_args=None):
             print('sampling reads...')
         tt = time.time()
 
-        for i in range(len(N_regions['non_N'])):
-            (pi, pf) = N_regions['non_N'][i]
-            nTargWindows = max([1, (pf - pi) // targSize])
-            bpd = int((pf - pi) / float(nTargWindows))
+        for i in range(len(n_regions['non_N'])):
+            (pi, pf) = n_regions['non_N'][i]
+            n_target_windows = max([1, (pf - pi) // target_size])
+            bpd = int((pf - pi) / float(n_target_windows))
             # bpd += GC_WINDOW_SIZE - bpd%GC_WINDOW_SIZE
 
-            # print len(refSequence), (pi,pf), nTargWindows
-            # print structuralVars
+            # print len(refSequence), (pi,pf), n_target_windows
+            # print structural_vars
 
             # if for some reason our region is too small to process, skip it! (sorry)
-            if nTargWindows == 1 and (pf - pi) < overlap_minWindowSize:
+            if n_target_windows == 1 and (pf - pi) < overlap_min_window_size:
                 # print 'Does this ever happen?'
                 continue
 
             start = pi
             end = min([start + bpd, pf])
-            # print '------------------RAWR:', (pi,pf), nTargWindows, bpd
-            varsFromPrevOverlap = []
-            vindFromPrev = 0
-            isLastTime = False
-            havePrinted100 = False
+            # print '------------------RAWR:', (pi,pf), n_target_windows, bpd
+            vars_from_prev_overlap = []
+            vind_from_prev = 0
+            is_last_time = False
+            have_printed100 = False
 
             while True:
 
                 # which inserted variants are in this window?
-                varsInWindow = []
+                vars_in_window = []
                 updated = False
-                for j in range(vindFromPrev, len(validVariants)):
-                    vPos = validVariants[j][0]
-                    if vPos > start and vPos < end:  # update: changed >= to >, so variant cannot be inserted in first position
-                        varsInWindow.append(tuple([vPos - 1] + list(validVariants[j][1:])))  # vcf --> array coords
-                    if vPos >= end - overlap - 1 and updated == False:
+                for j in range(vind_from_prev, len(valid_variants)):
+                    v_pos = valid_variants[j][0]
+                    if start < v_pos < end:  # update: changed >= to >, so variant cannot be inserted in first position
+                        vars_in_window.append(tuple([v_pos - 1] + list(valid_variants[j][1:])))  # vcf --> array coords
+                    if v_pos >= end - overlap - 1 and updated is False:
                         updated = True
-                        vindFromPrev = j
-                    if vPos >= end:
+                        vind_from_prev = j
+                    if v_pos >= end:
                         break
 
                 # determine which structural variants will affect our sampling window positions
-                structuralVars = []
-                for n in varsInWindow:
-                    bufferNeeded = max([max([abs(len(n[1]) - len(alt_allele)), 1]) for alt_allele in
+                structural_vars = []
+                for n in vars_in_window:
+                    buffer_needed = max([max([abs(len(n[1]) - len(alt_allele)), 1]) for alt_allele in
                                         n[2]])  # change: added abs() so that insertions are also buffered.
-                    structuralVars.append((n[0] - 1, bufferNeeded))  # -1 because going from VCF coords to array coords
+                    structural_vars.append((n[0] - 1, buffer_needed))  # -1 because going from VCF coords to array coords
 
                 # adjust end-position of window based on inserted structural mutations
                 buffer_added = 0
-                keepGoing = True
-                while keepGoing:
-                    keepGoing = False
-                    for n in structuralVars:
+                keep_going = True
+                while keep_going:
+                    keep_going = False
+                    for n in structural_vars:
                         # adding "overlap" here to prevent SVs from being introduced in overlap regions
                         # (which can cause problems if random mutations from the previous window land on top of them)
                         delta = (end - 1) - (n[0] + n[1]) - 2 - overlap
@@ -490,25 +491,25 @@ def main(raw_args=None):
                             buffer_added = -delta
                             end += buffer_added
                             ####print end
-                            keepGoing = True
+                            keep_going = True
                             break
                 next_start = end - overlap
                 next_end = min([next_start + bpd, pf])
                 if next_end - next_start < bpd:
                     end = next_end
-                    isLastTime = True
+                    is_last_time = True
 
                 # print progress indicator
                 ####print 'PROCESSING WINDOW:',(start,end), [buffer_added], 'next:', (next_start,next_end)
-                currentProgress += end - start
-                newPercent = int((currentProgress * 100) / float(total_bp_span))
-                if newPercent > currentPercent:
-                    if newPercent <= 99 or (newPercent == 100 and not havePrinted100):
-                        sys.stdout.write(str(newPercent) + '% ')
+                current_progress += end - start
+                new_percent = int((current_progress * 100) / float(total_bp_span))
+                if new_percent > current_percent:
+                    if new_percent <= 99 or (new_percent == 100 and not have_printed100):
+                        sys.stdout.write(str(new_percent) + '% ')
                         sys.stdout.flush()
-                    currentPercent = newPercent
-                    if currentPercent == 100:
-                        havePrinted100 = True
+                    current_percent = new_percent
+                    if current_percent == 100:
+                        have_printed100 = True
 
                 skip_this_window = False
 
@@ -518,11 +519,11 @@ def main(raw_args=None):
                 if INPUT_BED is None:
                     coverage_dat[2] = [1.0] * (end - start)
                 else:
-                    if refIndex[RI][0] not in inputRegions:
+                    if ref_index[RI][0] not in input_regions:
                         coverage_dat[2] = [OFFTARGET_SCALAR] * (end - start)
                     else:
                         for j in range(start, end):
-                            if not (bisect.bisect(inputRegions[refIndex[RI][0]], j) % 2):
+                            if not (bisect.bisect(input_regions[ref_index[RI][0]], j) % 2):
                                 coverage_dat[2].append(1.0)
                             else:
                                 coverage_dat[2].append(OFFTARGET_SCALAR)
@@ -533,18 +534,18 @@ def main(raw_args=None):
                     skip_this_window = True
 
                 # check for small window sizes
-                if (end - start) < overlap_minWindowSize:
+                if (end - start) < overlap_min_window_size:
                     skip_this_window = True
 
                 if skip_this_window:
                     # skip window, save cpu time
                     start = next_start
                     end = next_end
-                    if isLastTime:
+                    if is_last_time:
                         break
                     if end >= pf:
-                        isLastTime = True
-                    varsFromPrevOverlap = []
+                        is_last_time = True
+                    vars_from_prev_overlap = []
                     continue
 
                 # construct sequence data that we will sample reads from
@@ -556,7 +557,7 @@ def main(raw_args=None):
                                      MUT_RATE)
 
                 # insert variants
-                sequences.insert_mutations(varsFromPrevOverlap + varsInWindow)
+                sequences.insert_mutations(vars_from_prev_overlap + vars_in_window)
                 all_inserted_variants = sequences.random_mutations()
                 # print all_inserted_variants
 
@@ -568,121 +569,123 @@ def main(raw_args=None):
                         coverage_avg = sequences.init_coverage(tuple(coverage_dat))
 
                 # which variants do we need to keep for next time (because of window overlap)?
-                varsFromPrevOverlap = []
+                vars_from_prev_overlap = []
                 for n in all_inserted_variants:
                     if n[0] >= end - overlap - 1:
-                        varsFromPrevOverlap.append(n)
+                        vars_from_prev_overlap.append(n)
 
                 # if we're only producing VCF, no need to go through the hassle of generating reads
                 if ONLY_VCF:
                     pass
                 else:
                     if PAIRED_END:
-                        readsToSample = int(((end - start) * float(COVERAGE) * coverage_avg) / (2 * READLEN)) + 1
+                        reads_to_sample = int(((end - start) * float(COVERAGE) * coverage_avg) / (2 * READLEN)) + 1
                     else:
-                        readsToSample = int(((end - start) * float(COVERAGE) * coverage_avg) / (READLEN)) + 1
+                        reads_to_sample = int(((end - start) * float(COVERAGE) * coverage_avg) / (READLEN)) + 1
 
                     # if coverage is so low such that no reads are to be sampled, skip region
                     #      (i.e., remove buffer of +1 reads we add to every window)
-                    if readsToSample == 1 and sum(coverage_dat[2]) < LOW_COV_THRESH:
-                        readsToSample = 0
+                    if reads_to_sample == 1 and sum(coverage_dat[2]) < LOW_COV_THRESH:
+                        reads_to_sample = 0
 
                     # sample reads
                     ASDF2_TT = time.time()
-                    for i in range(readsToSample):
+                    for i in range(reads_to_sample):
 
-                        isUnmapped = []
+                        is_unmapped = []
                         if PAIRED_END:
-                            myFraglen = FRAGLEN_DISTRIBUTION.sample()
-                            myReadData = sequences.sample_read(SE_CLASS, myFraglen)
-                            if myReadData is None:  # skip if we failed to find a valid position to sample read
+                            my_fraglen = FRAGLEN_DISTRIBUTION.sample()
+                            my_read_data = sequences.sample_read(SE_CLASS, my_fraglen)
+                            if my_read_data is None:  # skip if we failed to find a valid position to sample read
                                 continue
-                            if myReadData[0][0] is None:
-                                isUnmapped.append(True)
+                            if my_read_data[0][0] is None:
+                                is_unmapped.append(True)
                             else:
-                                isUnmapped.append(False)
-                                myReadData[0][0] += start  # adjust mapping position based on window start
-                            if myReadData[1][0] is None:
-                                isUnmapped.append(True)
+                                is_unmapped.append(False)
+                                my_read_data[0][0] += start  # adjust mapping position based on window start
+                            if my_read_data[1][0] is None:
+                                is_unmapped.append(True)
                             else:
-                                isUnmapped.append(False)
-                                myReadData[1][0] += start
+                                is_unmapped.append(False)
+                                my_read_data[1][0] += start
                         else:
-                            myReadData = sequences.sample_read(SE_CLASS)
-                            if myReadData is None:  # skip if we failed to find a valid position to sample read
+                            my_read_data = sequences.sample_read(SE_CLASS)
+                            if my_read_data is None:  # skip if we failed to find a valid position to sample read
                                 continue
-                            if myReadData[0][0] is None:  # unmapped read (lives in large insertion)
-                                isUnmapped = [True]
+                            if my_read_data[0][0] is None:  # unmapped read (lives in large insertion)
+                                is_unmapped = [True]
                             else:
-                                isUnmapped = [False]
-                                myReadData[0][0] += start  # adjust mapping position based on window start
+                                is_unmapped = [False]
+                                my_read_data[0][0] += start  # adjust mapping position based on window start
 
                         if NJOBS > 1:
-                            myReadName = OUT_PREFIX_NAME + '-j' + str(MYJOB) + '-' + refIndex[RI][0] + '-r' + str(
-                                readNameCount)
+                            my_read_name = OUT_PREFIX_NAME + '-j' + str(MYJOB) + '-' + ref_index[RI][0] + '-r' + str(
+                                read_name_count)
                         else:
-                            myReadName = OUT_PREFIX_NAME + '-' + refIndex[RI][0] + '-' + str(readNameCount)
-                        readNameCount += len(myReadData)
+                            my_read_name = OUT_PREFIX_NAME + '-' + ref_index[RI][0] + '-' + str(read_name_count)
+                        read_name_count += len(my_read_data)
 
                         # if desired, replace all low-quality bases with Ns
                         if N_MAX_QUAL > -1:
-                            for j in range(len(myReadData)):
-                                myReadString = [n for n in myReadData[j][2]]
-                                for k in range(len(myReadData[j][3])):
-                                    adjusted_qual = ord(myReadData[j][3][k]) - SE_CLASS.offQ
+                            for j in range(len(my_read_data)):
+                                my_read_string = [n for n in my_read_data[j][2]]
+                                for k in range(len(my_read_data[j][3])):
+                                    adjusted_qual = ord(my_read_data[j][3][k]) - SE_CLASS.offQ
                                     if adjusted_qual <= N_MAX_QUAL:
-                                        myReadString[k] = 'N'
-                                myReadData[j][2] = ''.join(myReadString)
+                                        my_read_string[k] = 'N'
+                                my_read_data[j][2] = ''.join(my_read_string)
 
                         # if read (or read + mate for PE) are unmapped, put them at end of bam file
-                        if all(isUnmapped):
+                        if all(is_unmapped):
                             if PAIRED_END:
-                                unmapped_records.append((myReadName + '/1', myReadData[0], 109))
-                                unmapped_records.append((myReadName + '/2', myReadData[1], 157))
+                                unmapped_records.append((my_read_name + '/1', my_read_data[0], 109))
+                                unmapped_records.append((my_read_name + '/2', my_read_data[1], 157))
                             else:
-                                unmapped_records.append((myReadName + '/1', myReadData[0], 4))
+                                unmapped_records.append((my_read_name + '/1', my_read_data[0], 4))
 
                         # write read data out to FASTQ and BAM files, bypass FASTQ if option specified
-                        myRefIndex = indices_by_refName[refIndex[RI][0]]
-                        if len(myReadData) == 1:
-                            if NO_FASTQ != True:
-                                OFW.write_fastq_record(myReadName, myReadData[0][2], myReadData[0][3])
+                        myRefIndex = indices_by_ref_name[ref_index[RI][0]]
+                        if len(my_read_data) == 1:
+                            if NO_FASTQ is not True:
+                                OFW.write_fastq_record(my_read_name, my_read_data[0][2], my_read_data[0][3])
                             if SAVE_BAM:
-                                if isUnmapped[0] == False:
-                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[0][0],
-                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3], sam_flag=0)
-                        elif len(myReadData) == 2:
-                            if NO_FASTQ != True:
-                                OFW.write_fastq_record(myReadName, myReadData[0][2], myReadData[0][3],
-                                                       read2=myReadData[1][2], qual2=myReadData[1][3])
+                                if is_unmapped[0] is False:
+                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[0][0],
+                                                         my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
+                                                         sam_flag=0)
+                        elif len(my_read_data) == 2:
+                            if NO_FASTQ is not True:
+                                OFW.write_fastq_record(my_read_name, my_read_data[0][2], my_read_data[0][3],
+                                                       read2=my_read_data[1][2], qual2=my_read_data[1][3])
                             if SAVE_BAM:
-                                if isUnmapped[0] == False and isUnmapped[1] == False:
-                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[0][0],
-                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3], sam_flag=99,
-                                                         mate_pos=myReadData[1][0])
-                                    OFW.write_bam_record(myRefIndex, myReadName + '/2', myReadData[1][0],
-                                                         myReadData[1][1], myReadData[1][2], myReadData[1][3],
-                                                         sam_flag=147, mate_pos=myReadData[0][0])
-                                elif isUnmapped[0] == False and isUnmapped[1] == True:
-                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[0][0],
-                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3],
-                                                         sam_flag=105, mate_pos=myReadData[0][0])
-                                    OFW.write_bam_record(myRefIndex, myReadName + '/2', myReadData[0][0],
-                                                         myReadData[1][1], myReadData[1][2], myReadData[1][3],
-                                                         sam_flag=149, mate_pos=myReadData[0][0], aln_map_qual=0)
-                                elif isUnmapped[0] == True and isUnmapped[1] == False:
-                                    OFW.write_bam_record(myRefIndex, myReadName + '/1', myReadData[1][0],
-                                                         myReadData[0][1], myReadData[0][2], myReadData[0][3],
-                                                         sam_flag=101, mate_pos=myReadData[1][0], aln_map_qual=0)
-                                    OFW.write_bam_record(myRefIndex, myReadName + '/2', myReadData[1][0],
-                                                         myReadData[1][1], myReadData[1][2], myReadData[1][3],
-                                                         sam_flag=153, mate_pos=myReadData[1][0])
+                                if is_unmapped[0] is False and is_unmapped[1] is False:
+                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[0][0],
+                                                         my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
+                                                         sam_flag=99,
+                                                         mate_pos=my_read_data[1][0])
+                                    OFW.write_bam_record(myRefIndex, my_read_name + '/2', my_read_data[1][0],
+                                                         my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
+                                                         sam_flag=147, mate_pos=my_read_data[0][0])
+                                elif is_unmapped[0] == False and is_unmapped[1] == True:
+                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[0][0],
+                                                         my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
+                                                         sam_flag=105, mate_pos=my_read_data[0][0])
+                                    OFW.write_bam_record(myRefIndex, my_read_name + '/2', my_read_data[0][0],
+                                                         my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
+                                                         sam_flag=149, mate_pos=my_read_data[0][0], aln_map_quality=0)
+                                elif is_unmapped[0] == True and is_unmapped[1] == False:
+                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[1][0],
+                                                         my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
+                                                         sam_flag=101, mate_pos=my_read_data[1][0], aln_map_quality=0)
+                                    OFW.write_bam_record(myRefIndex, my_read_name + '/2', my_read_data[1][0],
+                                                         my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
+                                                         sam_flag=153, mate_pos=my_read_data[1][0])
                         else:
                             print('\nError: Unexpected number of reads generated...\n')
                             exit(1)
                     # print 'READS:',time.time()-ASDF2_TT
 
-                    if not isLastTime:
+                    if not is_last_time:
                         OFW.flush_buffers(bam_max=next_start)
                     else:
                         OFW.flush_buffers(bam_max=end + 1)
@@ -694,12 +697,12 @@ def main(raw_args=None):
                 # prepare indices of next window
                 start = next_start
                 end = next_end
-                if isLastTime:
+                if is_last_time:
                     break
                 if end >= pf:
-                    isLastTime = True
+                    is_last_time = True
 
-        if currentPercent != 100 and not havePrinted100:
+        if current_percent != 100 and not have_printed100:
             print('100%')
         else:
             print('')
@@ -713,12 +716,12 @@ def main(raw_args=None):
         if SAVE_VCF:
             print('Writing output VCF...')
             for k in sorted(ALL_VARIANTS_OUT.keys()):
-                currentRef = refIndex[RI][0]
-                myID = '.'
-                myQual = '.'
-                myFilt = 'PASS'
+                current_ref = ref_index[RI][0]
+                my_id = '.'
+                my_quality = '.'
+                my_filter = 'PASS'
                 # k[0] + 1 because we're going back to 1-based vcf coords
-                OFW.write_vcf_record(currentRef, str(int(k[0]) + 1), myID, k[1], k[2], myQual, myFilt, k[4])
+                OFW.write_vcf_record(current_ref, str(int(k[0]) + 1), my_id, k[1], k[2], my_quality, my_filter, k[4])
 
     # break
 
@@ -728,12 +731,13 @@ def main(raw_args=None):
         for umr in unmapped_records:
             if PAIRED_END:
                 OFW.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2], mate_pos=0,
-                                     aln_map_qual=0)
+                                     aln_map_quality=0)
             else:
-                OFW.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2], aln_map_qual=0)
+                OFW.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2], aln_map_quality=0)
 
     # close output files
     OFW.close_files()
+
 
 if __name__ == '__main__':
     main()

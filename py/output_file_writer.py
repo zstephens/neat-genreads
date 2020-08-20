@@ -182,12 +182,12 @@ class OutputFileWriter:
             str(chrom) + '\t' + str(pos) + '\t' + str(id_str) + '\t' + str(ref) + '\t' + str(alt) + '\t' + str(
                 qual) + '\t' + str(filt) + '\t' + str(info) + '\n')
 
-    def write_bam_record(self, ref_id, read_name, pos_0, cigar, seq, qual, sam_flag, mate_pos=None, aln_map_qual=70):
+    def write_bam_record(self, ref_id, read_name, pos_0, cigar, seq, qual, sam_flag, mate_pos=None, aln_map_quality=70):
 
         my_bin = reg2bin(pos_0, pos_0 + len(seq))
         # my_bin     = 0	# or just use a dummy value, does this actually matter?
 
-        my_map_qual = aln_map_qual
+        my_map_quality = aln_map_quality
         cig_letters = re.split(r"\d+", cigar)[1:]
         cig_numbers = [int(n) for n in re.findall(r"\d+", cigar)]
         cig_ops = len(cig_letters)
@@ -237,7 +237,7 @@ class OutputFileWriter:
         ####self.bam_file.write(pack('<i',block_size))
         ####self.bam_file.write(pack('<i',refID))
         ####self.bam_file.write(pack('<i',pos_0))
-        ####self.bam_file.write(pack('<I',(my_bin<<16) + (my_map_qual<<8) + len(readName)+1))
+        ####self.bam_file.write(pack('<I',(my_bin<<16) + (my_map_quality<<8) + len(readName)+1))
         ####self.bam_file.write(pack('<I',(samFlag<<16) + cig_ops))
         ####self.bam_file.write(pack('<i',seq_len))
         ####self.bam_file.write(pack('<i',next_ref_id))
@@ -251,7 +251,7 @@ class OutputFileWriter:
         # a horribly compressed line, I'm sorry.
         # (ref_index, position, data)
         self.bam_buffer.append((ref_id, pos_0, pack('<i', block_size) + pack('<i', ref_id) + pack('<i', pos_0) +
-                                pack('<I', (my_bin << 16) + (my_map_qual << 8) + len(read_name) + 1) +
+                                pack('<I', (my_bin << 16) + (my_map_quality << 8) + len(read_name) + 1) +
                                 pack('<I', (sam_flag << 16) + cig_ops) + pack('<i', seq_len) + pack('<i', next_ref_id) +
                                 pack('<i', next_pos) + pack('<i', my_tlen) + read_name.encode('utf-8') +
                                 b'\0' + encoded_cig + encoded_seq + encoded_qual.encode('utf-8')))

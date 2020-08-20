@@ -525,7 +525,7 @@ class SequenceContainer:
 
             # sample read position and call function to compute quality scores / sequencing errors
             r_dat = self.sequences[my_ploid][r_pos:r_pos + self.read_len]
-            (myQual, myErrors) = sequencingModel.getSequencingErrors(r_dat)
+            (myQual, myErrors) = sequencingModel.get_sequencing_errors(r_dat)
             readsToSample.append([r_pos, myQual, myErrors, r_dat])
 
         else:
@@ -538,8 +538,8 @@ class SequenceContainer:
             r_pos2 = r_pos1 + frag_len - self.read_len
             r_dat1 = self.sequences[my_ploid][r_pos1:r_pos1 + self.read_len]
             r_dat2 = self.sequences[my_ploid][r_pos2:r_pos2 + self.read_len]
-            (myQual1, myErrors1) = sequencingModel.getSequencingErrors(r_dat1)
-            (myQual2, myErrors2) = sequencingModel.getSequencingErrors(r_dat2, isReverseStrand=True)
+            (myQual1, myErrors1) = sequencingModel.get_sequencing_errors(r_dat1)
+            (myQual2, myErrors2) = sequencingModel.get_sequencing_errors(r_dat2, is_reverse_strand=True)
             readsToSample.append([r_pos1, myQual1, myErrors1, r_dat1])
             readsToSample.append([r_pos2, myQual2, myErrors2, r_dat2])
 
@@ -671,7 +671,7 @@ class SequenceContainer:
 #	Container for read data, computes quality scores and positions to insert errors
 #
 class ReadContainer:
-    def __init__(self, read_len, errorModel, reScaledError):
+    def __init__(self, read_len, errorModel, rescaled_error):
 
         self.read_len = read_len
 
@@ -679,64 +679,64 @@ class ReadContainer:
         self.UNIFORM = False
         if len(error_dat) == 4:  # uniform-error SE reads (e.g. PacBio)
             self.UNIFORM = True
-            [Qscores, offQ, avgError, errorParams] = error_dat
-            self.uniform_qscore = int(-10. * np.log10(avgError) + 0.5)
-            print('Using uniform sequencing error model. (q=' + str(self.uniform_qscore) + '+' + str(
-                offQ) + ', p(err)={0:0.2f}%)'.format(100. * avgError))
+            [q_scores, off_q, avg_error, error_params] = error_dat
+            self.uniform_q_score = int(-10. * np.log10(avg_error) + 0.5)
+            print('Using uniform sequencing error model. (q=' + str(self.uniform_q_score) + '+' + str(
+                off_q) + ', p(err)={0:0.2f}%)'.format(100. * avg_error))
         if len(error_dat) == 6:  # only 1 q-score model present, use same model for both strands
-            [initQ1, probQ1, Qscores, offQ, avgError, errorParams] = error_dat
+            [init_q1, prob_q1, q_scores, off_q, avg_error, error_params] = error_dat
             self.PE_MODELS = False
         elif len(error_dat) == 8:  # found a q-score model for both forward and reverse strands
             # print 'Using paired-read quality score profiles...'
-            [initQ1, probQ1, initQ2, probQ2, Qscores, offQ, avgError, errorParams] = error_dat
+            [init_q1, prob_q1, initQ2, probQ2, q_scores, off_q, avg_error, error_params] = error_dat
             self.PE_MODELS = True
-            if len(initQ1) != len(initQ2) or len(probQ1) != len(probQ2):
+            if len(init_q1) != len(initQ2) or len(prob_q1) != len(probQ2):
                 print('\nError: R1 and R2 quality score models are of different length.\n')
                 exit(1)
 
-        self.qErrRate = [0.] * (max(Qscores) + 1)
-        for q in Qscores:
+        self.qErrRate = [0.] * (max(q_scores) + 1)
+        for q in q_scores:
             self.qErrRate[q] = 10. ** (-q / 10.)
-        self.offQ = offQ
+        self.offQ = off_q
 
-        # errorParams = [SSE_PROB, SIE_RATE, SIE_PROB, SIE_VAL, SIE_INS_FREQ, SIE_INS_NUCL]
-        self.errP = errorParams
+        # error_params = [SSE_PROB, SIE_RATE, SIE_PROB, SIE_VAL, SIE_INS_FREQ, SIE_INS_NUCL]
+        self.errP = error_params
         self.errSSE = [DiscreteDistribution(n, NUCL) for n in self.errP[0]]
         self.errSIE = DiscreteDistribution(self.errP[2], self.errP[3])
         self.errSIN = DiscreteDistribution(self.errP[5], NUCL)
 
         # adjust sequencing error frequency to match desired rate
-        if reScaledError == None:
+        if rescaled_error is None:
             self.errorScale = 1.0
         else:
-            self.errorScale = reScaledError / avgError
+            self.errorScale = rescaled_error / avg_error
             print('Warning: Quality scores no longer exactly representative of error probability. '
                   'Error model scaled by {0:.3f} to match desired rate...'.format(self.errorScale))
 
         if not self.UNIFORM:
             # adjust length to match desired read length
-            if self.read_len == len(initQ1):
+            if self.read_len == len(init_q1):
                 self.qIndRemap = range(self.read_len)
             else:
-                print('Warning: Read length of error model (' + str(len(initQ1)) + ') does not match -R value (' + str(
+                print('Warning: Read length of error model (' + str(len(init_q1)) + ') does not match -R value (' + str(
                     self.read_len) + '), rescaling model...')
-                self.qIndRemap = [max([1, len(initQ1) * n // read_len]) for n in range(read_len)]
+                self.qIndRemap = [max([1, len(init_q1) * n // read_len]) for n in range(read_len)]
 
             # initialize probability distributions
-            self.initDistByPos1 = [DiscreteDistribution(initQ1[i], Qscores) for i in range(len(initQ1))]
+            self.initDistByPos1 = [DiscreteDistribution(init_q1[i], q_scores) for i in range(len(init_q1))]
             self.probDistByPosByPrevQ1 = [None]
-            for i in range(1, len(initQ1)):
+            for i in range(1, len(init_q1)):
                 self.probDistByPosByPrevQ1.append([])
-                for j in range(len(initQ1[0])):
-                    if np.sum(probQ1[i][
+                for j in range(len(init_q1[0])):
+                    if np.sum(prob_q1[i][
                                   j]) <= 0.:  # if we don't have sufficient data for a transition, use the previous qscore
                         self.probDistByPosByPrevQ1[-1].append(
-                            DiscreteDistribution([1], [Qscores[j]], degenerate_val=Qscores[j]))
+                            DiscreteDistribution([1], [q_scores[j]], degenerate_val=q_scores[j]))
                     else:
-                        self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(probQ1[i][j], Qscores))
+                        self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(prob_q1[i][j], q_scores))
 
             if self.PE_MODELS:
-                self.initDistByPos2 = [DiscreteDistribution(initQ2[i], Qscores) for i in range(len(initQ2))]
+                self.initDistByPos2 = [DiscreteDistribution(initQ2[i], q_scores) for i in range(len(initQ2))]
                 self.probDistByPosByPrevQ2 = [None]
                 for i in range(1, len(initQ2)):
                     self.probDistByPosByPrevQ2.append([])
@@ -744,90 +744,90 @@ class ReadContainer:
                         if np.sum(probQ2[i][
                                       j]) <= 0.:  # if we don't have sufficient data for a transition, use the previous qscore
                             self.probDistByPosByPrevQ2[-1].append(
-                                DiscreteDistribution([1], [Qscores[j]], degenerate_val=Qscores[j]))
+                                DiscreteDistribution([1], [q_scores[j]], degenerate_val=q_scores[j]))
                         else:
-                            self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(probQ2[i][j], Qscores))
+                            self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(probQ2[i][j], q_scores))
 
-    def getSequencingErrors(self, readData, isReverseStrand=False):
+    def get_sequencing_errors(self, read_data, is_reverse_strand=False):
 
-        qOut = [0] * self.read_len
-        sErr = []
+        q_out = [0] * self.read_len
+        s_err = []
 
         if self.UNIFORM:
-            myQ = [self.uniform_qscore + self.offQ for n in range(self.read_len)]
-            qOut = ''.join([chr(n) for n in myQ])
+            my_q = [self.uniform_q_score + self.offQ for n in range(self.read_len)]
+            q_out = ''.join([chr(n) for n in my_q])
             for i in range(self.read_len):
-                if random.random() < self.errorScale * self.qErrRate[self.uniform_qscore]:
-                    sErr.append(i)
+                if random.random() < self.errorScale * self.qErrRate[self.uniform_q_score]:
+                    s_err.append(i)
         else:
 
-            if self.PE_MODELS and isReverseStrand:
-                myQ = self.initDistByPos2[0].sample()
+            if self.PE_MODELS and is_reverse_strand:
+                my_q = self.initDistByPos2[0].sample()
             else:
-                myQ = self.initDistByPos1[0].sample()
-            qOut[0] = myQ
+                my_q = self.initDistByPos1[0].sample()
+            q_out[0] = my_q
 
             for i in range(1, self.read_len):
-                if self.PE_MODELS and isReverseStrand:
-                    myQ = self.probDistByPosByPrevQ2[self.qIndRemap[i]][myQ].sample()
+                if self.PE_MODELS and is_reverse_strand:
+                    my_q = self.probDistByPosByPrevQ2[self.qIndRemap[i]][my_q].sample()
                 else:
-                    myQ = self.probDistByPosByPrevQ1[self.qIndRemap[i]][myQ].sample()
-                qOut[i] = myQ
+                    my_q = self.probDistByPosByPrevQ1[self.qIndRemap[i]][my_q].sample()
+                q_out[i] = my_q
 
-            if isReverseStrand:
-                qOut = qOut[::-1]
+            if is_reverse_strand:
+                q_out = q_out[::-1]
 
             for i in range(self.read_len):
-                if random.random() < self.errorScale * self.qErrRate[qOut[i]]:
-                    sErr.append(i)
+                if random.random() < self.errorScale * self.qErrRate[q_out[i]]:
+                    s_err.append(i)
 
-            qOut = ''.join([chr(n + self.offQ) for n in qOut])
+            q_out = ''.join([chr(n + self.offQ) for n in q_out])
 
         if self.errorScale == 0.0:
-            return (qOut, [])
+            return q_out, []
 
-        sOut = []
-        nDelSoFar = 0
+        s_out = []
+        n_del_so_far = 0
         # don't allow indel errors to occur on subsequent positions
-        prevIndel = -2
+        prev_indel = -2
         # don't allow other sequencing errors to occur on bases removed by deletion errors
-        delBlacklist = []
+        del_blacklist = []
 
-        for ind in sErr[::-1]:  # for each error that we're going to insert...
+        for ind in s_err[::-1]:  # for each error that we're going to insert...
 
             # determine error type
-            isSub = True
-            if ind != 0 and ind != self.read_len - 1 - max(self.errP[3]) and abs(ind - prevIndel) > 1:
+            is_sub = True
+            if ind != 0 and ind != self.read_len - 1 - max(self.errP[3]) and abs(ind - prev_indel) > 1:
                 if random.random() < self.errP[1]:
-                    isSub = False
+                    is_sub = False
 
             # error_out = (type, len, pos, ref, alt)
 
-            if isSub:  # insert substitution error
-                myNucl = str(readData[ind])
-                new_nucl = self.errSSE[NUC_IND[myNucl]].sample()
-                sOut.append(('S', 1, ind, myNucl, new_nucl))
+            if is_sub:  # insert substitution error
+                my_nucl = str(read_data[ind])
+                new_nucl = self.errSSE[NUC_IND[my_nucl]].sample()
+                s_out.append(('S', 1, ind, my_nucl, new_nucl))
             else:  # insert indel error
-                indelLen = self.errSIE.sample()
+                indel_len = self.errSIE.sample()
                 if random.random() < self.errP[4]:  # insertion error
-                    myNucl = str(readData[ind])
-                    new_nucl = myNucl + ''.join([self.errSIN.sample() for n in range(indelLen)])
-                    sOut.append(('I', len(new_nucl) - 1, ind, myNucl, new_nucl))
-                elif ind < self.read_len - 2 - nDelSoFar:  # deletion error (prevent too many of them from stacking up)
-                    myNucl = str(readData[ind:ind + indelLen + 1])
-                    new_nucl = str(readData[ind])
-                    nDelSoFar += len(myNucl) - 1
-                    sOut.append(('D', len(myNucl) - 1, ind, myNucl, new_nucl))
-                    for i in range(ind + 1, ind + indelLen + 1):
-                        delBlacklist.append(i)
-                prevIndel = ind
+                    my_nucl = str(read_data[ind])
+                    new_nucl = my_nucl + ''.join([self.errSIN.sample() for n in range(indel_len)])
+                    s_out.append(('I', len(new_nucl) - 1, ind, my_nucl, new_nucl))
+                elif ind < self.read_len - 2 - n_del_so_far:  # deletion error (prevent too many of them from stacking up)
+                    my_nucl = str(read_data[ind:ind + indel_len + 1])
+                    new_nucl = str(read_data[ind])
+                    n_del_so_far += len(my_nucl) - 1
+                    s_out.append(('D', len(my_nucl) - 1, ind, my_nucl, new_nucl))
+                    for i in range(ind + 1, ind + indel_len + 1):
+                        del_blacklist.append(i)
+                prev_indel = ind
 
         # remove blacklisted errors
-        for i in range(len(sOut) - 1, -1, -1):
-            if sOut[i][2] in delBlacklist:
-                del sOut[i]
+        for i in range(len(s_out) - 1, -1, -1):
+            if s_out[i][2] in del_blacklist:
+                del s_out[i]
 
-        return (qOut, sOut)
+        return q_out, s_out
 
 
 """************************************************
@@ -836,76 +836,76 @@ class ReadContainer:
 
 
 # parse mutation model pickle file
-def parseInputMutationModel(model=None, whichDefault=1):
-    if whichDefault == 1:
-        outModel = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
-    elif whichDefault == 2:
-        outModel = [copy.deepcopy(n) for n in DEFAULT_MODEL_2]
+def parse_input_mutation_model(model=None, which_default=1):
+    if which_default == 1:
+        out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
+    elif which_default == 2:
+        out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_2]
     else:
         print('\nError: Unknown default mutation model specified\n')
         exit(1)
 
-    if model != None:
+    if model is not None:
         pickle_dict = pickle.load(open(model, "rb"))
-        outModel[0] = pickle_dict['AVG_MUT_RATE']
-        outModel[2] = 1. - pickle_dict['SNP_FREQ']
+        out_model[0] = pickle_dict['AVG_MUT_RATE']
+        out_model[2] = 1. - pickle_dict['SNP_FREQ']
 
-        insList = pickle_dict['INDEL_FREQ']
-        if len(insList):
-            insCount = sum([insList[k] for k in insList.keys() if k >= 1])
-            delCount = sum([insList[k] for k in insList.keys() if k <= -1])
-            insVals = [k for k in sorted(insList.keys()) if k >= 1]
-            insWght = [insList[k] / float(insCount) for k in insVals]
-            delVals = [k for k in sorted([abs(k) for k in insList.keys() if k <= -1])]
-            delWght = [insList[-k] / float(delCount) for k in delVals]
+        ins_list = pickle_dict['INDEL_FREQ']
+        if len(ins_list):
+            ins_count = sum([ins_list[k] for k in ins_list.keys() if k >= 1])
+            del_count = sum([ins_list[k] for k in ins_list.keys() if k <= -1])
+            ins_vals = [k for k in sorted(ins_list.keys()) if k >= 1]
+            ins_wght = [ins_list[k] / float(ins_count) for k in ins_vals]
+            del_vals = [k for k in sorted([abs(k) for k in ins_list.keys() if k <= -1])]
+            del_wght = [ins_list[-k] / float(del_count) for k in del_vals]
         else:  # degenerate case where no indel stats are provided
-            insCount = 1
-            delCount = 1
-            insVals = [1]
-            insWght = [1.0]
-            delVals = [1]
-            delWght = [1.0]
-        outModel[3] = insCount / float(insCount + delCount)
-        outModel[4] = insVals
-        outModel[5] = insWght
-        outModel[6] = delVals
-        outModel[7] = delWght
+            ins_count = 1
+            del_count = 1
+            ins_vals = [1]
+            ins_wght = [1.0]
+            del_vals = [1]
+            del_wght = [1.0]
+        out_model[3] = ins_count / float(ins_count + del_count)
+        out_model[4] = ins_vals
+        out_model[5] = ins_wght
+        out_model[6] = del_vals
+        out_model[7] = del_wght
 
         trinuc_trans_prob = pickle_dict['TRINUC_TRANS_PROBS']
         for k in sorted(trinuc_trans_prob.keys()):
-            myInd = TRI_IND[k[0][0] + k[0][2]]
+            my_ind = TRI_IND[k[0][0] + k[0][2]]
             (k1, k2) = (NUC_IND[k[0][1]], NUC_IND[k[1][1]])
-            outModel[8][myInd][k1][k2] = trinuc_trans_prob[k]
-        for i in range(len(outModel[8])):
-            for j in range(len(outModel[8][i])):
-                for l in range(len(outModel[8][i][j])):
+            out_model[8][my_ind][k1][k2] = trinuc_trans_prob[k]
+        for i in range(len(out_model[8])):
+            for j in range(len(out_model[8][i])):
+                for l in range(len(out_model[8][i][j])):
                     # if trinuc not present in input mutation model, assign it uniform probability
-                    if float(sum(outModel[8][i][j])) < 1e-12:
-                        outModel[8][i][j] = [0.25, 0.25, 0.25, 0.25]
+                    if float(sum(out_model[8][i][j])) < 1e-12:
+                        out_model[8][i][j] = [0.25, 0.25, 0.25, 0.25]
                     else:
-                        outModel[8][i][j][l] /= float(sum(outModel[8][i][j]))
+                        out_model[8][i][j][l] /= float(sum(out_model[8][i][j]))
 
         trinuc_mut_prob = pickle_dict['TRINUC_MUT_PROB']
         which_have_we_seen = {n: False for n in ALL_TRI}
         trinuc_mean = np.mean(list(trinuc_mut_prob.values()))
         for trinuc in trinuc_mut_prob.keys():
-            outModel[9][ALL_IND[trinuc]] = trinuc_mut_prob[trinuc]
+            out_model[9][ALL_IND[trinuc]] = trinuc_mut_prob[trinuc]
             which_have_we_seen[trinuc] = True
         for trinuc in which_have_we_seen.keys():
-            if which_have_we_seen[trinuc] == False:
-                outModel[9][ALL_IND[trinuc]] = trinuc_mean
+            if not which_have_we_seen[trinuc]:
+                out_model[9][ALL_IND[trinuc]] = trinuc_mean
 
-    return outModel
+    return out_model
 
 
 # parse mutation model files, returns default model if no model directory is specified
 #
 # OLD FUNCTION THAT PROCESSED OUTDATED TEXTFILE MUTATION MODELS
-def parseInputMutationModel_deprecated(prefix=None, whichDefault=1):
-    if whichDefault == 1:
-        outModel = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
-    elif whichDefault == 2:
-        outModel = [copy.deepcopy(n) for n in DEFAULT_MODEL_2]
+def parse_input_mutation_model_deprecated(prefix=None, which_default=1):
+    if which_default == 1:
+        out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
+    elif which_default == 2:
+        out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_2]
     else:
         print('\nError: Unknown default mutation model specified\n')
         exit(1)
@@ -935,29 +935,29 @@ def parseInputMutationModel_deprecated(prefix=None, whichDefault=1):
                             myIns = float(dat[1])
                         elif dat[0] == 'deletion':
                             myDel = float(dat[1])
-                if myIns != None and myDel != None:
-                    outModel[2] = myIns + myDel
-                    outModel[3] = myIns / (myIns + myDel)
+                if myIns is not None and myDel is not None:
+                    out_model[2] = myIns + myDel
+                    out_model[3] = myIns / (myIns + myDel)
                     print('-', l)
 
             if '_insLength.prob' in l:
-                insVals = {}
+                ins_vals = {}
                 for dat in fr[1:]:
                     if len(dat) == 2:
-                        insVals[int(dat[0])] = float(dat[1])
-                if len(insVals):
-                    outModel[4] = sorted(insVals.keys())
-                    outModel[5] = [insVals[n] for n in outModel[4]]
+                        ins_vals[int(dat[0])] = float(dat[1])
+                if len(ins_vals):
+                    out_model[4] = sorted(ins_vals.keys())
+                    out_model[5] = [ins_vals[n] for n in out_model[4]]
                     print('-', l)
 
             if '_delLength.prob' in l:
-                delVals = {}
+                del_vals = {}
                 for dat in fr[1:]:
                     if len(dat) == 2:
-                        delVals[int(dat[0])] = float(dat[1])
-                if len(delVals):
-                    outModel[6] = sorted(delVals.keys())
-                    outModel[7] = [delVals[n] for n in outModel[6]]
+                        del_vals[int(dat[0])] = float(dat[1])
+                if len(del_vals):
+                    out_model[6] = sorted(del_vals.keys())
+                    out_model[7] = [del_vals[n] for n in out_model[6]]
                     print('-', l)
 
             if '.trinuc' == l[-7:]:
@@ -966,16 +966,16 @@ def parseInputMutationModel_deprecated(prefix=None, whichDefault=1):
                 for i in range(len(p_matrix)):
                     for j in range(len(fr[i])):
                         p_matrix[i][j] = float(fr[i][j])
-                anyNone = False
+                any_none = False
                 for i in range(len(p_matrix)):
                     for j in range(len(p_matrix[i])):
                         if p_matrix[i][j] == -1:
-                            anyNone = True
-                if not anyNone:
-                    outModel[8][context_ind] = copy.deepcopy(p_matrix)
+                            any_none = True
+                if not any_none:
+                    out_model[8][context_ind] = copy.deepcopy(p_matrix)
                     print('-', l)
 
-    return outModel
+    return out_model
 
 
 ######################
