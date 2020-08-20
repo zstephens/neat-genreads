@@ -27,7 +27,7 @@ import argparse
 
 from py.input_checking import required_field, check_file_open, is_in_range
 from py.ref_func import index_ref, read_ref, get_all_ref_regions, partition_ref_regions
-from py.vcfFunc import parse_vcf
+from py.vcf_func import parse_vcf
 from py.output_file_writer import OutputFileWriter
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
 from py.SequenceContainer import SequenceContainer, ReadContainer, parse_input_mutation_model
