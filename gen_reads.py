@@ -28,7 +28,7 @@ import argparse
 from py.input_checking import required_field, check_file_open, is_in_range
 from py.ref_func import index_ref, read_ref, get_all_ref_regions, partition_ref_regions
 from py.vcf_func import parse_vcf
-from py.output_file_writer import OutputFileWriter
+from py.output_file_writer import OutputFileWriter, reverse_complement, sam_flag
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
 from py.SequenceContainer import SequenceContainer, ReadContainer, parse_input_mutation_model
 
@@ -49,6 +49,7 @@ def main(raw_args=None):
     parser.add_argument('-p', type=int, required=False, metavar='<int>', default=2, help="ploidy")
     parser.add_argument('-t', type=str, required=False, metavar='<str>', default=None,
                         help="bed file containing targeted regions")
+    parser.add_argument('-d', type=str, required=False, metavar='<str>', default=None, help="discard_regions.bed")
     parser.add_argument('-to', type=float, required=False, metavar='<float>', default=0.00,
                         help="off-target coverage scalar")
     parser.add_argument('-m', type=str, required=False, metavar='<str>', default=None,
@@ -82,6 +83,12 @@ def main(raw_args=None):
     parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
     parser.add_argument('--no-fastq', required=False, action='store_true', default=False,
                         help='bypass fastq generation')
+    parser.add_argument('--discard-offtarget', required=False, action='store_true', default=False,
+                        help='discard reads outside of targeted regions')
+    parser.add_argument('--force-coverage', required=False, action='store_true', default=False,
+                        help='[debug] ignore fancy models, force coverage to be constant')
+    parser.add_argument('--rescale-qual', required=False, action='store_true', default=False,
+                        help='rescale quality scores to match -E input')
     args = parser.parse_args(raw_args)
 
     """
@@ -97,9 +104,12 @@ def main(raw_args=None):
     # required args
     (REFERENCE, READLEN, OUT_PREFIX) = (args.r, args.R, args.o)
     # various dataset parameters
-    (COVERAGE, PLOIDS, INPUT_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = \
-        (args.c, args.p, args.t, args.e, args.E, args.m, args.M, args.Mb, args.v)
-    (OFFTARGET_SCALAR) = (args.to)
+    (COVERAGE, PLOIDS, INPUT_BED, DISCARD_BED, SE_MODEL, SE_RATE, MUT_MODEL, MUT_RATE, MUT_BED, INPUT_VCF) = \
+        (args.c, args.p, args.t, args.d, args.e, args.E, args.m, args.M, args.Mb, args.v)
+    # cancer params (disabled currently)
+    # (CANCER, CANCER_MODEL, CANCER_PURITY) = (args.cancer, args.cm, args.cp)
+    (CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
+    (OFFTARGET_SCALAR, OFFTARGET_DISCARD, FORCE_COVERAGE, RESCALE_QUAL) = (args.to, args.discard_offtarget, args.force_coverage, args.rescale_qual)
     # important flags
     (SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = \
         (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
@@ -160,6 +170,8 @@ def main(raw_args=None):
     #	mutation models
     #
     MUT_MODEL = parse_input_mutation_model(MUT_MODEL, 1)
+    if CANCER:
+        CANCER_MODEL = parse_input_mutation_model(CANCER_MODEL, 2)
     if MUT_RATE < 0.:
         MUT_RATE = None
 
@@ -273,7 +285,12 @@ def main(raw_args=None):
     # parse input variants, if present
     input_variants = []
     if INPUT_VCF is not None:
-        (sampNames, input_variants) = parse_vcf(INPUT_VCF, ploidy=PLOIDS)
+        if CANCER:
+            (sampNames, inputVariants) = parse_vcf(INPUT_VCF, tumorNormal=True, ploidy=PLOIDS)
+            tumor_ind = sampNames.index('TUMOR')
+            normal_ind = sampNames.index('NORMAL')
+        else:
+            (sampNames, input_variants) = parse_vcf(INPUT_VCF, ploidy=PLOIDS)
         for k in sorted(input_variants.keys()):
             input_variants[k].sort()
 
@@ -302,6 +319,16 @@ def main(raw_args=None):
         if n_in_bed_only > 0:
             print(
                 'Warning: Targeted regions BED file contains sequence names not found in reference (regions ignored).')
+    # parse discard bed similarly
+    discardRegions = {}
+    if DISCARD_BED != None:
+        f = open(DISCARD_BED, 'r')
+        for line in f:
+            [myChr, pos1, pos2] = line.strip().split('\t')[:3]
+            if myChr not in discardRegions:
+                discardRegions[myChr] = [-1]
+            discardRegions[myChr].extend([int(pos1), int(pos2)])
+        f.close()
 
     # parse input mutation rate rescaling regions, if present
     mut_rate_regions = {}
@@ -345,9 +372,16 @@ def main(raw_args=None):
         corrected_n_jobs = 1
 
     # initialize output files (part II)
-    OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, bam_header=bam_header, vcf_header=vcf_header,
-                           gzipped=GZIPPED_OUT, job_tuple=(MYJOB, corrected_n_jobs), no_fastq=NO_FASTQ,
-                           fasta_instead=FASTA_INSTEAD)
+    if CANCER:
+        OFW = OutputFileWriter(OUT_PREFIX + '_normal', paired=PAIRED_END, BAM_header=bam_header, VCF_header=vcf_header,
+                               gzipped=GZIPPED_OUT, noFASTQ=NO_FASTQ, FASTA_instead=FASTA_INSTEAD)
+        OFW_CANCER = OutputFileWriter(OUT_PREFIX + '_tumor', paired=PAIRED_END, BAM_header=bam_header,
+                                      VCF_header=vcf_header, gzipped=GZIPPED_OUT, jobTuple=(MYJOB, corrected_n_jobs),
+                                      noFASTQ=NO_FASTQ, FASTA_instead=FASTA_INSTEAD)
+    else:
+        OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, bam_header=bam_header, vcf_header=vcf_header,
+                               gzipped=GZIPPED_OUT, job_tuple=(MYJOB, corrected_n_jobs), no_fastq=NO_FASTQ,
+                               fasta_instead=FASTA_INSTEAD)
     OUT_PREFIX_NAME = OUT_PREFIX.split('/')[-1]
 
     """************************************************
@@ -451,6 +485,7 @@ def main(raw_args=None):
             end = min([start + bpd, pf])
             # print '------------------RAWR:', (pi,pf), n_target_windows, bpd
             vars_from_prev_overlap = []
+            varsCancerFromPrevOverlap = []
             vind_from_prev = 0
             is_last_time = False
             have_printed100 = False
@@ -516,6 +551,7 @@ def main(raw_args=None):
                 # compute coverage modifiers
                 coverage_avg = None
                 coverage_dat = [GC_WINDOW_SIZE, GC_SCALE_VAL, []]
+                target_hits = 0
                 if INPUT_BED is None:
                     coverage_dat[2] = [1.0] * (end - start)
                 else:
@@ -525,8 +561,14 @@ def main(raw_args=None):
                         for j in range(start, end):
                             if not (bisect.bisect(input_regions[ref_index[RI][0]], j) % 2):
                                 coverage_dat[2].append(1.0)
+                                target_hits += 1
                             else:
                                 coverage_dat[2].append(OFFTARGET_SCALAR)
+
+                # offtarget and we're not interested?
+                if OFFTARGET_DISCARD and target_hits <= READLEN:
+                    coverage_avg = 0.0
+                    skip_this_window = True
 
                 # print len(coverage_dat[2]), sum(coverage_dat[2])
                 if sum(coverage_dat[2]) < LOW_COV_THRESH:
@@ -568,20 +610,39 @@ def main(raw_args=None):
                     else:
                         coverage_avg = sequences.init_coverage(tuple(coverage_dat))
 
+                # unused cancer stuff
+                if CANCER:
+                    tumor_sequences = SequenceContainer(start, refSequence[start:end], PLOIDS, overlap, READLEN,
+                                                        [CANCER_MODEL] * PLOIDS, MUT_RATE, coverage_dat)
+                    tumor_sequences.insert_mutations(varsCancerFromPrevOverlap + all_inserted_variants)
+                    all_cancer_variants = tumor_sequences.random_mutations()
+
                 # which variants do we need to keep for next time (because of window overlap)?
                 vars_from_prev_overlap = []
+                varsCancerFromPrevOverlap = []
                 for n in all_inserted_variants:
                     if n[0] >= end - overlap - 1:
                         vars_from_prev_overlap.append(n)
+                if CANCER:
+                    for n in all_cancer_variants:
+                        if n[0] >= end - overlap - 1:
+                            varsCancerFromPrevOverlap.append(n)
 
                 # if we're only producing VCF, no need to go through the hassle of generating reads
                 if ONLY_VCF:
                     pass
                 else:
+                    windowSpan = end - start
                     if PAIRED_END:
-                        reads_to_sample = int(((end - start) * float(COVERAGE) * coverage_avg) / (2 * READLEN)) + 1
+                        if FORCE_COVERAGE:
+                            reads_to_sample = int((windowSpan * float(COVERAGE)) / (2 * READLEN)) + 1
+                        else:
+                            reads_to_sample = int((windowSpan * float(COVERAGE) * coverage_avg) / (2 * READLEN)) + 1
                     else:
-                        reads_to_sample = int(((end - start) * float(COVERAGE) * coverage_avg) / (READLEN)) + 1
+                        if FORCE_COVERAGE:
+                            reads_to_sample = int((windowSpan * float(COVERAGE)) / READLEN) + 1
+                        else:
+                            reads_to_sample = int((windowSpan * float(COVERAGE) * coverage_avg) / READLEN) + 1
 
                     # if coverage is so low such that no reads are to be sampled, skip region
                     #      (i.e., remove buffer of +1 reads we add to every window)
@@ -618,6 +679,23 @@ def main(raw_args=None):
                                 is_unmapped = [False]
                                 my_read_data[0][0] += start  # adjust mapping position based on window start
 
+                        # are we discarding offtargets?
+                        outside_boundaries = []
+                        if OFFTARGET_DISCARD and INPUT_BED != None:
+                            outside_boundaries += [bisect.bisect(input_regions[ref_index[RI][0]], n[0]) % 2 for n
+                                                   in my_read_data]
+                            outside_boundaries += [
+                                bisect.bisect(input_regions[ref_index[RI][0]], n[0] + len(n[2])) % 2 for n in
+                                my_read_data]
+                        if DISCARD_BED != None:
+                            outside_boundaries += [bisect.bisect(discardRegions[ref_index[RI][0]], n[0]) % 2 for
+                                                   n in my_read_data]
+                            outside_boundaries += [
+                                bisect.bisect(discardRegions[ref_index[RI][0]], n[0] + len(n[2])) % 2 for n in
+                                my_read_data]
+                        if len(outside_boundaries) and any(outside_boundaries):
+                            continue
+
                         if NJOBS > 1:
                             my_read_name = OUT_PREFIX_NAME + '-j' + str(MYJOB) + '-' + ref_index[RI][0] + '-r' + str(
                                 read_name_count)
@@ -635,51 +713,92 @@ def main(raw_args=None):
                                         my_read_string[k] = 'N'
                                 my_read_data[j][2] = ''.join(my_read_string)
 
+                        # flip a coin, are we forward or reverse strand?
+                        isForward = (random.random() < 0.5)
+
                         # if read (or read + mate for PE) are unmapped, put them at end of bam file
                         if all(is_unmapped):
                             if PAIRED_END:
+                                if isForward:
+                                    flag1 = sam_flag(['paired', 'unmapped', 'mate_unmapped', 'first', 'mate_reverse'])
+                                    flag2 = sam_flag(['paired', 'unmapped', 'mate_unmapped', 'second', 'reverse'])
+                                else:
+                                    flag1 = sam_flag(['paired', 'unmapped', 'mate_unmapped', 'second', 'mate_reverse'])
+                                    flag2 = sam_flag(['paired', 'unmapped', 'mate_unmapped', 'first', 'reverse'])
                                 unmapped_records.append((my_read_name + '/1', my_read_data[0], 109))
                                 unmapped_records.append((my_read_name + '/2', my_read_data[1], 157))
                             else:
+                                flag1 = sam_flag(['unmapped'])
                                 unmapped_records.append((my_read_name + '/1', my_read_data[0], 4))
 
                         # write read data out to FASTQ and BAM files, bypass FASTQ if option specified
                         myRefIndex = indices_by_ref_name[ref_index[RI][0]]
+
+                        # write SE output
                         if len(my_read_data) == 1:
                             if NO_FASTQ is not True:
-                                OFW.write_fastq_record(my_read_name, my_read_data[0][2], my_read_data[0][3])
+                                if isForward:
+                                    OFW.write_fastq_record(my_read_name, my_read_data[0][2], my_read_data[0][3])
+                                else:
+                                    OFW.write_fastq_record(my_read_name, reverse_complement(my_read_data[0][2]), my_read_data[0][3][::-1])
                             if SAVE_BAM:
                                 if is_unmapped[0] is False:
-                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[0][0],
+                                    if isForward:
+                                        flag1 = 0
+                                        OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[0][0],
+                                                             my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
+                                                             sam_flag=flag1)
+                                    else:
+                                        flag1 = sam_flag(['reverse'])
+                                        OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[0][0],
                                                          my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                         sam_flag=0)
+                                                         sam_flag=flag1)
+                        # write PE output
                         elif len(my_read_data) == 2:
                             if NO_FASTQ is not True:
                                 OFW.write_fastq_record(my_read_name, my_read_data[0][2], my_read_data[0][3],
-                                                       read2=my_read_data[1][2], qual2=my_read_data[1][3])
+                                                       read2=my_read_data[1][2], qual2=my_read_data[1][3], orientation=isForward)
                             if SAVE_BAM:
                                 if is_unmapped[0] is False and is_unmapped[1] is False:
-                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[0][0],
+                                    if isForward:
+                                        flag1 = sam_flag(['paired', 'proper', 'first', 'mate_reverse'])
+                                        flag2 = sam_flag(['paired', 'proper', 'second', 'reverse'])
+                                    else:
+                                        flag1 = sam_flag(['paired', 'proper', 'second', 'mate_reverse'])
+                                        flag2 = sam_flag(['paired', 'proper', 'first', 'reverse'])
+                                    OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[0][0],
                                                          my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                         sam_flag=99,
+                                                         sam_flag=flag1,
                                                          mate_pos=my_read_data[1][0])
-                                    OFW.write_bam_record(myRefIndex, my_read_name + '/2', my_read_data[1][0],
+                                    OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[1][0],
                                                          my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
-                                                         sam_flag=147, mate_pos=my_read_data[0][0])
-                                elif is_unmapped[0] == False and is_unmapped[1] == True:
-                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[0][0],
+                                                         sam_flag=flag2, mate_pos=my_read_data[0][0])
+                                elif is_unmapped[0] is False and is_unmapped[1] is True:
+                                    if isForward:
+                                        flag1 = sam_flag(['paired', 'first', 'mate_unmapped', 'mate_reverse'])
+                                        flag2 = sam_flag(['paired', 'second', 'unmapped', 'reverse'])
+                                    else:
+                                        flag1 = sam_flag(['paired', 'second', 'mate_unmapped', 'mate_reverse'])
+                                        flag2 = sam_flag(['paired', 'first', 'unmapped', 'reverse'])
+                                    OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[0][0],
                                                          my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                         sam_flag=105, mate_pos=my_read_data[0][0])
-                                    OFW.write_bam_record(myRefIndex, my_read_name + '/2', my_read_data[0][0],
+                                                         sam_flag=flag1, mate_pos=my_read_data[0][0])
+                                    OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[0][0],
                                                          my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
-                                                         sam_flag=149, mate_pos=my_read_data[0][0], aln_map_quality=0)
-                                elif is_unmapped[0] == True and is_unmapped[1] == False:
-                                    OFW.write_bam_record(myRefIndex, my_read_name + '/1', my_read_data[1][0],
+                                                         sam_flag=flag2, mate_pos=my_read_data[0][0], aln_map_quality=0)
+                                elif is_unmapped[0] is True and is_unmapped[1] is False:
+                                    if isForward:
+                                        flag1 = sam_flag(['paired', 'first', 'unmapped', 'mate_reverse'])
+                                        flag2 = sam_flag(['paired', 'second', 'mate_unmapped', 'reverse'])
+                                    else:
+                                        flag1 = sam_flag(['paired', 'second', 'unmapped', 'mate_reverse'])
+                                        flag2 = sam_flag(['paired', 'first', 'mate_unmapped', 'reverse'])
+                                    OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[1][0],
                                                          my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                         sam_flag=101, mate_pos=my_read_data[1][0], aln_map_quality=0)
-                                    OFW.write_bam_record(myRefIndex, my_read_name + '/2', my_read_data[1][0],
+                                                         sam_flag=flag1, mate_pos=my_read_data[1][0], aln_map_quality=0)
+                                    OFW.write_bam_record(myRefIndex, my_read_name, my_read_data[1][0],
                                                          my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
-                                                         sam_flag=153, mate_pos=my_read_data[1][0])
+                                                         sam_flag=flag2, mate_pos=my_read_data[1][0])
                         else:
                             print('\nError: Unexpected number of reads generated...\n')
                             exit(1)
@@ -737,6 +856,8 @@ def main(raw_args=None):
 
     # close output files
     OFW.close_files()
+    if CANCER:
+        OFW_CANCER.closeFiles()
 
 
 if __name__ == '__main__':

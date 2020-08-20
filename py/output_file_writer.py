@@ -48,6 +48,38 @@ def reg2bin(beg: int, end: int):
     return 0
 
 
+# takes list of strings, returns numerical flag
+def sam_flag(l):
+    outVal = 0
+    l = list(set(l))
+    for n in l:
+        if n == 'paired':
+            outVal += 1
+        elif n == 'proper':
+            outVal += 2
+        elif n == 'unmapped':
+            outVal += 4
+        elif n == 'mate_unmapped':
+            outVal += 8
+        elif n == 'reverse':
+            outVal += 16
+        elif n == 'mate_reverse':
+            outVal += 32
+        elif n == 'first':
+            outVal += 64
+        elif n == 'second':
+            outVal += 128
+        elif n == 'not_primary':
+            outVal += 256
+        elif n == 'low_quality':
+            outVal += 512
+        elif n == 'duplicate':
+            outVal += 1024
+        elif n == 'supplementary':
+            outVal += 2048
+    return outVal
+
+
 CIGAR_PACKED = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, '=': 7, 'X': 8}
 SEQ_PACKED = {'=': 0, 'A': 1, 'C': 2, 'M': 3, 'G': 4, 'R': 5, 'S': 6, 'V': 7,
               'T': 8, 'W': 9, 'Y': 10, 'H': 11, 'K': 12, 'D': 13, 'B': 14, 'N': 15}
@@ -166,16 +198,22 @@ class OutputFileWriter:
         self.fq2_buffer = []
         self.bam_buffer = []
 
-    def write_fastq_record(self, read_name, read1, qual1, read2=None, qual2=None):
+    def write_fastq_record(self, read_name, read1, qual1, read2=None, qual2=None, orientation=None):
+        (r1, q1) = (read1, qual1)
+        if read2 is not None and orientation is True:
+            (r2, q2) = (reverse_complement(read2), qual2[::-1])
+        elif read2 is not None and orientation is False:
+            (r1, q1) = (reverse_complement(read2), qual2[::-1])
+            (r2, q2) = (read1, qual1)
+
         if self.fasta_instead:
-            self.fq1_buffer.append('>' + read_name + '/1\n' + read1 + '\n')
+            self.fq1_buffer.append('>' + read_name + '/1\n' + r1 + '\n')
             if read2 is not None:
-                self.fq2_buffer.append('>' + read_name + '/2\n' + reverse_complement(read2) + '\n')
+                self.fq2_buffer.append('>' + read_name + '/2\n' + r2 + '\n')
         else:
-            self.fq1_buffer.append('@' + read_name + '/1\n' + read1 + '\n+\n' + qual1 + '\n')
+            self.fq1_buffer.append('@' + read_name + '/1\n' + r1 + '\n+\n' + q1 + '\n')
             if read2 is not None:
-                self.fq2_buffer.append(
-                    '@' + read_name + '/2\n' + reverse_complement(read2) + '\n+\n' + qual2[::-1] + '\n')
+                self.fq2_buffer.append('@' + read_name + '/2\n' + r2 + '\n+\n' + q2 + '\n')
 
     def write_vcf_record(self, chrom, pos, id_str, ref, alt, qual, filt, info):
         self.vcf_file.write(

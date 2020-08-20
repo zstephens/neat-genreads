@@ -664,6 +664,7 @@ class SequenceContainer:
         return r_out
 
 
+
 #
 #	Container for read data, computes quality scores and positions to insert errors
 #
