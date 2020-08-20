@@ -109,7 +109,8 @@ def main(raw_args=None):
     # cancer params (disabled currently)
     # (CANCER, CANCER_MODEL, CANCER_PURITY) = (args.cancer, args.cm, args.cp)
     (CANCER, CANCER_MODEL, CANCER_PURITY) = (False, None, 0.8)
-    (OFFTARGET_SCALAR, OFFTARGET_DISCARD, FORCE_COVERAGE, RESCALE_QUAL) = (args.to, args.discard_offtarget, args.force_coverage, args.rescale_qual)
+    (OFFTARGET_SCALAR, OFFTARGET_DISCARD, FORCE_COVERAGE, RESCALE_QUAL) = (args.to, args.discard_offtarget,
+                                                                           args.force_coverage, args.rescale_qual)
     # important flags
     (SAVE_BAM, SAVE_VCF, FASTA_INSTEAD, GZIPPED_OUT, NO_FASTQ) = \
         (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
@@ -200,7 +201,7 @@ def main(raw_args=None):
 
     #	fragment length distribution
     #
-    if PAIRED_END and not (PAIRED_END_ARTIFICIAL):
+    if PAIRED_END and not PAIRED_END_ARTIFICIAL:
         print('Using empirical fragment length distribution.')
         [potential_values, potential_prob] = pickle.load(open(FRAGLEN_MODEL, 'rb'))
         FRAGLEN_VALS = []
@@ -286,7 +287,7 @@ def main(raw_args=None):
     input_variants = []
     if INPUT_VCF is not None:
         if CANCER:
-            (sampNames, inputVariants) = parse_vcf(INPUT_VCF, tumorNormal=True, ploidy=PLOIDS)
+            (sampNames, inputVariants) = parse_vcf(INPUT_VCF, tumor_normal=True, ploidy=PLOIDS)
             tumor_ind = sampNames.index('TUMOR')
             normal_ind = sampNames.index('NORMAL')
         else:
@@ -346,6 +347,7 @@ def main(raw_args=None):
                         mut_rate_regions[my_chr] = [-1]
                         mut_rate_values[my_chr] = [0.0]
                     mut_rate_regions[my_chr].extend([pos1, pos2])
+                    # TODO figure out what the next line is supposed to do and fix
                     mut_rate_values.extend([mut_rate * (pos2 - pos1)] * 2)
 
     # initialize output files (part I)
@@ -359,12 +361,12 @@ def main(raw_args=None):
     # If processing jobs in parallel, precompute the independent regions that can be process separately
     if NJOBS > 1:
         parallel_region_list = get_all_ref_regions(REFERENCE, ref_index, N_HANDLING, save_output=SAVE_NON_N)
-        (myRefs, myRegions) = partition_ref_regions(parallel_region_list, ref_index, MYJOB, NJOBS)
-        if not len(myRegions):
+        (my_refs, my_regions) = partition_ref_regions(parallel_region_list, ref_index, MYJOB, NJOBS)
+        if not len(my_regions):
             print('This job id has no regions to process, exiting...')
             exit(1)
         for i in range(len(ref_index) - 1, -1, -1):  # delete reference not used in our job
-            if not ref_index[i][0] in myRefs:
+            if not ref_index[i][0] in my_refs:
                 del ref_index[i]
         # if value of NJOBS is too high, let's change it to the maximum possible, to avoid output filename confusion
         corrected_n_jobs = min([NJOBS, sum([len(n) for n in parallel_region_list.values()])])
@@ -373,11 +375,11 @@ def main(raw_args=None):
 
     # initialize output files (part II)
     if CANCER:
-        OFW = OutputFileWriter(OUT_PREFIX + '_normal', paired=PAIRED_END, BAM_header=bam_header, VCF_header=vcf_header,
-                               gzipped=GZIPPED_OUT, noFASTQ=NO_FASTQ, FASTA_instead=FASTA_INSTEAD)
-        OFW_CANCER = OutputFileWriter(OUT_PREFIX + '_tumor', paired=PAIRED_END, BAM_header=bam_header,
-                                      VCF_header=vcf_header, gzipped=GZIPPED_OUT, jobTuple=(MYJOB, corrected_n_jobs),
-                                      noFASTQ=NO_FASTQ, FASTA_instead=FASTA_INSTEAD)
+        OFW = OutputFileWriter(OUT_PREFIX + '_normal', paired=PAIRED_END, bam_header=bam_header, vcf_header=vcf_header,
+                               gzipped=GZIPPED_OUT, no_fastq=NO_FASTQ, fasta_instead=FASTA_INSTEAD)
+        OFW_CANCER = OutputFileWriter(OUT_PREFIX + '_tumor', paired=PAIRED_END, bam_header=bam_header,
+                                      vcf_header=vcf_header, gzipped=GZIPPED_OUT, job_tuple=(MYJOB, corrected_n_jobs),
+                                      no_fastq=NO_FASTQ, fasta_instead=FASTA_INSTEAD)
     else:
         OFW = OutputFileWriter(OUT_PREFIX, paired=PAIRED_END, bam_header=bam_header, vcf_header=vcf_header,
                                gzipped=GZIPPED_OUT, job_tuple=(MYJOB, corrected_n_jobs), no_fastq=NO_FASTQ,
@@ -399,7 +401,7 @@ def main(raw_args=None):
         # if we're processing jobs in parallel only take the regions relevant for the current job
         if NJOBS > 1:
             for i in range(len(n_regions['non_N']) - 1, -1, -1):
-                if not (ref_index[RI][0], n_regions['non_N'][i][0], n_regions['non_N'][i][1]) in myRegions:
+                if not (ref_index[RI][0], n_regions['non_N'][i][0], n_regions['non_N'][i][1]) in my_regions:
                     del n_regions['non_N'][i]
 
         # count total bp we'll be spanning so we can get an idea of how far along we are (for printing progress indicators)
@@ -485,7 +487,7 @@ def main(raw_args=None):
             end = min([start + bpd, pf])
             # print '------------------RAWR:', (pi,pf), n_target_windows, bpd
             vars_from_prev_overlap = []
-            varsCancerFromPrevOverlap = []
+            vars_cancer_from_prev_overlap = []
             vind_from_prev = 0
             is_last_time = False
             have_printed100 = False
@@ -614,19 +616,19 @@ def main(raw_args=None):
                 if CANCER:
                     tumor_sequences = SequenceContainer(start, refSequence[start:end], PLOIDS, overlap, READLEN,
                                                         [CANCER_MODEL] * PLOIDS, MUT_RATE, coverage_dat)
-                    tumor_sequences.insert_mutations(varsCancerFromPrevOverlap + all_inserted_variants)
+                    tumor_sequences.insert_mutations(vars_cancer_from_prev_overlap + all_inserted_variants)
                     all_cancer_variants = tumor_sequences.random_mutations()
 
                 # which variants do we need to keep for next time (because of window overlap)?
                 vars_from_prev_overlap = []
-                varsCancerFromPrevOverlap = []
+                vars_cancer_from_prev_overlap = []
                 for n in all_inserted_variants:
                     if n[0] >= end - overlap - 1:
                         vars_from_prev_overlap.append(n)
                 if CANCER:
                     for n in all_cancer_variants:
                         if n[0] >= end - overlap - 1:
-                            varsCancerFromPrevOverlap.append(n)
+                            vars_cancer_from_prev_overlap.append(n)
 
                 # if we're only producing VCF, no need to go through the hassle of generating reads
                 if ONLY_VCF:
@@ -857,7 +859,7 @@ def main(raw_args=None):
     # close output files
     OFW.close_files()
     if CANCER:
-        OFW_CANCER.closeFiles()
+        OFW_CANCER.close_files()
 
 
 if __name__ == '__main__':
