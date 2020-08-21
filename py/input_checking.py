@@ -16,7 +16,7 @@ def required_field(variable_to_test: any, err_string: str) -> None:
     """
     if variable_to_test is None:
         print('\n' + err_string + '\n')
-        exit(1)
+        raise ValueError
 
 
 def check_file_open(filename: pathlib, err_string: str, required: bool = False) -> None:

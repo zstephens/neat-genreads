@@ -129,7 +129,6 @@ def main(raw_args=None):
     if (fragment_size is None and fragment_std is not None) or (fragment_size is not None and fragment_std is None):
         print('\nError: --pe argument takes 2 space-separated arguments.\n')
         exit(1)
-
     only_vcf = no_fastq and save_vcf and not save_bam and not fasta_instead
     if only_vcf:
         print('Only producing VCF output, that should speed things up a bit...')
