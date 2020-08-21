@@ -3,7 +3,7 @@ This file contains several standard functions that will be used throughout the p
 and issues an error if there is something wrong.
 """
 
-import os
+import pathlib
 
 
 def required_field(variable_to_test: any, err_string: str) -> None:
@@ -19,10 +19,10 @@ def required_field(variable_to_test: any, err_string: str) -> None:
         exit(1)
 
 
-def check_file_open(filename: str, err_string: str, required: bool = False) -> None:
+def check_file_open(filename: pathlib, err_string: str, required: bool = False) -> None:
     """
     Checks that the filename is not empty and that it is indeed a  file
-    :param filename: file name, string
+    :param filename: file name, pathlib object
     :param err_string: string of the error if it is not a file
     :param required: If not required, skips the check
     :return: None
@@ -30,25 +30,24 @@ def check_file_open(filename: str, err_string: str, required: bool = False) -> N
     if required or filename is not None:
         if filename is None:
             print('\n' + err_string + '\n')
-            exit(1)
+            raise ValueError
         else:
             try:
-                open(filename, 'r')
-            except ValueError:
+                filename.resolve(strict=True)
+            except FileNotFoundError:
                 print('\n' + err_string + '\n')
-                exit(1)
 
 
-def check_dir(directory: str, err_string: str) -> None:
+def check_dir(directory: pathlib, err_string: str) -> None:
     """
     Checks that directory exists and is a directory
     :param directory: string of the directory path
     :param err_string: string of the error in case it is not a directory or doesn't exist
     :return: None
     """
-    if not os.path.isdir(directory):
+    if not directory.is_dir():
         print('\n' + err_string + '\n')
-        exit(1)
+        raise NotADirectoryError
 
 
 def is_in_range(value: float, lower_bound: float, upper_bound: float, err_string: str) -> None:
@@ -63,4 +62,4 @@ def is_in_range(value: float, lower_bound: float, upper_bound: float, err_string
     """
     if value < lower_bound or value > upper_bound:
         print('\n' + err_string + '\n')
-        exit(1)
+        raise ValueError

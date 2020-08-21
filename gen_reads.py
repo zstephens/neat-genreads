@@ -32,32 +32,37 @@ from py.output_file_writer import OutputFileWriter, reverse_complement, sam_flag
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
 from py.SequenceContainer import SequenceContainer, ReadContainer, parse_input_mutation_model
 
-"""//////////////////////////////////////////////////
-////////////    PARSE INPUT ARGUMENTS    ////////////
-//////////////////////////////////////////////////"""
-
 
 def main(raw_args=None):
+    """//////////////////////////////////////////////////
+    ////////////    PARSE INPUT ARGUMENTS    ////////////
+    //////////////////////////////////////////////////"""
+
     parser = argparse.ArgumentParser(description='NEAT-genReads V2.0')
-    parser.add_argument('-r', type=str, required=True, metavar='<str>', help="* ref.fa")
-    parser.add_argument('-R', type=int, required=True, metavar='<int>', help="* read length")
-    parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output prefix")
-    parser.add_argument('-c', type=float, required=False, metavar='<float>', default=10., help="average coverage")
-    parser.add_argument('-e', type=str, required=False, metavar='<str>', default=None, help="sequencing error model")
-    parser.add_argument('-E', type=float, required=False, metavar='<float>', default=-1,
-                        help="rescale avg sequencing error rate to this")
-    parser.add_argument('-p', type=int, required=False, metavar='<int>', default=2, help="ploidy")
-    parser.add_argument('-t', type=str, required=False, metavar='<str>', default=None,
-                        help="bed file containing targeted regions")
-    parser.add_argument('-d', type=str, required=False, metavar='<str>', default=None, help="discard_regions.bed")
-    parser.add_argument('-to', type=float, required=False, metavar='<float>', default=0.00,
+    parser.add_argument('-r', type=str, required=True, metavar='reference', help="Path to reference fasta")
+    parser.add_argument('-R', type=int, required=True, metavar='read length', help="The desired read length")
+    parser.add_argument('-o', type=str, required=True, metavar='output_prefix',
+                        help="Prefix for the output files (can be a path)")
+    parser.add_argument('-c', type=float, required=False, metavar='coverage', default=10.0,
+                        help="Average coverage, default is 10.0")
+    parser.add_argument('-e', type=str, required=False, metavar='error_model', default=None,
+                        help="Location and name of sequencing error model (leave blank to use the default)")
+    parser.add_argument('-E', type=float, required=False, metavar='Error rate', default=-1,
+                        help="Rescale avg sequencing error rate to this, must be between 0.0 and 0.3")
+    parser.add_argument('-p', type=int, required=False, metavar='ploidy', default=2,
+                        help="Desired ploidy, default = 2")
+    parser.add_argument('-t', type=str, required=False, metavar='target.bed', default=None,
+                        help="Bed file containing targeted regions")
+    parser.add_argument('-d', type=str, required=False, metavar='discard_regions.bed', default=None,
+                        help="Bed file with regions to discard")
+    parser.add_argument('-to', type=float, required=False, metavar='off-target coverage scalar', default=0.00,
                         help="off-target coverage scalar")
-    parser.add_argument('-m', type=str, required=False, metavar='<str>', default=None,
-                        help="mutation model pickle file")
-    parser.add_argument('-M', type=float, required=False, metavar='<float>', default=-1,
-                        help="rescale avg mutation rate to this")
-    parser.add_argument('-Mb', type=str, required=False, metavar='<str>', default=None,
-                        help="bed file containing positional mut rates")
+    parser.add_argument('-m', type=str, required=False, metavar='model.p', default=None,
+                        help="Mutation model pickle file")
+    parser.add_argument('-M', type=float, required=False, metavar='avg mut rate', default=-1,
+                        help="Rescale avg mutation rate to this, must be between 0 and 0.3")
+    parser.add_argument('-Mb', type=str, required=False, metavar='mut_rates.bed', default=None,
+                        help="Bed file containing positional mut rates")
     parser.add_argument('-N', type=int, required=False, metavar='<int>', default=-1,
                         help="below this qual, replace base-calls with 'N's")
     parser.add_argument('-v', type=str, required=False, metavar='<str>', default=None, help="input VCF file")
@@ -93,7 +98,6 @@ def main(raw_args=None):
     """
     # absolute path to this script
     sim_path = pathlib.Path(__file__).resolve().parent
-    print(sim_path)
 
     # if coverage val for a given window/position is below this value, consider it effectively zero.
     low_cov_thresh = 50
@@ -119,9 +123,9 @@ def main(raw_args=None):
 
     rng_seed = args.rng
 
-    """************************************************
-    ****            INPUT ERROR CHECKING
-    ************************************************"""
+    """
+    INPUT ERROR CHECKING
+    """
     if (fragment_size is None and fragment_std is not None) or (fragment_size is not None and fragment_std is None):
         print('\nError: --pe argument takes 2 space-separated arguments.\n')
         exit(1)
@@ -159,9 +163,9 @@ def main(raw_args=None):
         rng_seed = random.randint(1, 99999999)
     random.seed(rng_seed)
 
-    """************************************************
-    ****             LOAD INPUT MODELS
-    ************************************************"""
+    """
+    LOAD INPUT MODELS
+    """
 
     # mutation models
     mut_model = parse_input_mutation_model(mut_model, 1)

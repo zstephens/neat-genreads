@@ -215,7 +215,8 @@ class SequenceContainer:
             self.models.append([self.mut_scalar * n[0], n[1], n[2], n[3], DiscreteDistribution(n[5], n[4]),
                                 DiscreteDistribution(n[7], n[6]), []])
             for m in n[8]:
-                self.models[-1][6].append([DiscreteDistribution(m[0], NUCL), DiscreteDistribution(m[1], NUCL), DiscreteDistribution(m[2], NUCL), DiscreteDistribution(m[3], NUCL)])
+                self.models[-1][6].append([DiscreteDistribution(m[0], NUCL), DiscreteDistribution(m[1], NUCL),
+                                           DiscreteDistribution(m[2], NUCL), DiscreteDistribution(m[3], NUCL)])
             self.models[-1].append([m for m in n[9]])
 
     def init_poisson(self):
