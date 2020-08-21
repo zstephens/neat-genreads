@@ -17,6 +17,7 @@ def required_field(variable_to_test: any, err_string: str) -> None:
     if variable_to_test is None:
         print('\n' + err_string + '\n')
         raise ValueError
+        exit(1)
 
 
 def check_file_open(filename: str, err_string: str, required: bool = False) -> None:
@@ -31,11 +32,13 @@ def check_file_open(filename: str, err_string: str, required: bool = False) -> N
         if filename is None:
             print('\n' + err_string + '\n')
             raise ValueError
+            exit(1)
         else:
             try:
                 pathlib.Path(filename).resolve(strict=True)
             except FileNotFoundError:
                 print('\n' + err_string + '\n')
+                exit(1)
 
 
 def check_dir(directory: str, err_string: str) -> None:
@@ -48,6 +51,7 @@ def check_dir(directory: str, err_string: str) -> None:
     if not pathlib.Path(directory).is_dir():
         print('\n' + err_string + '\n')
         raise NotADirectoryError
+        exit(1)
 
 
 def is_in_range(value: float, lower_bound: float, upper_bound: float, err_string: str) -> None:
@@ -63,3 +67,4 @@ def is_in_range(value: float, lower_bound: float, upper_bound: float, err_string
     if value < lower_bound or value > upper_bound:
         print('\n' + err_string + '\n')
         raise ValueError
+        exit(1)
