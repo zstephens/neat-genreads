@@ -76,7 +76,7 @@ def main(raw_args=None):
                         help='rng seed value; identical RNG value should produce identical runs of the program, so '
                              'things like read locations, variant positions, error positions, etc, '
                              'should all be the same.')
-    # TODO check if this argument does anything at all.
+    # TODO check if this argument does anything at all. Near as I can tell the results are ALWAYS gzipped.
     parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
     parser.add_argument('--no-fastq', required=False, action='store_true', default=False,
                         help='bypass fastq generation')
@@ -93,6 +93,7 @@ def main(raw_args=None):
     """
     # absolute path to this script
     sim_path = pathlib.Path(__file__).resolve().parent
+    print(sim_path)
 
     # if coverage val for a given window/position is below this value, consider it effectively zero.
     low_cov_thresh = 50
