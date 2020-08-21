@@ -133,9 +133,9 @@ def main(raw_args=None):
     if only_vcf:
         print('Only producing VCF output, that should speed things up a bit...')
 
-    check_file_open(reference, 'ERROR: could not open reference', required=True)
-    check_file_open(input_vcf, 'ERROR: could not open input VCF', required=False)
-    check_file_open(input_bed, 'ERROR: could not open input BED', required=False)
+    check_file_open(reference, 'ERROR: could not open reference, {}'.format(reference), required=True)
+    check_file_open(input_vcf, 'ERROR: could not open input VCF, {}'.format(input_vcf), required=False)
+    check_file_open(input_bed, 'ERROR: could not open input BED, {}'.format(input_bed), required=False)
     required_field(out_prefix, 'ERROR: no output prefix provided')
 
     # if user specified mean/std, use artificial fragment length distribution, otherwise use
