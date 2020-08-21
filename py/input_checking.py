@@ -19,7 +19,7 @@ def required_field(variable_to_test: any, err_string: str) -> None:
         raise ValueError
 
 
-def check_file_open(filename: pathlib, err_string: str, required: bool = False) -> None:
+def check_file_open(filename: str, err_string: str, required: bool = False) -> None:
     """
     Checks that the filename is not empty and that it is indeed a  file
     :param filename: file name, pathlib object
@@ -33,19 +33,19 @@ def check_file_open(filename: pathlib, err_string: str, required: bool = False) 
             raise ValueError
         else:
             try:
-                filename.resolve(strict=True)
+                pathlib.Path(filename).resolve(strict=True)
             except FileNotFoundError:
                 print('\n' + err_string + '\n')
 
 
-def check_dir(directory: pathlib, err_string: str) -> None:
+def check_dir(directory: str, err_string: str) -> None:
     """
     Checks that directory exists and is a directory
     :param directory: string of the directory path
     :param err_string: string of the error in case it is not a directory or doesn't exist
     :return: None
     """
-    if not directory.is_dir():
+    if not pathlib.Path(directory).is_dir():
         print('\n' + err_string + '\n')
         raise NotADirectoryError
 
