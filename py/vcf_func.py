@@ -157,7 +157,8 @@ def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
                         print('Detected 2 sample columns in input VCF, assuming tumor/normal.')
                     else:
                         print(
-                            'Warning: Multiple sample columns present in input VCF. By default genReads uses only the first column.')
+                            'Warning: Multiple sample columns present in input VCF. By default genReads uses '
+                            'only the first column.')
                 else:
                     samp_names = ['Unknown']
                 if tumor_normal:

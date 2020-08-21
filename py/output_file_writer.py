@@ -95,14 +95,10 @@ BUFFER_BATCH_SIZE = 1000  # write out to file after this many reads
 #	gzipped    = True for compressed FASTQ/VCF, False for uncompressed
 #
 class OutputFileWriter:
-    def __init__(self, out_prefix, paired=False, bam_header=None, vcf_header=None, gzipped=False, job_tuple=(1, 1),
+    def __init__(self, out_prefix, paired=False, bam_header=None, vcf_header=None, gzipped=False,
                  no_fastq=False, fasta_instead=False):
 
         job_suffix = ''
-        if job_tuple[1] > 1:
-            jsl = len(str(job_tuple[1]))
-            jsb = '0' * (jsl - len(str(job_tuple[0])))
-            job_suffix = '.job' + jsb + str(job_tuple[0]) + 'of' + str(job_tuple[1])
 
         self.fasta_instead = fasta_instead
         if fasta_instead:
@@ -138,34 +134,33 @@ class OutputFileWriter:
             else:
                 self.vcf_file = open(vcf, 'wb')
 
-            # WRITE VCF HEADER (if parallel: only for first job)
-            if job_tuple[0] == 1:
-                self.vcf_file.write('##fileformat=VCFv4.1\n'.encode('utf-8'))
-                reference = '##reference=' + vcf_header[0] + '\n'
-                self.vcf_file.write(reference.encode('utf-8'))
-                self.vcf_file.write('##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">\n'.encode('utf-8'))
-                self.vcf_file.write(
-                    '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">\n'.encode('utf-8'))
-                # self.vcf_file.write('##INFO=<ID=READS,Number=1,Type=String,Description="Names of Reads Covering this Variant">\n')
-                self.vcf_file.write(
-                    '##INFO=<ID=VMX,Number=1,Type=String,Description="SNP is Missense in these Read Frames">\n'.encode(
-                        'utf-8'))
-                self.vcf_file.write(
-                    '##INFO=<ID=VNX,Number=1,Type=String,Description="SNP is Nonsense in these Read Frames">\n'.encode(
-                        'utf-8'))
-                self.vcf_file.write(
-                    '##INFO=<ID=VFX,Number=1,Type=String,Description="Indel Causes Frameshift">\n'.encode('utf-8'))
-                self.vcf_file.write(
-                    '##INFO=<ID=WP,Number=A,Type=Integer,Description="NEAT-GenReads ploidy indicator">\n'.encode(
-                        'utf-8'))
-                self.vcf_file.write('##ALT=<ID=DEL,Description="Deletion">\n'.encode('utf-8'))
-                self.vcf_file.write('##ALT=<ID=DUP,Description="Duplication">\n'.encode('utf-8'))
-                self.vcf_file.write('##ALT=<ID=INS,Description="Insertion of novel sequence">\n'.encode('utf-8'))
-                self.vcf_file.write('##ALT=<ID=INV,Description="Inversion">\n'.encode('utf-8'))
-                self.vcf_file.write('##ALT=<ID=CNV,Description="Copy number variable region">\n'.encode('utf-8'))
-                self.vcf_file.write('##ALT=<ID=TRANS,Description="Translocation">\n'.encode('utf-8'))
-                self.vcf_file.write('##ALT=<ID=INV-TRANS,Description="Inverted translocation">\n'.encode('utf-8'))
-                self.vcf_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n'.encode('utf-8'))
+            # WRITE VCF HEADER
+            self.vcf_file.write('##fileformat=VCFv4.1\n'.encode('utf-8'))
+            reference = '##reference=' + vcf_header[0] + '\n'
+            self.vcf_file.write(reference.encode('utf-8'))
+            self.vcf_file.write('##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">\n'.encode('utf-8'))
+            self.vcf_file.write(
+                '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">\n'.encode('utf-8'))
+            # self.vcf_file.write('##INFO=<ID=READS,Number=1,Type=String,Description="Names of Reads Covering this Variant">\n')
+            self.vcf_file.write(
+                '##INFO=<ID=VMX,Number=1,Type=String,Description="SNP is Missense in these Read Frames">\n'.encode(
+                    'utf-8'))
+            self.vcf_file.write(
+                '##INFO=<ID=VNX,Number=1,Type=String,Description="SNP is Nonsense in these Read Frames">\n'.encode(
+                    'utf-8'))
+            self.vcf_file.write(
+                '##INFO=<ID=VFX,Number=1,Type=String,Description="Indel Causes Frameshift">\n'.encode('utf-8'))
+            self.vcf_file.write(
+                '##INFO=<ID=WP,Number=A,Type=Integer,Description="NEAT-GenReads ploidy indicator">\n'.encode(
+                    'utf-8'))
+            self.vcf_file.write('##ALT=<ID=DEL,Description="Deletion">\n'.encode('utf-8'))
+            self.vcf_file.write('##ALT=<ID=DUP,Description="Duplication">\n'.encode('utf-8'))
+            self.vcf_file.write('##ALT=<ID=INS,Description="Insertion of novel sequence">\n'.encode('utf-8'))
+            self.vcf_file.write('##ALT=<ID=INV,Description="Inversion">\n'.encode('utf-8'))
+            self.vcf_file.write('##ALT=<ID=CNV,Description="Copy number variable region">\n'.encode('utf-8'))
+            self.vcf_file.write('##ALT=<ID=TRANS,Description="Translocation">\n'.encode('utf-8'))
+            self.vcf_file.write('##ALT=<ID=INV-TRANS,Description="Inverted translocation">\n'.encode('utf-8'))
+            self.vcf_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n'.encode('utf-8'))
 
         #
         #	BAM OUTPUT
@@ -174,24 +169,23 @@ class OutputFileWriter:
         if bam_header is not None:
             self.bam_file = BgzfWriter(bam, 'w', compresslevel=BAM_COMPRESSION_LEVEL)
 
-            # WRITE BAM HEADER (if parallel: only for first job)
-            if True or job_tuple[0] == 1:
-                self.bam_file.write("BAM\1")
-                header = '@HD\tVN:1.5\tSO:coordinate\n'
-                for n in bam_header[0]:
-                    header += '@SQ\tSN:' + n[0] + '\tLN:' + str(n[3]) + '\n'
-                header += '@RG\tID:NEAT\tSM:NEAT\tLB:NEAT\tPL:NEAT\n'
-                header_bytes = len(header)
-                num_refs = len(bam_header[0])
-                self.bam_file.write(pack('<i', header_bytes))
-                self.bam_file.write(header)
-                self.bam_file.write(pack('<i', num_refs))
+            # WRITE BAM HEADER
+            self.bam_file.write("BAM\1")
+            header = '@HD\tVN:1.5\tSO:coordinate\n'
+            for n in bam_header[0]:
+                header += '@SQ\tSN:' + n[0] + '\tLN:' + str(n[3]) + '\n'
+            header += '@RG\tID:NEAT\tSM:NEAT\tLB:NEAT\tPL:NEAT\n'
+            header_bytes = len(header)
+            num_refs = len(bam_header[0])
+            self.bam_file.write(pack('<i', header_bytes))
+            self.bam_file.write(header)
+            self.bam_file.write(pack('<i', num_refs))
 
-                for n in bam_header[0]:
-                    l_name = len(n[0]) + 1
-                    self.bam_file.write(pack('<i', l_name))
-                    self.bam_file.write(n[0] + '\0')
-                    self.bam_file.write(pack('<i', n[3]))
+            for n in bam_header[0]:
+                l_name = len(n[0]) + 1
+                self.bam_file.write(pack('<i', l_name))
+                self.bam_file.write(n[0] + '\0')
+                self.bam_file.write(pack('<i', n[3]))
 
         # buffers for more efficient writing
         self.fq1_buffer = []
