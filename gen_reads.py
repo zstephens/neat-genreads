@@ -33,6 +33,17 @@ from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
 from py.SequenceContainer import SequenceContainer, ReadContainer, parse_input_mutation_model
 
 
+"""
+Some constants needed for analysis
+"""
+
+# target window size for read sampling. How many times bigger than read/frag length
+WINDOW_TARGET_SCALE = 100
+
+# allowed nucleotides
+ALLOWED_NUCL = ['A', 'C', 'G', 'T']
+
+
 def main(raw_args=None):
     """//////////////////////////////////////////////////
     ////////////    PARSE INPUT ARGUMENTS    ////////////
@@ -63,10 +74,10 @@ def main(raw_args=None):
                         help="Rescale avg mutation rate to this, must be between 0 and 0.3")
     parser.add_argument('-Mb', type=str, required=False, metavar='mut_rates.bed', default=None,
                         help="Bed file containing positional mut rates")
-    parser.add_argument('-N', type=int, required=False, metavar='<int>', default=-1,
-                        help="below this qual, replace base-calls with 'N's")
-    parser.add_argument('-v', type=str, required=False, metavar='<str>', default=None, help="input VCF file")
-
+    parser.add_argument('-N', type=int, required=False, metavar='min qual score', default=-1,
+                        help="below this quality score, replace base-calls with N's")
+    parser.add_argument('-v', type=str, required=False, metavar='vcf.file', default=None,
+                        help="Input VCF file of variants to include")
     parser.add_argument('--pe', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(None, None),
                         help='paired-end fragment length mean and std')
     parser.add_argument('--pe-model', type=str, required=False, metavar='<str>', default=None,
@@ -96,6 +107,7 @@ def main(raw_args=None):
     """
     Set variables for processing
     """
+
     # absolute path to this script
     sim_path = pathlib.Path(__file__).resolve().parent
 
@@ -126,17 +138,27 @@ def main(raw_args=None):
     """
     INPUT ERROR CHECKING
     """
-    if (fragment_size is None and fragment_std is not None) or (fragment_size is not None and fragment_std is None):
-        print('\nError: --pe argument takes 2 space-separated arguments.\n')
-        exit(1)
-    only_vcf = no_fastq and save_vcf and not save_bam and not fasta_instead
-    if only_vcf:
-        print('Only producing VCF output, that should speed things up a bit...')
 
+    # Check that files are real, if provided
     check_file_open(reference, 'ERROR: could not open reference, {}'.format(reference), required=True)
     check_file_open(input_vcf, 'ERROR: could not open input VCF, {}'.format(input_vcf), required=False)
     check_file_open(input_bed, 'ERROR: could not open input BED, {}'.format(input_bed), required=False)
-    required_field(out_prefix, 'ERROR: no output prefix provided')
+
+    # if user specified no fastq, not fasta only, and no bam and no vcf, then print error and exit.
+    if no_fastq and not fasta_instead and not save_bam and not save_vcf:
+        print('\nERROR: No files would be written.\n')
+        exit(1)
+
+    if no_fastq:
+        print('Bypassing FASTQ generation...')
+
+    only_vcf = no_fastq and save_vcf and not save_bam and not fasta_instead
+    if only_vcf:
+        print('Only producing VCF output...')
+
+    if (fragment_size is None and fragment_std is not None) or (fragment_size is not None and fragment_std is None):
+        print('\nERROR: --pe argument takes 2 space-separated arguments.\n')
+        exit(1)
 
     # if user specified mean/std, use artificial fragment length distribution, otherwise use
     # the empirical model specified. If neither, then we're doing single-end reads.
@@ -150,17 +172,22 @@ def main(raw_args=None):
         paired_end = False
         paired_end_artificial = False
 
-    # if user specified no fastq, not fasta only, and no bam and no vcf, then print error and exit.
-    if no_fastq and not fasta_instead and not save_bam and not save_vcf:
-        print('\nError: No files would be written.\n')
-        exit(1)
-
-    if no_fastq:
-        print('Bypassing FASTQ generation...')
-
     if rng_seed == -1:
         rng_seed = random.randint(1, 99999999)
     random.seed(rng_seed)
+
+    is_in_range(read_len, 10, 1000000, 'Error: -R must be between 10 and 1,000,000')
+    is_in_range(coverage, 0, 1000000, 'Error: -c must be between 0 and 1,000,000')
+    is_in_range(ploids, 1, 100, 'Error: -p must be between 1 and 100')
+    is_in_range(off_target_scalar, 0, 1, 'Error: -to must be between 0 and 1')
+
+    if se_rate != -1:
+        is_in_range(se_rate, 0, 0.3, 'Error: -E must be between 0 and 0.3')
+    else:
+        se_rate = None
+
+    if n_max_qual != -1:
+        is_in_range(n_max_qual, 1, 40, 'Error: -N must be between 1 and 40')
 
     """
     LOAD INPUT MODELS
@@ -173,9 +200,10 @@ def main(raw_args=None):
     if mut_rate < 0.:
         mut_rate = None
 
+    if mut_rate != -1 and mut_rate is not None:
+        is_in_range(mut_rate, 0, 0.3, 'Error: -M must be between 0 and 0.3')
+
     # sequencing error model
-    if se_rate < 0.:
-        se_rate = None
     if se_model is None:
         print('Using default sequencing error model.')
         se_model = sim_path / 'models/errorModel_toy.p'
@@ -223,31 +251,6 @@ def main(raw_args=None):
             fraglen_prob = [np.exp(-(((n - float(fragment_size)) ** 2) / (2 * (fragment_std ** 2)))) for n in
                             fraglen_vals]
             fraglen_distribution = DiscreteDistribution(fraglen_prob, fraglen_vals)
-
-    """************************************************
-    ****            HARD-CODED CONSTANTS
-    ************************************************"""
-
-    # target window size for read sampling. how many times bigger than read/frag length
-    WINDOW_TARGET_SCALE = 100
-
-    # allowed nucleotides
-    ALLOWED_NUCL = ['A', 'C', 'G', 'T']
-
-    """************************************************
-    ****          MORE INPUT ERROR CHECKING
-    ************************************************"""
-
-    is_in_range(read_len, 10, 1000000, 'Error: -R must be between 10 and 1,000,000')
-    is_in_range(coverage, 0, 1000000, 'Error: -c must be between 0 and 1,000,000')
-    is_in_range(ploids, 1, 100, 'Error: -p must be between 1 and 100')
-    is_in_range(off_target_scalar, 0, 1, 'Error: -to must be between 0 and 1')
-    if mut_rate != -1 and mut_rate is not None:
-        is_in_range(mut_rate, 0, 0.3, 'Error: -M must be between 0 and 0.3')
-    if se_rate != -1 and se_rate is not None:
-        is_in_range(se_rate, 0, 0.3, 'Error: -E must be between 0 and 0.3')
-    if n_max_qual != -1:
-        is_in_range(n_max_qual, 1, 40, 'Error: -N must be between 1 and 40')
 
     """************************************************
     ****   Process Inputs
@@ -665,7 +668,7 @@ def main(raw_args=None):
                             for j in range(len(my_read_data)):
                                 my_read_string = [n for n in my_read_data[j][2]]
                                 for k in range(len(my_read_data[j][3])):
-                                    adjusted_qual = ord(my_read_data[j][3][k]) - se_class.offQ
+                                    adjusted_qual = ord(my_read_data[j][3][k]) - se_class.off_q
                                     if adjusted_qual <= n_max_qual:
                                         my_read_string[k] = 'N'
                                 my_read_data[j][2] = ''.join(my_read_string)

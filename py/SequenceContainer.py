@@ -10,6 +10,9 @@ from Bio.Alphabet import IUPAC
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
 
+"""
+Constants needed for analysis
+"""
 MAX_ATTEMPTS = 100  # max attempts to insert a mutation into a valid position
 MAX_MUTFRAC = 0.3  # the maximum percentage of a window that can contain mutations
 
@@ -26,6 +29,60 @@ IGNORE_TRINUC = False
 # percentile resolution used for fraglen quantizing
 COV_FRAGLEN_PERCENTILE = 10.
 LARGE_NUMBER = 9999999999
+
+"""
+DEFAULT MUTATION MODELS
+"""
+
+DEFAULT_1_OVERALL_MUT_RATE = 0.001
+DEFAULT_1_HOMOZYGOUS_FREQ = 0.010
+DEFAULT_1_INDEL_FRACTION = 0.05
+DEFAULT_1_INS_VS_DEL = 0.6
+DEFAULT_1_INS_LENGTH_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+DEFAULT_1_INS_LENGTH_WEIGHTS = [0.4, 0.2, 0.1, 0.05, 0.05, 0.05, 0.05, 0.034, 0.033, 0.033]
+DEFAULT_1_DEL_LENGTH_VALUES = [1, 2, 3, 4, 5]
+DEFAULT_1_DEL_LENGTH_WEIGHTS = [0.3, 0.2, 0.2, 0.2, 0.1]
+example_matrix_1 = [[0.0, 0.15, 0.7, 0.15],
+                    [0.15, 0.0, 0.15, 0.7],
+                    [0.7, 0.15, 0.0, 0.15],
+                    [0.15, 0.7, 0.15, 0.0]]
+DEFAULT_1_TRI_FREQS = [copy.deepcopy(example_matrix_1) for n in range(16)]
+DEFAULT_1_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for n in ALL_TRI]
+DEFAULT_MODEL_1 = [DEFAULT_1_OVERALL_MUT_RATE,
+                   DEFAULT_1_HOMOZYGOUS_FREQ,
+                   DEFAULT_1_INDEL_FRACTION,
+                   DEFAULT_1_INS_VS_DEL,
+                   DEFAULT_1_INS_LENGTH_VALUES,
+                   DEFAULT_1_INS_LENGTH_WEIGHTS,
+                   DEFAULT_1_DEL_LENGTH_VALUES,
+                   DEFAULT_1_DEL_LENGTH_WEIGHTS,
+                   DEFAULT_1_TRI_FREQS,
+                   DEFAULT_1_TRINUC_BIAS]
+
+DEFAULT_2_OVERALL_MUT_RATE = 0.002
+DEFAULT_2_HOMOZYGOUS_FREQ = 0.200
+DEFAULT_2_INDEL_FRACTION = 0.1
+DEFAULT_2_INS_VS_DEL = 0.3
+DEFAULT_2_INS_LENGTH_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+DEFAULT_2_INS_LENGTH_WEIGHTS = [0.1, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+DEFAULT_2_DEL_LENGTH_VALUES = [1, 2, 3, 4, 5]
+DEFAULT_2_DEL_LENGTH_WEIGHTS = [0.3, 0.2, 0.2, 0.2, 0.1]
+example_matrix_2 = [[0.0, 0.15, 0.7, 0.15],
+                    [0.15, 0.0, 0.15, 0.7],
+                    [0.7, 0.15, 0.0, 0.15],
+                    [0.15, 0.7, 0.15, 0.0]]
+DEFAULT_2_TRI_FREQS = [copy.deepcopy(example_matrix_2) for n in range(16)]
+DEFAULT_2_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for n in ALL_TRI]
+DEFAULT_MODEL_2 = [DEFAULT_2_OVERALL_MUT_RATE,
+                   DEFAULT_2_HOMOZYGOUS_FREQ,
+                   DEFAULT_2_INDEL_FRACTION,
+                   DEFAULT_2_INS_VS_DEL,
+                   DEFAULT_2_INS_LENGTH_VALUES,
+                   DEFAULT_2_INS_LENGTH_WEIGHTS,
+                   DEFAULT_2_DEL_LENGTH_VALUES,
+                   DEFAULT_2_DEL_LENGTH_WEIGHTS,
+                   DEFAULT_2_TRI_FREQS,
+                   DEFAULT_2_TRINUC_BIAS]
 
 
 #
@@ -156,8 +213,10 @@ class SequenceContainer:
                         # print 'AFTER2:', max_coord
                         coverage_vals = []
                         for j in range(0, max_coord):
-                            coverage_vals.append(coverage_vector[j + self.read_len] - coverage_vector[j] + coverage_vector[j + flv] - coverage_vector[
-                                j + flv - self.read_len])
+                            coverage_vals.append(
+                                coverage_vector[j + self.read_len] - coverage_vector[j] + coverage_vector[j + flv] -
+                                coverage_vector[
+                                    j + flv - self.read_len])
 
                         # EXPERIMENTAL
                         # quantized_covVals = quantize_list(coverage_vals)
@@ -665,16 +724,15 @@ class SequenceContainer:
         return r_out
 
 
-
-#
-#	Container for read data, computes quality scores and positions to insert errors
-#
 class ReadContainer:
-    def __init__(self, read_len, errorModel, rescaled_error):
+    """
+    Container for read data, computes quality scores and positions to insert errors
+    """
+    def __init__(self, read_len, error_model, rescaled_error):
 
         self.read_len = read_len
 
-        error_dat = pickle.load(open(errorModel, 'rb'), encoding="bytes")
+        error_dat = pickle.load(open(error_model, 'rb'), encoding="bytes")
         self.UNIFORM = False
         if len(error_dat) == 4:  # uniform-error SE reads (e.g. PacBio)
             self.UNIFORM = True
@@ -682,21 +740,23 @@ class ReadContainer:
             self.uniform_q_score = int(-10. * np.log10(avg_error) + 0.5)
             print('Using uniform sequencing error model. (q=' + str(self.uniform_q_score) + '+' + str(
                 off_q) + ', p(err)={0:0.2f}%)'.format(100. * avg_error))
-        if len(error_dat) == 6:  # only 1 q-score model present, use same model for both strands
+        elif len(error_dat) == 6:  # only 1 q-score model present, use same model for both strands
             [init_q1, prob_q1, q_scores, off_q, avg_error, error_params] = error_dat
             self.PE_MODELS = False
         elif len(error_dat) == 8:  # found a q-score model for both forward and reverse strands
-            # print 'Using paired-read quality score profiles...'
-            [init_q1, prob_q1, initQ2, probQ2, q_scores, off_q, avg_error, error_params] = error_dat
+            [init_q1, prob_q1, init_q2, prob_q2, q_scores, off_q, avg_error, error_params] = error_dat
             self.PE_MODELS = True
-            if len(init_q1) != len(initQ2) or len(prob_q1) != len(probQ2):
+            if len(init_q1) != len(init_q2) or len(prob_q1) != len(prob_q2):
                 print('\nError: R1 and R2 quality score models are of different length.\n')
                 exit(1)
-
-        self.qErrRate = [0.] * (max(q_scores) + 1)
+        else:
+            print('\nError: Something wrong with error model.\n')
+            exit(1)
+        print(q_scores)
+        self.q_err_rate = [0.] * (max(q_scores) + 1)
         for q in q_scores:
-            self.qErrRate[q] = 10. ** (-q / 10.)
-        self.offQ = off_q
+            self.q_err_rate[q] = 10. ** (-q / 10.)
+        self.off_q = off_q
 
         # error_params = [SSE_PROB, SIE_RATE, SIE_PROB, SIE_VAL, SIE_INS_FREQ, SIE_INS_NUCL]
         self.errP = error_params
@@ -735,17 +795,17 @@ class ReadContainer:
                         self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(prob_q1[i][j], q_scores))
 
             if self.PE_MODELS:
-                self.initDistByPos2 = [DiscreteDistribution(initQ2[i], q_scores) for i in range(len(initQ2))]
+                self.initDistByPos2 = [DiscreteDistribution(init_q2[i], q_scores) for i in range(len(init_q2))]
                 self.probDistByPosByPrevQ2 = [None]
-                for i in range(1, len(initQ2)):
+                for i in range(1, len(init_q2)):
                     self.probDistByPosByPrevQ2.append([])
-                    for j in range(len(initQ2[0])):
-                        if np.sum(probQ2[i][
+                    for j in range(len(init_q2[0])):
+                        if np.sum(prob_q2[i][
                                       j]) <= 0.:  # if we don't have sufficient data for a transition, use the previous qscore
                             self.probDistByPosByPrevQ2[-1].append(
                                 DiscreteDistribution([1], [q_scores[j]], degenerate_val=q_scores[j]))
                         else:
-                            self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(probQ2[i][j], q_scores))
+                            self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(prob_q2[i][j], q_scores))
 
     def get_sequencing_errors(self, read_data, is_reverse_strand=False):
 
@@ -753,10 +813,10 @@ class ReadContainer:
         s_err = []
 
         if self.UNIFORM:
-            my_q = [self.uniform_q_score + self.offQ for n in range(self.read_len)]
+            my_q = [self.uniform_q_score + self.off_q for n in range(self.read_len)]
             q_out = ''.join([chr(n) for n in my_q])
             for i in range(self.read_len):
-                if random.random() < self.errorScale * self.qErrRate[self.uniform_q_score]:
+                if random.random() < self.errorScale * self.q_err_rate[self.uniform_q_score]:
                     s_err.append(i)
         else:
 
@@ -777,10 +837,10 @@ class ReadContainer:
                 q_out = q_out[::-1]
 
             for i in range(self.read_len):
-                if random.random() < self.errorScale * self.qErrRate[q_out[i]]:
+                if random.random() < self.errorScale * self.q_err_rate[q_out[i]]:
                     s_err.append(i)
 
-            q_out = ''.join([chr(n + self.offQ) for n in q_out])
+            q_out = ''.join([chr(n + self.off_q) for n in q_out])
 
         if self.errorScale == 0.0:
             return q_out, []
@@ -829,13 +889,9 @@ class ReadContainer:
         return q_out, s_out
 
 
-"""************************************************
-****          DEFAULT MUTATION MODELS
-************************************************"""
-
-
 # parse mutation model pickle file
 def parse_input_mutation_model(model=None, which_default=1):
+
     if which_default == 1:
         out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
     elif which_default == 2:
@@ -896,137 +952,3 @@ def parse_input_mutation_model(model=None, which_default=1):
 
     return out_model
 
-
-# parse mutation model files, returns default model if no model directory is specified
-#
-# OLD FUNCTION THAT PROCESSED OUTDATED TEXTFILE MUTATION MODELS
-def parse_input_mutation_model_deprecated(prefix=None, which_default=1):
-    if which_default == 1:
-        out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
-    elif which_default == 2:
-        out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_2]
-    else:
-        print('\nError: Unknown default mutation model specified\n')
-        exit(1)
-
-    if prefix is not None:
-        if prefix[-1] != '/':
-            prefix += '/'
-        if not os.path.isdir(prefix):
-            print('\nError: Input mutation model directory not found:', prefix, '\n')
-            exit(1)
-
-        print('Reading in mutation model...')
-        listing1 = [n for n in os.listdir(prefix) if n[-5:] == '.prob']
-        listing2 = [n for n in os.listdir(prefix) if n[-7:] == '.trinuc']
-        listing = sorted(listing1) + sorted(listing2)
-        for l in listing:
-            f = open(prefix + l, 'r')
-            fr = [n.split('\t') for n in f.read().split('\n')]
-            f.close()
-
-            if '_overall.prob' in l:
-                myIns = None
-                myDel = None
-                for dat in fr[1:]:
-                    if len(dat) == 2:
-                        if dat[0] == 'insertion':
-                            myIns = float(dat[1])
-                        elif dat[0] == 'deletion':
-                            myDel = float(dat[1])
-                if myIns is not None and myDel is not None:
-                    out_model[2] = myIns + myDel
-                    out_model[3] = myIns / (myIns + myDel)
-                    print('-', l)
-
-            if '_insLength.prob' in l:
-                ins_vals = {}
-                for dat in fr[1:]:
-                    if len(dat) == 2:
-                        ins_vals[int(dat[0])] = float(dat[1])
-                if len(ins_vals):
-                    out_model[4] = sorted(ins_vals.keys())
-                    out_model[5] = [ins_vals[n] for n in out_model[4]]
-                    print('-', l)
-
-            if '_delLength.prob' in l:
-                del_vals = {}
-                for dat in fr[1:]:
-                    if len(dat) == 2:
-                        del_vals[int(dat[0])] = float(dat[1])
-                if len(del_vals):
-                    out_model[6] = sorted(del_vals.keys())
-                    out_model[7] = [del_vals[n] for n in out_model[6]]
-                    print('-', l)
-
-            if '.trinuc' == l[-7:]:
-                context_ind = TRI_IND[l[-10] + l[-8]]
-                p_matrix = [[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]]
-                for i in range(len(p_matrix)):
-                    for j in range(len(fr[i])):
-                        p_matrix[i][j] = float(fr[i][j])
-                any_none = False
-                for i in range(len(p_matrix)):
-                    for j in range(len(p_matrix[i])):
-                        if p_matrix[i][j] == -1:
-                            any_none = True
-                if not any_none:
-                    out_model[8][context_ind] = copy.deepcopy(p_matrix)
-                    print('-', l)
-
-    return out_model
-
-
-######################
-#	DEFAULT VALUES   #
-######################
-
-DEFAULT_1_OVERALL_MUT_RATE = 0.001
-DEFAULT_1_HOMOZYGOUS_FREQ = 0.010
-DEFAULT_1_INDEL_FRACTION = 0.05
-DEFAULT_1_INS_VS_DEL = 0.6
-DEFAULT_1_INS_LENGTH_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-DEFAULT_1_INS_LENGTH_WEIGHTS = [0.4, 0.2, 0.1, 0.05, 0.05, 0.05, 0.05, 0.034, 0.033, 0.033]
-DEFAULT_1_DEL_LENGTH_VALUES = [1, 2, 3, 4, 5]
-DEFAULT_1_DEL_LENGTH_WEIGHTS = [0.3, 0.2, 0.2, 0.2, 0.1]
-example_matrix_1 = [[0.0, 0.15, 0.7, 0.15],
-                    [0.15, 0.0, 0.15, 0.7],
-                    [0.7, 0.15, 0.0, 0.15],
-                    [0.15, 0.7, 0.15, 0.0]]
-DEFAULT_1_TRI_FREQS = [copy.deepcopy(example_matrix_1) for n in range(16)]
-DEFAULT_1_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for n in ALL_TRI]
-DEFAULT_MODEL_1 = [DEFAULT_1_OVERALL_MUT_RATE,
-                   DEFAULT_1_HOMOZYGOUS_FREQ,
-                   DEFAULT_1_INDEL_FRACTION,
-                   DEFAULT_1_INS_VS_DEL,
-                   DEFAULT_1_INS_LENGTH_VALUES,
-                   DEFAULT_1_INS_LENGTH_WEIGHTS,
-                   DEFAULT_1_DEL_LENGTH_VALUES,
-                   DEFAULT_1_DEL_LENGTH_WEIGHTS,
-                   DEFAULT_1_TRI_FREQS,
-                   DEFAULT_1_TRINUC_BIAS]
-
-DEFAULT_2_OVERALL_MUT_RATE = 0.002
-DEFAULT_2_HOMOZYGOUS_FREQ = 0.200
-DEFAULT_2_INDEL_FRACTION = 0.1
-DEFAULT_2_INS_VS_DEL = 0.3
-DEFAULT_2_INS_LENGTH_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-DEFAULT_2_INS_LENGTH_WEIGHTS = [0.1, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
-DEFAULT_2_DEL_LENGTH_VALUES = [1, 2, 3, 4, 5]
-DEFAULT_2_DEL_LENGTH_WEIGHTS = [0.3, 0.2, 0.2, 0.2, 0.1]
-example_matrix_2 = [[0.0, 0.15, 0.7, 0.15],
-                    [0.15, 0.0, 0.15, 0.7],
-                    [0.7, 0.15, 0.0, 0.15],
-                    [0.15, 0.7, 0.15, 0.0]]
-DEFAULT_2_TRI_FREQS = [copy.deepcopy(example_matrix_2) for n in range(16)]
-DEFAULT_2_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for n in ALL_TRI]
-DEFAULT_MODEL_2 = [DEFAULT_2_OVERALL_MUT_RATE,
-                   DEFAULT_2_HOMOZYGOUS_FREQ,
-                   DEFAULT_2_INDEL_FRACTION,
-                   DEFAULT_2_INS_VS_DEL,
-                   DEFAULT_2_INS_LENGTH_VALUES,
-                   DEFAULT_2_INS_LENGTH_WEIGHTS,
-                   DEFAULT_2_DEL_LENGTH_VALUES,
-                   DEFAULT_2_DEL_LENGTH_WEIGHTS,
-                   DEFAULT_2_TRI_FREQS,
-                   DEFAULT_2_TRINUC_BIAS]
