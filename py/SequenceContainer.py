@@ -775,7 +775,7 @@ class ReadContainer:
                   'Error model scaled by {0:.3f} to match desired rate...'.format(self.error_scale))
 
         if not self.uniform:
-            print('init_q1 = {init_q1}')
+            print('init_q1 = {}'.format(init_q1))
             # adjust length to match desired read length
             if self.read_len == len(init_q1):
                 self.q_ind_remap = range(self.read_len)
