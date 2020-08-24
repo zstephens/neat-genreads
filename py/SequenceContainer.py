@@ -753,12 +753,10 @@ class ReadContainer:
             print('\nError: Something wrong with error model.\n')
             exit(1)
 
-        print(avg_error)
         self.q_err_rate = [0.] * (max(q_scores) + 1)
         for q in q_scores:
             self.q_err_rate[q] = 10. ** (-q / 10.)
         self.off_q = off_q
-        print(off_q)
         self.err_p = error_params
         # Selects a new nucleotide based on the error model
         self.err_sse = [DiscreteDistribution(n, NUCL) for n in self.err_p[0]]

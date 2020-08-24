@@ -57,7 +57,7 @@ def main(raw_args=None):
     parser.add_argument('-c', type=float, required=False, metavar='coverage', default=10.0,
                         help="Average coverage, default is 10.0")
     parser.add_argument('-e', type=str, required=False, metavar='error_model', default=None,
-                        help="Location and name of sequencing error model (leave blank to use the default)")
+                        help="Location of the file for the sequencing error model (omit to use the default)")
     parser.add_argument('-E', type=float, required=False, metavar='Error rate', default=-1,
                         help="Rescale avg sequencing error rate to this, must be between 0.0 and 0.3")
     parser.add_argument('-p', type=int, required=False, metavar='ploidy', default=2,
