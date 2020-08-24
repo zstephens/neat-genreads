@@ -625,7 +625,7 @@ class SequenceContainer:
             expanded_cigar = []
             extraCigar = []
             adj = 0
-            sse_adj = [0 for n in range(self.read_len + max(sequencingModel.errP[3]))]
+            sse_adj = [0 for n in range(self.read_len + max(sequencingModel.err_p[3]))]
             any_indel_err = False
 
             # sort by letter (D > I > S) such that we introduce all indel errors before substitution errors
@@ -752,17 +752,18 @@ class ReadContainer:
         else:
             print('\nError: Something wrong with error model.\n')
             exit(1)
-        print(q_scores)
+
         self.q_err_rate = [0.] * (max(q_scores) + 1)
         for q in q_scores:
             self.q_err_rate[q] = 10. ** (-q / 10.)
         self.off_q = off_q
 
+        print(error_params)
         # error_params = [SSE_PROB, SIE_RATE, SIE_PROB, SIE_VAL, SIE_INS_FREQ, SIE_INS_NUCL]
-        self.errP = error_params
-        self.errSSE = [DiscreteDistribution(n, NUCL) for n in self.errP[0]]
-        self.errSIE = DiscreteDistribution(self.errP[2], self.errP[3])
-        self.errSIN = DiscreteDistribution(self.errP[5], NUCL)
+        self.err_p = error_params
+        self.err_sse = [DiscreteDistribution(n, NUCL) for n in self.err_p[0]]
+        self.err_sie = DiscreteDistribution(self.err_p[2], self.err_p[3])
+        self.err_sin = DiscreteDistribution(self.err_p[5], NUCL)
 
         # adjust sequencing error frequency to match desired rate
         if rescaled_error is None:
@@ -856,21 +857,21 @@ class ReadContainer:
 
             # determine error type
             is_sub = True
-            if ind != 0 and ind != self.read_len - 1 - max(self.errP[3]) and abs(ind - prev_indel) > 1:
-                if random.random() < self.errP[1]:
+            if ind != 0 and ind != self.read_len - 1 - max(self.err_p[3]) and abs(ind - prev_indel) > 1:
+                if random.random() < self.err_p[1]:
                     is_sub = False
 
             # error_out = (type, len, pos, ref, alt)
 
             if is_sub:  # insert substitution error
                 my_nucl = str(read_data[ind])
-                new_nucl = self.errSSE[NUC_IND[my_nucl]].sample()
+                new_nucl = self.err_sse[NUC_IND[my_nucl]].sample()
                 s_out.append(('S', 1, ind, my_nucl, new_nucl))
             else:  # insert indel error
-                indel_len = self.errSIE.sample()
-                if random.random() < self.errP[4]:  # insertion error
+                indel_len = self.err_sie.sample()
+                if random.random() < self.err_p[4]:  # insertion error
                     my_nucl = str(read_data[ind])
-                    new_nucl = my_nucl + ''.join([self.errSIN.sample() for n in range(indel_len)])
+                    new_nucl = my_nucl + ''.join([self.err_sin.sample() for n in range(indel_len)])
                     s_out.append(('I', len(new_nucl) - 1, ind, my_nucl, new_nucl))
                 elif ind < self.read_len - 2 - n_del_so_far:  # deletion error (prevent too many of them from stacking up)
                     my_nucl = str(read_data[ind:ind + indel_len + 1])
