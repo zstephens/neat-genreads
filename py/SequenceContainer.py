@@ -757,13 +757,13 @@ class ReadContainer:
         for q in q_scores:
             self.q_err_rate[q] = 10. ** (-q / 10.)
         self.off_q = off_q
-
+        print(off_q)
         self.err_p = error_params
         # Selects a new nucleotide based on the error model
         self.err_sse = [DiscreteDistribution(n, NUCL) for n in self.err_p[0]]
         # allows for selection of indel length based on the parameters of the model
         self.err_sie = DiscreteDistribution(self.err_p[2], self.err_p[3])
-        #allows for indel insertion based on the length above and the probability from the model
+        # allows for indel insertion based on the length above and the probability from the model
         self.err_sin = DiscreteDistribution(self.err_p[5], NUCL)
 
         # adjust sequencing error frequency to match desired rate
@@ -785,30 +785,31 @@ class ReadContainer:
                 self.q_ind_remap = [max([1, len(init_q1) * n // read_len]) for n in range(read_len)]
 
             # initialize probability distributions
-            self.initDistByPos1 = [DiscreteDistribution(init_q1[i], q_scores) for i in range(len(init_q1))]
-            self.probDistByPosByPrevQ1 = [None]
+            self.init_dist_by_pos_1 = [DiscreteDistribution(init_q1[i], q_scores) for i in range(len(init_q1))]
+            self.prob_dist_by_pos_by_prev_q1 = [None]
             for i in range(1, len(init_q1)):
-                self.probDistByPosByPrevQ1.append([])
+                self.prob_dist_by_pos_by_prev_q1.append([])
                 for j in range(len(init_q1[0])):
-                    # if we don't have sufficient data for a transition, use the previous qscore
+                    # if we don't have sufficient data for a transition, use the previous quality score
                     if np.sum(prob_q1[i][j]) <= 0.:
-                        self.probDistByPosByPrevQ1[-1].append(
+                        self.prob_dist_by_pos_by_prev_q1[-1].append(
                             DiscreteDistribution([1], [q_scores[j]], degenerate_val=q_scores[j]))
                     else:
-                        self.probDistByPosByPrevQ1[-1].append(DiscreteDistribution(prob_q1[i][j], q_scores))
+                        self.prob_dist_by_pos_by_prev_q1[-1].append(DiscreteDistribution(prob_q1[i][j], q_scores))
 
+            # If paired-end, initialize probability distributions for the other strand
             if self.pe_models:
-                self.initDistByPos2 = [DiscreteDistribution(init_q2[i], q_scores) for i in range(len(init_q2))]
-                self.probDistByPosByPrevQ2 = [None]
+                self.init_dist_by_pos_2 = [DiscreteDistribution(init_q2[i], q_scores) for i in range(len(init_q2))]
+                self.prob_dist_by_pos_by_prev_q2 = [None]
                 for i in range(1, len(init_q2)):
-                    self.probDistByPosByPrevQ2.append([])
+                    self.prob_dist_by_pos_by_prev_q2.append([])
                     for j in range(len(init_q2[0])):
                         if np.sum(prob_q2[i][
                                       j]) <= 0.:  # if we don't have sufficient data for a transition, use the previous qscore
-                            self.probDistByPosByPrevQ2[-1].append(
+                            self.prob_dist_by_pos_by_prev_q2[-1].append(
                                 DiscreteDistribution([1], [q_scores[j]], degenerate_val=q_scores[j]))
                         else:
-                            self.probDistByPosByPrevQ2[-1].append(DiscreteDistribution(prob_q2[i][j], q_scores))
+                            self.prob_dist_by_pos_by_prev_q2[-1].append(DiscreteDistribution(prob_q2[i][j], q_scores))
 
     def get_sequencing_errors(self, read_data, is_reverse_strand=False):
 
@@ -816,7 +817,7 @@ class ReadContainer:
         s_err = []
 
         if self.uniform:
-            my_q = [self.uniform_q_score + self.off_q for n in range(self.read_len)]
+            my_q = [self.uniform_q_score + self.off_q] * self.read_len
             q_out = ''.join([chr(n) for n in my_q])
             for i in range(self.read_len):
                 if random.random() < self.error_scale * self.q_err_rate[self.uniform_q_score]:
@@ -824,16 +825,16 @@ class ReadContainer:
         else:
 
             if self.pe_models and is_reverse_strand:
-                my_q = self.initDistByPos2[0].sample()
+                my_q = self.init_dist_by_pos_2[0].sample()
             else:
-                my_q = self.initDistByPos1[0].sample()
+                my_q = self.init_dist_by_pos_1[0].sample()
             q_out[0] = my_q
 
             for i in range(1, self.read_len):
                 if self.pe_models and is_reverse_strand:
-                    my_q = self.probDistByPosByPrevQ2[self.q_ind_remap[i]][my_q].sample()
+                    my_q = self.prob_dist_by_pos_by_prev_q2[self.q_ind_remap[i]][my_q].sample()
                 else:
-                    my_q = self.probDistByPosByPrevQ1[self.q_ind_remap[i]][my_q].sample()
+                    my_q = self.prob_dist_by_pos_by_prev_q1[self.q_ind_remap[i]][my_q].sample()
                 q_out[i] = my_q
 
             if is_reverse_strand:
