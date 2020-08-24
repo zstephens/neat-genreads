@@ -817,6 +817,7 @@ class ReadContainer:
         if self.uniform:
             my_q = [self.uniform_q_score + self.off_q] * self.read_len
             q_out = ''.join([chr(n) for n in my_q])
+            print("self.error_scale = " + self.error_scale + "self.q_err_rate = " + self.q_err_rate)
             for i in range(self.read_len):
                 if random.random() < self.error_scale * self.q_err_rate[self.uniform_q_score]:
                     s_err.append(i)
