@@ -753,6 +753,7 @@ class ReadContainer:
             print('\nError: Something wrong with error model.\n')
             exit(1)
 
+        print(avg_error)
         self.q_err_rate = [0.] * (max(q_scores) + 1)
         for q in q_scores:
             self.q_err_rate[q] = 10. ** (-q / 10.)
@@ -775,7 +776,6 @@ class ReadContainer:
                   'Error model scaled by {0:.3f} to match desired rate...'.format(self.error_scale))
 
         if not self.uniform:
-            print('init_q1 = {}'.format(init_q1))
             # adjust length to match desired read length
             if self.read_len == len(init_q1):
                 self.q_ind_remap = range(self.read_len)
