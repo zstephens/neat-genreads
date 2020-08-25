@@ -248,7 +248,7 @@ def main(raw_args=None):
 
         # Using artificial fragment length distribution, if the parameters were specified
         # fragment length distribution: normal distribution that goes out to +- 6 standard deviations
-        if fragment_size is not None and fragment_std is not None:
+        elif fragment_size is not None and fragment_std is not None:
             print(
                 'Using artificial fragment length distribution. mean=' + str(fragment_size) + ', std=' + str(
                     fragment_std))
@@ -424,17 +424,23 @@ def main(raw_args=None):
                 print('n = ' + str(n))
                 span = (n[0], n[0] + len(n[1]))
                 r_seq = str(ref_sequence[span[0] - 1:span[1] - 1])  # -1 because going from VCF coords to array coords
-                any_bad_chr = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
+                # Checks if there are any invalid nucleotides in the vcf items
+                any_bad_nucl = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
+                # Ensure reference sequence matches the nucleotide in the vcf
                 if r_seq != n[1]:
                     n_skipped[0] += 1
                     continue
+                # Ensure that we aren't trying to insert into an N region
                 elif 'N' in r_seq:
                     n_skipped[1] += 1
                     continue
-                elif any_bad_chr:
+                # Ensure that we don't insert any disallowed characters
+                elif any_bad_nucl:
                     n_skipped[2] += 1
                     continue
+                # If it passes the above tests, append to valid variants list
                 valid_variants.append(n)
+
             print('found', len(valid_variants), 'valid variants for ' + ref_index[chrom][0] + ' in input VCF...')
             if any(n_skipped):
                 print(sum(n_skipped), 'variants skipped...')
@@ -453,6 +459,7 @@ def main(raw_args=None):
         all_variants_out = {}
         sequences = None
         if paired_end:
+            print('fragment size = ' + fragment_size)
             target_size = WINDOW_TARGET_SCALE * fragment_size
             overlap = fragment_size
             overlap_min_window_size = max(fraglen_distribution.values) + 10
