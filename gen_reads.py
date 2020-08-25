@@ -476,17 +476,19 @@ def main(raw_args=None):
         tt = time.time()
 
         for i in range(len(n_regions['non_N'])):
-            print('pi, pf = ' + str(n_regions['non_N'][i]))
             (pi, pf) = n_regions['non_N'][i]
-            n_target_windows = max([1, (pf - pi) // target_size])
-            bpd = int((pf - pi) / float(n_target_windows))
+            number_target_windows = max([1, (pf - pi) // target_size])
+            bpd = int((pf - pi) / float(number_target_windows))
+
+            # TODO figure out what was being attempted with the below three lines
+            print(gc_window_size)
             # bpd += gc_window_size - bpd%gc_window_size
 
             # print len(refSequence), (pi,pf), n_target_windows
             # print structural_vars
 
             # if for some reason our region is too small to process, skip it! (sorry)
-            if n_target_windows == 1 and (pf - pi) < overlap_min_window_size:
+            if number_target_windows == 1 and (pf - pi) < overlap_min_window_size:
                 # print 'Does this ever happen?'
                 continue
 
