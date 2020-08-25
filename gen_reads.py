@@ -421,9 +421,9 @@ def main(raw_args=None):
         n_skipped = [0, 0, 0]
         if ref_index[chrom][0] in input_variants:
             for n in input_variants[ref_index[chrom][0]]:
+                print('n = ' + str(n))
                 span = (n[0], n[0] + len(n[1]))
                 r_seq = str(ref_sequence[span[0] - 1:span[1] - 1])  # -1 because going from VCF coords to array coords
-                print('r_seq = ' + r_seq)
                 any_bad_chr = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
                 if r_seq != n[1]:
                     n_skipped[0] += 1
