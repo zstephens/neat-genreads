@@ -400,7 +400,7 @@ def main(raw_args=None):
     read_name_count = 1
     unmapped_records = []
 
-    print(ref_index)
+    print('ref_index = ' + str(ref_index))
 
     for RI in range(len(ref_index)):
 
