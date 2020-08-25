@@ -495,9 +495,11 @@ def main(raw_args=None):
             start_progress_bar = True
 
             while True:
+                # start the progress bar
                 if start_progress_bar:
                     print("[", end='')
                     start_progress_bar = False
+
                 # which inserted variants are in this window?
                 vars_in_window = []
                 updated = False
