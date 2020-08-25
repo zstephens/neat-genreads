@@ -30,8 +30,7 @@ from py.ref_func import index_ref, read_ref, get_all_ref_regions, partition_ref_
 from py.vcf_func import parse_vcf
 from py.output_file_writer import OutputFileWriter, reverse_complement, sam_flag
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
-from py.SequenceContainer import SequenceContainer, ReadContainer, parse_input_mutation_model
-
+from py.SequenceContainer import SequenceContainer, SequencingError, parse_input_mutation_model
 
 """
 Some constants needed for analysis
@@ -160,17 +159,12 @@ def main(raw_args=None):
         print('\nERROR: --pe argument takes 2 space-separated arguments.\n')
         exit(1)
 
-    # if user specified mean/std, use artificial fragment length distribution, otherwise use
-    # the empirical model specified. If neither, then we're doing single-end reads.
-    if fragment_size is not None and fragment_std is not None:
+    # If user specified mean/std, or specified an empirical model, then the reads will be paired_ended
+    # If not, then we're doing single-end reads.
+    if (fragment_size is not None and fragment_std is not None) or (fraglen_model is not None) and not fasta_instead:
         paired_end = True
-        paired_end_artificial = True
-    elif fraglen_model is not None:
-        paired_end = True
-        paired_end_artificial = False
     else:
         paired_end = False
-        paired_end_artificial = False
 
     if rng_seed == -1:
         rng_seed = random.randint(1, 99999999)
@@ -207,64 +201,87 @@ def main(raw_args=None):
     if se_model is None:
         print('Using default sequencing error model.')
         se_model = sim_path / 'models/errorModel_toy.p'
-        se_class = ReadContainer(read_len, se_model, se_rate)
+        se_class = SequencingError(read_len, se_model, se_rate)
     else:
         # probably need to do some sanity checking
-        se_class = ReadContainer(read_len, se_model, se_rate)
+        se_class = SequencingError(read_len, se_model, se_rate)
 
     # GC-bias model
     if gc_bias_model is None:
         print('Using default gc-bias model.')
         gc_bias_model = sim_path / 'models/gcBias_toy.p'
-        [gc_scale_count, gc_scale_val] = pickle.load(open(gc_bias_model, 'rb'))
+        try:
+            [gc_scale_count, gc_scale_val] = pickle.load(open(gc_bias_model, 'rb'))
+        except IOError:
+            print("\nProblem reading the default gc-bias model.\n")
+            exit(1)
         gc_window_size = gc_scale_count[-1]
     else:
-        [gc_scale_count, gc_scale_val] = pickle.load(open(gc_bias_model, 'rb'))
+        try:
+            [gc_scale_count, gc_scale_val] = pickle.load(open(gc_bias_model, 'rb'))
+        except IOError:
+            print("\nProblem reading the gc-bias model.\n")
+            exit(1)
         gc_window_size = gc_scale_count[-1]
 
-    # fragment length distribution
-    if paired_end and not paired_end_artificial:
-        print('Using empirical fragment length distribution.')
-        [potential_values, potential_prob] = pickle.load(open(fraglen_model, 'rb'))
-        fraglen_vals = []
-        fraglen_prob = []
-        for i in range(len(potential_values)):
-            if potential_values[i] > read_len:
-                fraglen_vals.append(potential_values[i])
-                fraglen_prob.append(potential_prob[i])
-        # should probably add some validation and sanity-checking code here...
-        fraglen_distribution = DiscreteDistribution(fraglen_prob, fraglen_vals)
-        fragment_size = fraglen_vals[mean_ind_of_weighted_list(fraglen_prob)]
+    # Assign appropriate values to the needed variables if we're dealing with paired-ended data
+    if paired_end:
+        # Empirical fragment length distribution, if input model is specified
+        if fraglen_model is not None:
+            print('Using empirical fragment length distribution.')
+            try:
+                [potential_values, potential_prob] = pickle.load(open(fraglen_model, 'rb'))
+            except IOError:
+                print('\nProblem loading the empirical fragment length model.\n')
+                exit(1)
 
-    # fragment length distribution: normal distribution that goes out to +- 6 standard deviations
-    if paired_end and paired_end_artificial:
-        print(
-            'Using artificial fragment length distribution. mean=' + str(fragment_size) + ', std=' + str(fragment_std))
-        if fragment_std == 0:
-            fraglen_distribution = DiscreteDistribution([1], [fragment_size], degenerate_val=fragment_size)
-        else:
-            potential_values = range(fragment_size - 6 * fragment_std, fragment_size + 6 * fragment_std + 1)
-            fraglen_vals = []
+            fraglen_values = []
+            fraglen_probability = []
             for i in range(len(potential_values)):
                 if potential_values[i] > read_len:
-                    fraglen_vals.append(potential_values[i])
-            fraglen_prob = [np.exp(-(((n - float(fragment_size)) ** 2) / (2 * (fragment_std ** 2)))) for n in
-                            fraglen_vals]
-            fraglen_distribution = DiscreteDistribution(fraglen_prob, fraglen_vals)
+                    fraglen_values.append(potential_values[i])
+                    fraglen_probability.append(potential_prob[i])
 
-    """************************************************
-    ****   Process Inputs
-    ************************************************"""
+            # TODO add some validation and sanity-checking code here...
+            fraglen_distribution = DiscreteDistribution(fraglen_probability, fraglen_values)
+            fragment_size = fraglen_values[mean_ind_of_weighted_list(fraglen_probability)]
+
+        # Using artificial fragment length distribution, if the parameters were specified
+        # fragment length distribution: normal distribution that goes out to +- 6 standard deviations
+        if fragment_size is not None and fragment_std is not None:
+            print(
+                'Using artificial fragment length distribution. mean=' + str(fragment_size) + ', std=' + str(
+                    fragment_std))
+            if fragment_std == 0:
+                fraglen_distribution = DiscreteDistribution([1], [fragment_size], degenerate_val=fragment_size)
+            else:
+                potential_values = range(fragment_size - 6 * fragment_std, fragment_size + 6 * fragment_std + 1)
+                fraglen_values = []
+                for i in range(len(potential_values)):
+                    if potential_values[i] > read_len:
+                        fraglen_values.append(potential_values[i])
+                fraglen_probability = [np.exp(-(((n - float(fragment_size)) ** 2) / (2 * (fragment_std ** 2)))) for n in
+                                       fraglen_values]
+                fraglen_distribution = DiscreteDistribution(fraglen_probability, fraglen_values)
+
+    """
+    Process Inputs
+    """
 
     # index reference
+    # TODO change reference processing to Biopython
     ref_index = index_ref(reference)
+
     if paired_end:
         n_handling = ('random', fragment_size)
     else:
         n_handling = ('ignore', read_len)
+
+    # TODO pretty sure all this can be handled by SeqIO
     indices_by_ref_name = {ref_index[n][0]: n for n in range(len(ref_index))}
 
     # parse input variants, if present
+    # TODO read this in as a pandas dataframe
     input_variants = []
     if input_vcf is not None:
         if cancer:
@@ -277,15 +294,22 @@ def main(raw_args=None):
             input_variants[k].sort()
 
     # parse input targeted regions, if present
+    # TODO convert bed to pandas dataframe
     input_regions = {}
     ref_list = [n[0] for n in ref_index]
     if input_bed is not None:
-        with open(input_bed, 'r') as f:
-            for line in f:
-                [my_chr, pos1, pos2] = line.strip().split('\t')[:3]
-                if my_chr not in input_regions:
-                    input_regions[my_chr] = [-1]
-                input_regions[my_chr].extend([int(pos1), int(pos2)])
+        try:
+            with open(input_bed, 'r') as f:
+                for line in f:
+                    [my_chr, pos1, pos2] = line.strip().split('\t')[:3]
+                    if my_chr not in input_regions:
+                        input_regions[my_chr] = [-1]
+                    input_regions[my_chr].extend([int(pos1), int(pos2)])
+        except IOError:
+            print("\nProblem reading input target BED file.\n")
+            exit(1)
+        finally:
+            f.close()
         # some validation
         n_in_bed_only = 0
         n_in_ref_only = 0
@@ -301,35 +325,48 @@ def main(raw_args=None):
         if n_in_bed_only > 0:
             print(
                 'Warning: Targeted regions BED file contains sequence names not found in reference (regions ignored).')
+
     # parse discard bed similarly
-    discardRegions = {}
-    if discard_bed != None:
-        f = open(discard_bed, 'r')
-        for line in f:
-            [myChr, pos1, pos2] = line.strip().split('\t')[:3]
-            if myChr not in discardRegions:
-                discardRegions[myChr] = [-1]
-            discardRegions[myChr].extend([int(pos1), int(pos2)])
-        f.close()
+    # TODO convert to pandas dataframe
+    discard_regions = {}
+    if discard_bed is not None:
+        try:
+            f = open(discard_bed, 'r')
+            for line in f:
+                [myChr, pos1, pos2] = line.strip().split('\t')[:3]
+                if myChr not in discard_regions:
+                    discard_regions[myChr] = [-1]
+                discard_regions[myChr].extend([int(pos1), int(pos2)])
+        except IOError:
+            print("\nProblem reading discard BED file.\n")
+        finally:
+            f.close()
 
     # parse input mutation rate rescaling regions, if present
+    # TODO convert to pandas dataframe
     mut_rate_regions = {}
     mut_rate_values = {}
     if mut_bed is not None:
-        with open(mut_bed, 'r') as f:
-            for line in f:
-                [my_chr, pos1, pos2, meta_data] = line.strip().split('\t')[:4]
-                mut_str = re.findall(r"mut_rate=.*?(?=;)", meta_data + ';')
-                (pos1, pos2) = (int(pos1), int(pos2))
-                if len(mut_str) and (pos2 - pos1) > 1:
-                    # mut_rate = #_mutations / length_of_region, let's bound it by a reasonable amount
-                    mut_rate = max([0.0, min([float(mut_str[0][9:]), 0.3])])
-                    if my_chr not in mut_rate_regions:
-                        mut_rate_regions[my_chr] = [-1]
-                        mut_rate_values[my_chr] = [0.0]
-                    mut_rate_regions[my_chr].extend([pos1, pos2])
-                    # TODO figure out what the next line is supposed to do and fix
-                    mut_rate_values.extend([mut_rate * (pos2 - pos1)] * 2)
+        try:
+            with open(mut_bed, 'r') as f:
+                for line in f:
+                    [my_chr, pos1, pos2, meta_data] = line.strip().split('\t')[:4]
+                    mut_str = re.findall(r"mut_rate=.*?(?=;)", meta_data + ';')
+                    (pos1, pos2) = (int(pos1), int(pos2))
+                    if len(mut_str) and (pos2 - pos1) > 1:
+                        # mut_rate = #_mutations / length_of_region, let's bound it by a reasonable amount
+                        mut_rate = max([0.0, min([float(mut_str[0][9:]), 0.3])])
+                        if my_chr not in mut_rate_regions:
+                            mut_rate_regions[my_chr] = [-1]
+                            mut_rate_values[my_chr] = [0.0]
+                        mut_rate_regions[my_chr].extend([pos1, pos2])
+                        # TODO figure out what the next line is supposed to do and fix
+                        mut_rate_values.extend([mut_rate * (pos2 - pos1)] * 2)
+        except IOError:
+            print("\nProblem reading mutational BED file.\n")
+            exit(1)
+        finally:
+            f.close()
 
     # initialize output files (part I)
     bam_header = None
@@ -340,24 +377,30 @@ def main(raw_args=None):
         vcf_header = [reference]
 
     # initialize output files (part II)
+    # TODO figure out how to do this more efficiently. Write the files at the end.
     if cancer:
-        OFW = OutputFileWriter(out_prefix + '_normal', paired=paired_end, bam_header=bam_header, vcf_header=vcf_header,
-                               gzipped=gzipped_out, no_fastq=no_fastq, fasta_instead=fasta_instead)
-        OFW_CANCER = OutputFileWriter(out_prefix + '_tumor', paired=paired_end, bam_header=bam_header,
-                                      vcf_header=vcf_header, gzipped=gzipped_out,
-                                      no_fastq=no_fastq, fasta_instead=fasta_instead)
+        output_file_writer = OutputFileWriter(out_prefix + '_normal', paired=paired_end, bam_header=bam_header,
+                                              vcf_header=vcf_header,
+                                              gzipped=gzipped_out, no_fastq=no_fastq, fasta_instead=fasta_instead)
+        output_file_writer_cancer = OutputFileWriter(out_prefix + '_tumor', paired=paired_end, bam_header=bam_header,
+                                                     vcf_header=vcf_header, gzipped=gzipped_out,
+                                                     no_fastq=no_fastq, fasta_instead=fasta_instead)
     else:
-        OFW = OutputFileWriter(out_prefix, paired=paired_end, bam_header=bam_header, vcf_header=vcf_header,
-                               gzipped=gzipped_out, no_fastq=no_fastq,
-                               fasta_instead=fasta_instead)
-    OUT_PREFIX_NAME = out_prefix.split('/')[-1]
+        output_file_writer = OutputFileWriter(out_prefix, paired=paired_end, bam_header=bam_header,
+                                              vcf_header=vcf_header,
+                                              gzipped=gzipped_out, no_fastq=no_fastq,
+                                              fasta_instead=fasta_instead)
+    # Using pathlib to make this more machine agnostic
+    out_prefix_name = pathlib.Path(out_prefix).name
 
-    """************************************************
-    ****        LET'S GET THIS PARTY STARTED...
-    ************************************************"""
-
-    read_name_count = 1  # keep track of the number of reads we've sampled, for read-names
+    """
+    LET'S GET THIS PARTY STARTED...
+    """
+    # keep track of the number of reads we've sampled, for read-names
+    read_name_count = 1
     unmapped_records = []
+
+    print(ref_index)
 
     for RI in range(len(ref_index)):
 
@@ -371,7 +414,7 @@ def main(raw_args=None):
         current_percent = 0
         have_printed100 = False
 
-        """prune invalid input variants, e.g variants that:
+        """Prune invalid input variants, e.g variants that:
                 - try to delete or alter any N characters
                 - don't match the reference base at their specified position
                 - any alt allele contains anything other than allowed characters"""
@@ -401,9 +444,7 @@ def main(raw_args=None):
                 print(' - [' + str(n_skipped[1]) + '] attempting to insert into N-region')
                 print(' - [' + str(n_skipped[2]) + '] alt allele contains non-ACGT characters')
 
-        # add large random structural variants
-        #
-        #	TBD!!!
+        # TODO add large random structural variants
 
         # determine sampling windows based on read length, large N regions, and structural mutations.
         # in order to obtain uniform coverage, windows should overlap by:
@@ -412,7 +453,7 @@ def main(raw_args=None):
         # ploidy is fixed per large sampling window,
         # coverage distributions due to GC% and targeted regions are specified within these windows
         sampling_windows = []
-        ALL_VARIANTS_OUT = {}
+        all_variants_out = {}
         sequences = None
         if paired_end:
             target_size = WINDOW_TARGET_SCALE * fragment_size
@@ -652,15 +693,15 @@ def main(raw_args=None):
                                 bisect.bisect(input_regions[ref_index[RI][0]], n[0] + len(n[2])) % 2 for n in
                                 my_read_data]
                         if discard_bed is not None:
-                            outside_boundaries += [bisect.bisect(discardRegions[ref_index[RI][0]], n[0]) % 2 for
+                            outside_boundaries += [bisect.bisect(discard_regions[ref_index[RI][0]], n[0]) % 2 for
                                                    n in my_read_data]
                             outside_boundaries += [
-                                bisect.bisect(discardRegions[ref_index[RI][0]], n[0] + len(n[2])) % 2 for n in
+                                bisect.bisect(discard_regions[ref_index[RI][0]], n[0] + len(n[2])) % 2 for n in
                                 my_read_data]
                         if len(outside_boundaries) and any(outside_boundaries):
                             continue
 
-                        my_read_name = OUT_PREFIX_NAME + '-' + ref_index[RI][0] + '-' + str(read_name_count)
+                        my_read_name = out_prefix_name + '-' + ref_index[RI][0] + '-' + str(read_name_count)
                         read_name_count += len(my_read_data)
 
                         # if desired, replace all low-quality bases with Ns
@@ -697,28 +738,36 @@ def main(raw_args=None):
                         if len(my_read_data) == 1:
                             if no_fastq is not True:
                                 if is_forward:
-                                    OFW.write_fastq_record(my_read_name, my_read_data[0][2], my_read_data[0][3])
+                                    output_file_writer.write_fastq_record(my_read_name, my_read_data[0][2],
+                                                                          my_read_data[0][3])
                                 else:
-                                    OFW.write_fastq_record(my_read_name, reverse_complement(my_read_data[0][2]),
-                                                           my_read_data[0][3][::-1])
+                                    output_file_writer.write_fastq_record(my_read_name,
+                                                                          reverse_complement(my_read_data[0][2]),
+                                                                          my_read_data[0][3][::-1])
                             if save_bam:
                                 if is_unmapped[0] is False:
                                     if is_forward:
                                         flag1 = 0
-                                        OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
-                                                             my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                             sam_flag=flag1)
+                                        output_file_writer.write_bam_record(my_ref_index, my_read_name,
+                                                                            my_read_data[0][0],
+                                                                            my_read_data[0][1], my_read_data[0][2],
+                                                                            my_read_data[0][3],
+                                                                            sam_flag=flag1)
                                     else:
                                         flag1 = sam_flag(['reverse'])
-                                        OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
-                                                             my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                             sam_flag=flag1)
+                                        output_file_writer.write_bam_record(my_ref_index, my_read_name,
+                                                                            my_read_data[0][0],
+                                                                            my_read_data[0][1], my_read_data[0][2],
+                                                                            my_read_data[0][3],
+                                                                            sam_flag=flag1)
                         # write PE output
                         elif len(my_read_data) == 2:
                             if no_fastq is not True:
-                                OFW.write_fastq_record(my_read_name, my_read_data[0][2], my_read_data[0][3],
-                                                       read2=my_read_data[1][2], qual2=my_read_data[1][3],
-                                                       orientation=is_forward)
+                                output_file_writer.write_fastq_record(my_read_name, my_read_data[0][2],
+                                                                      my_read_data[0][3],
+                                                                      read2=my_read_data[1][2],
+                                                                      qual2=my_read_data[1][3],
+                                                                      orientation=is_forward)
                             if save_bam:
                                 if is_unmapped[0] is False and is_unmapped[1] is False:
                                     if is_forward:
@@ -727,13 +776,15 @@ def main(raw_args=None):
                                     else:
                                         flag1 = sam_flag(['paired', 'proper', 'second', 'mate_reverse'])
                                         flag2 = sam_flag(['paired', 'proper', 'first', 'reverse'])
-                                    OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
-                                                         my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                         sam_flag=flag1,
-                                                         mate_pos=my_read_data[1][0])
-                                    OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
-                                                         my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
-                                                         sam_flag=flag2, mate_pos=my_read_data[0][0])
+                                    output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
+                                                                        my_read_data[0][1], my_read_data[0][2],
+                                                                        my_read_data[0][3],
+                                                                        sam_flag=flag1,
+                                                                        mate_pos=my_read_data[1][0])
+                                    output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
+                                                                        my_read_data[1][1], my_read_data[1][2],
+                                                                        my_read_data[1][3],
+                                                                        sam_flag=flag2, mate_pos=my_read_data[0][0])
                                 elif is_unmapped[0] is False and is_unmapped[1] is True:
                                     if is_forward:
                                         flag1 = sam_flag(['paired', 'first', 'mate_unmapped', 'mate_reverse'])
@@ -741,12 +792,15 @@ def main(raw_args=None):
                                     else:
                                         flag1 = sam_flag(['paired', 'second', 'mate_unmapped', 'mate_reverse'])
                                         flag2 = sam_flag(['paired', 'first', 'unmapped', 'reverse'])
-                                    OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
-                                                         my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                         sam_flag=flag1, mate_pos=my_read_data[0][0])
-                                    OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
-                                                         my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
-                                                         sam_flag=flag2, mate_pos=my_read_data[0][0], aln_map_quality=0)
+                                    output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
+                                                                        my_read_data[0][1], my_read_data[0][2],
+                                                                        my_read_data[0][3],
+                                                                        sam_flag=flag1, mate_pos=my_read_data[0][0])
+                                    output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
+                                                                        my_read_data[1][1], my_read_data[1][2],
+                                                                        my_read_data[1][3],
+                                                                        sam_flag=flag2, mate_pos=my_read_data[0][0],
+                                                                        aln_map_quality=0)
                                 elif is_unmapped[0] is True and is_unmapped[1] is False:
                                     if is_forward:
                                         flag1 = sam_flag(['paired', 'first', 'unmapped', 'mate_reverse'])
@@ -754,25 +808,28 @@ def main(raw_args=None):
                                     else:
                                         flag1 = sam_flag(['paired', 'second', 'unmapped', 'mate_reverse'])
                                         flag2 = sam_flag(['paired', 'first', 'mate_unmapped', 'reverse'])
-                                    OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
-                                                         my_read_data[0][1], my_read_data[0][2], my_read_data[0][3],
-                                                         sam_flag=flag1, mate_pos=my_read_data[1][0], aln_map_quality=0)
-                                    OFW.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
-                                                         my_read_data[1][1], my_read_data[1][2], my_read_data[1][3],
-                                                         sam_flag=flag2, mate_pos=my_read_data[1][0])
+                                    output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
+                                                                        my_read_data[0][1], my_read_data[0][2],
+                                                                        my_read_data[0][3],
+                                                                        sam_flag=flag1, mate_pos=my_read_data[1][0],
+                                                                        aln_map_quality=0)
+                                    output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
+                                                                        my_read_data[1][1], my_read_data[1][2],
+                                                                        my_read_data[1][3],
+                                                                        sam_flag=flag2, mate_pos=my_read_data[1][0])
                         else:
                             print('\nError: Unexpected number of reads generated...\n')
                             exit(1)
                     # print 'READS:',time.time()-ASDF2_TT
 
                     if not is_last_time:
-                        OFW.flush_buffers(bam_max=next_start)
+                        output_file_writer.flush_buffers(bam_max=next_start)
                     else:
-                        OFW.flush_buffers(bam_max=end + 1)
+                        output_file_writer.flush_buffers(bam_max=end + 1)
 
                 # tally up all the variants that got successfully introduced
                 for n in all_inserted_variants:
-                    ALL_VARIANTS_OUT[n] = True
+                    all_variants_out[n] = True
 
                 # prepare indices of next window
                 start = next_start
@@ -795,13 +852,14 @@ def main(raw_args=None):
         # write all output variants for this reference
         if save_vcf:
             print('Writing output VCF...')
-            for k in sorted(ALL_VARIANTS_OUT.keys()):
+            for k in sorted(all_variants_out.keys()):
                 current_ref = ref_index[RI][0]
                 my_id = '.'
                 my_quality = '.'
                 my_filter = 'PASS'
                 # k[0] + 1 because we're going back to 1-based vcf coords
-                OFW.write_vcf_record(current_ref, str(int(k[0]) + 1), my_id, k[1], k[2], my_quality, my_filter, k[4])
+                output_file_writer.write_vcf_record(current_ref, str(int(k[0]) + 1), my_id, k[1], k[2], my_quality,
+                                                    my_filter, k[4])
 
     # break
 
@@ -810,15 +868,17 @@ def main(raw_args=None):
         print('writing unmapped reads to bam file...')
         for umr in unmapped_records:
             if paired_end:
-                OFW.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2], mate_pos=0,
-                                     aln_map_quality=0)
+                output_file_writer.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2],
+                                                    mate_pos=0,
+                                                    aln_map_quality=0)
             else:
-                OFW.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2], aln_map_quality=0)
+                output_file_writer.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2],
+                                                    aln_map_quality=0)
 
     # close output files
-    OFW.close_files()
+    output_file_writer.close_files()
     if cancer:
-        OFW_CANCER.close_files()
+        output_file_writer_cancer.close_files()
 
 
 if __name__ == '__main__':

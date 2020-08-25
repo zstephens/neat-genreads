@@ -724,31 +724,44 @@ class SequenceContainer:
         return r_out
 
 
-class ReadContainer:
+class SequencingError:
     """
-    Container for read data, computes quality scores and positions to insert errors
+    Container to model sequencing errors: computes quality scores and positions to insert errors
     """
     def __init__(self, read_len, error_model, rescaled_error):
 
         self.read_len = read_len
 
-        error_dat = pickle.load(open(error_model, 'rb'), encoding="bytes")
+        try:
+            error_dat = pickle.load(open(error_model, 'rb'), encoding="bytes")
+        except IOError:
+            print("\nProblem opening the sequencing error model.\n")
+            exit(1)
+
         self.uniform = False
-        if len(error_dat) == 4:  # uniform-error SE reads (e.g. PacBio)
+
+        # uniform-error SE reads (e.g., PacBio)
+        if len(error_dat) == 4:
             self.uniform = True
             [q_scores, off_q, avg_error, error_params] = error_dat
             self.uniform_q_score = int(-10. * np.log10(avg_error) + 0.5)
             print('Using uniform sequencing error model. (q=' + str(self.uniform_q_score) + '+' + str(
                 off_q) + ', p(err)={0:0.2f}%)'.format(100. * avg_error))
-        elif len(error_dat) == 6:  # only 1 q-score model present, use same model for both strands
+
+        # only 1 q-score model present, use same model for both strands
+        elif len(error_dat) == 6:
             [init_q1, prob_q1, q_scores, off_q, avg_error, error_params] = error_dat
             self.pe_models = False
-        elif len(error_dat) == 8:  # found a q-score model for both forward and reverse strands
+
+        # found a q-score model for both forward and reverse strands
+        elif len(error_dat) == 8:
             [init_q1, prob_q1, init_q2, prob_q2, q_scores, off_q, avg_error, error_params] = error_dat
             self.pe_models = True
             if len(init_q1) != len(init_q2) or len(prob_q1) != len(prob_q2):
                 print('\nError: R1 and R2 quality score models are of different length.\n')
                 exit(1)
+
+        # This serves as a sanity check for the input model
         else:
             print('\nError: Something wrong with error model.\n')
             exit(1)
@@ -810,6 +823,14 @@ class ReadContainer:
                             self.prob_dist_by_pos_by_prev_q2[-1].append(DiscreteDistribution(prob_q2[i][j], q_scores))
 
     def get_sequencing_errors(self, read_data, is_reverse_strand=False):
+        """
+        Inserts errors of type substitution, insertion, or deletion into read_data, and assigns a quality score
+        based on the container model.
+
+        :param read_data: sequence to insert errors into
+        :param is_reverse_strand: whether to treat this as the reverse strand or not
+        :return: modified sequence and associate quality scores
+        """
 
         q_out = [0] * self.read_len
         s_err = []
@@ -817,12 +838,10 @@ class ReadContainer:
         if self.uniform:
             my_q = [self.uniform_q_score + self.off_q] * self.read_len
             q_out = ''.join([chr(n) for n in my_q])
-            print("\nself.error_scale = " + str(self.error_scale) + "self.q_err_rate = " + str(self.q_err_rate) + '\n')
             for i in range(self.read_len):
                 if random.random() < self.error_scale * self.q_err_rate[self.uniform_q_score]:
                     s_err.append(i)
         else:
-
             if self.pe_models and is_reverse_strand:
                 my_q = self.init_dist_by_pos_2[0].sample()
             else:
@@ -863,19 +882,24 @@ class ReadContainer:
                 if random.random() < self.err_p[1]:
                     is_sub = False
 
-            # error_out = (type, len, pos, ref, alt)
-
-            if is_sub:  # insert substitution error
+            # insert substitution error
+            if is_sub:
                 my_nucl = str(read_data[ind])
                 new_nucl = self.err_sse[NUC_IND[my_nucl]].sample()
                 s_out.append(('S', 1, ind, my_nucl, new_nucl))
-            else:  # insert indel error
+
+            # insert indel error
+            else:
                 indel_len = self.err_sie.sample()
-                if random.random() < self.err_p[4]:  # insertion error
+
+                # insertion error
+                if random.random() < self.err_p[4]:
                     my_nucl = str(read_data[ind])
                     new_nucl = my_nucl + ''.join([self.err_sin.sample() for n in range(indel_len)])
                     s_out.append(('I', len(new_nucl) - 1, ind, my_nucl, new_nucl))
-                elif ind < self.read_len - 2 - n_del_so_far:  # deletion error (prevent too many of them from stacking up)
+
+                # deletion error (prevent too many of them from stacking up)
+                elif ind < self.read_len - 2 - n_del_so_far:
                     my_nucl = str(read_data[ind:ind + indel_len + 1])
                     new_nucl = str(read_data[ind])
                     n_del_so_far += len(my_nucl) - 1
