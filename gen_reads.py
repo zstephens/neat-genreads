@@ -512,7 +512,6 @@ def main(raw_args=None):
                 # determine which structural variants will affect our sampling window positions
                 structural_vars = []
                 for n in vars_in_window:
-                    print('variant in window = ' + str(n))
                     # change: added abs() so that insertions are also buffered.
                     buffer_needed = max([max([abs(len(n[1]) - len(alt_allele)), 1]) for alt_allele in n[2]])
                     # -1 because going from VCF coords to array coords
@@ -530,7 +529,6 @@ def main(raw_args=None):
                         if delta < 0:
                             buffer_added = -delta
                             end += buffer_added
-                            ####print end
                             keep_going = True
                             break
                 next_start = end - overlap
@@ -540,15 +538,19 @@ def main(raw_args=None):
                     is_last_time = True
 
                 # print progress indicator
-                ####print 'PROCESSING WINDOW:',(start,end), [buffer_added], 'next:', (next_start,next_end)
+                start_progress_bar = True
                 current_progress += end - start
                 new_percent = int((current_progress * 100) / float(total_bp_span))
                 if new_percent > current_percent:
+                    if start_progress_bar:
+                        print("[", end='')
+                        start_progress_bar = False
                     if new_percent <= 99 or (new_percent == 100 and not have_printed100):
-                        sys.stdout.write(str(new_percent) + '% ')
-                        sys.stdout.flush()
+                        if new_percent % 20 == 0:
+                            print('-', end='')
                     current_percent = new_percent
                     if current_percent == 100:
+                        print(']')
                         have_printed100 = True
 
                 skip_this_window = False
