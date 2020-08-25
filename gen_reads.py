@@ -494,7 +494,6 @@ def main(raw_args=None):
             have_printed100 = False
 
             while True:
-                print('\n\nstarting ...\n\n')
                 # which inserted variants are in this window?
                 vars_in_window = []
                 updated = False
