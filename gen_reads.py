@@ -421,7 +421,6 @@ def main(raw_args=None):
         n_skipped = [0, 0, 0]
         if ref_index[chrom][0] in input_variants:
             for n in input_variants[ref_index[chrom][0]]:
-                print('n = ' + str(n))
                 span = (n[0], n[0] + len(n[1]))
                 r_seq = str(ref_sequence[span[0] - 1:span[1] - 1])  # -1 because going from VCF coords to array coords
                 # Checks if there are any invalid nucleotides in the vcf items
