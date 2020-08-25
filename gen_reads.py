@@ -492,6 +492,7 @@ def main(raw_args=None):
             v_index_from_prev = 0
             is_last_time = False
             have_printed100 = False
+            start_progress_bar = True
 
             while True:
                 # which inserted variants are in this window?
@@ -538,7 +539,6 @@ def main(raw_args=None):
                     is_last_time = True
 
                 # print progress indicator
-                start_progress_bar = True
                 current_progress += end - start
                 new_percent = int((current_progress * 100) / float(total_bp_span))
                 if new_percent > current_percent:
