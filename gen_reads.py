@@ -495,6 +495,9 @@ def main(raw_args=None):
             start_progress_bar = True
 
             while True:
+                if start_progress_bar:
+                    print("[", end='')
+                    start_progress_bar = False
                 # which inserted variants are in this window?
                 vars_in_window = []
                 updated = False
@@ -542,9 +545,6 @@ def main(raw_args=None):
                 current_progress += end - start
                 new_percent = int((current_progress * 100) / float(total_bp_span))
                 if new_percent > current_percent:
-                    if start_progress_bar:
-                        print("[", end='')
-                        start_progress_bar = False
                     if new_percent <= 99 or (new_percent == 100 and not have_printed100):
                         if new_percent % 20 == 0:
                             print('-', end='')
