@@ -7,6 +7,10 @@ from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 
 
+OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
+ALLOWED_NUCL = ['A', 'C', 'G', 'T']
+
+
 def index_ref(reference_path: str) -> list:
     """
     Index reference fasta
@@ -74,8 +78,7 @@ def index_ref(reference_path: str) -> list:
 
 
 def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
-    OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
-    ALLOWED_NUCL = ['A', 'C', 'G', 'T']
+
     tt = time.time()
     if not quiet:
         print('reading ' + ref_inds_i[0] + '... ')

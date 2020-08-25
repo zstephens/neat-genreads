@@ -458,7 +458,6 @@ def main(raw_args=None):
         all_variants_out = {}
         sequences = None
         if paired_end:
-            print('fragment size = ' + str(fragment_size))
             target_size = WINDOW_TARGET_SCALE * fragment_size
             overlap = fragment_size
             overlap_min_window_size = max(fraglen_distribution.values) + 10
@@ -470,11 +469,14 @@ def main(raw_args=None):
         print('--------------------------------')
         if only_vcf:
             print('generating vcf...')
+        elif fasta_instead:
+            print('generating mutated fasta...')
         else:
             print('sampling reads...')
         tt = time.time()
 
         for i in range(len(n_regions['non_N'])):
+            print('pi, pf = ' + str(n_regions['non_N'][i]))
             (pi, pf) = n_regions['non_N'][i]
             n_target_windows = max([1, (pf - pi) // target_size])
             bpd = int((pf - pi) / float(n_target_windows))
