@@ -52,7 +52,10 @@ def index_ref(reference_path: str) -> list:
     prev_r = None
     prev_p = None
     seq_len = 0
-    for data in ref_file:
+
+    # TODO I really don't like this while true statement
+    while True:
+        data = ref_file.readline()
         if not data:
             ref_indices.append((prev_r, prev_p, ref_file.tell() - len(data), seq_len))
             break
