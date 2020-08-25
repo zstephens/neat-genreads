@@ -458,7 +458,7 @@ def main(raw_args=None):
         all_variants_out = {}
         sequences = None
         if paired_end:
-            print('fragment size = ' + fragment_size)
+            print('fragment size = ' + str(fragment_size))
             target_size = WINDOW_TARGET_SCALE * fragment_size
             overlap = fragment_size
             overlap_min_window_size = max(fraglen_distribution.values) + 10
