@@ -80,7 +80,14 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
     if not quiet:
         print('reading ' + ref_inds_i[0] + '... ')
 
-    ref_file = open(ref_path, 'r')
+    absolute_reference_path = pathlib.Path(ref_path)
+    try:
+        ref_file = open(absolute_reference_path, 'r')
+    except IOError:
+        print('\nProblem reading reference file.\n')
+        exit(1)
+
+    # TODO convert to SeqIO containers
     ref_file.seek(ref_inds_i[1])
     my_dat = ''.join(ref_file.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
     my_dat = Seq(my_dat.upper(), IUPAC.unambiguous_dna)
@@ -143,8 +150,11 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
         if n[0] != n[1]:
             n_info['non_N'].append(n)
 
+    ref_file.close()
+
     if not quiet:
         print('{0:.3f} (sec)'.format(time.time() - tt))
+
     return my_dat, n_info
 
 

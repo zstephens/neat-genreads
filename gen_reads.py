@@ -402,10 +402,11 @@ def main(raw_args=None):
 
     print('ref_index = ' + str(ref_index))
 
-    for RI in range(len(ref_index)):
+    for chrom in range(len(ref_index)):
 
         # read in reference sequence and notate blocks of Ns
-        (ref_sequence, n_regions) = read_ref(reference, ref_index[RI], n_handling)
+        # TODO convert this line to SeqIO
+        (ref_sequence, n_regions) = read_ref(reference, ref_index[chrom], n_handling)
 
         # count total bp we'll be spanning so we can get an idea of how far along we are
         # (for printing progress indicators)
@@ -420,8 +421,9 @@ def main(raw_args=None):
                 - any alt allele contains anything other than allowed characters"""
         valid_variants = []
         n_skipped = [0, 0, 0]
-        if ref_index[RI][0] in input_variants:
-            for n in input_variants[ref_index[RI][0]]:
+        if ref_index[chrom][0] in input_variants:
+            for n in input_variants[ref_index[chrom][0]]:
+                print('n = ' + str(n))
                 span = (n[0], n[0] + len(n[1]))
                 r_seq = str(ref_sequence[span[0] - 1:span[1] - 1])  # -1 because going from VCF coords to array coords
                 any_bad_chr = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
@@ -434,10 +436,8 @@ def main(raw_args=None):
                 elif any_bad_chr:
                     n_skipped[2] += 1
                     continue
-                # if bisect.bisect(n_regions['big'],span[0])%2 or bisect.bisect(n_regions['big'],span[1])%2:
-                # continue
                 valid_variants.append(n)
-            print('found', len(valid_variants), 'valid variants for ' + ref_index[RI][0] + ' in input VCF...')
+            print('found', len(valid_variants), 'valid variants for ' + ref_index[chrom][0] + ' in input VCF...')
             if any(n_skipped):
                 print(sum(n_skipped), 'variants skipped...')
                 print(' - [' + str(n_skipped[0]) + '] ref allele does not match reference')
@@ -452,7 +452,6 @@ def main(raw_args=None):
         #		- fragment_size (mean), if paired-end reads
         # ploidy is fixed per large sampling window,
         # coverage distributions due to GC% and targeted regions are specified within these windows
-        sampling_windows = []
         all_variants_out = {}
         sequences = None
         if paired_end:
@@ -560,11 +559,11 @@ def main(raw_args=None):
                 if input_bed is None:
                     coverage_dat[2] = [1.0] * (end - start)
                 else:
-                    if ref_index[RI][0] not in input_regions:
+                    if ref_index[chrom][0] not in input_regions:
                         coverage_dat[2] = [off_target_scalar] * (end - start)
                     else:
                         for j in range(start, end):
-                            if not (bisect.bisect(input_regions[ref_index[RI][0]], j) % 2):
+                            if not (bisect.bisect(input_regions[ref_index[chrom][0]], j) % 2):
                                 coverage_dat[2].append(1.0)
                                 target_hits += 1
                             else:
@@ -687,21 +686,21 @@ def main(raw_args=None):
                         # are we discarding offtargets?
                         outside_boundaries = []
                         if off_target_discard and input_bed is not None:
-                            outside_boundaries += [bisect.bisect(input_regions[ref_index[RI][0]], n[0]) % 2 for n
+                            outside_boundaries += [bisect.bisect(input_regions[ref_index[chrom][0]], n[0]) % 2 for n
                                                    in my_read_data]
                             outside_boundaries += [
-                                bisect.bisect(input_regions[ref_index[RI][0]], n[0] + len(n[2])) % 2 for n in
+                                bisect.bisect(input_regions[ref_index[chrom][0]], n[0] + len(n[2])) % 2 for n in
                                 my_read_data]
                         if discard_bed is not None:
-                            outside_boundaries += [bisect.bisect(discard_regions[ref_index[RI][0]], n[0]) % 2 for
+                            outside_boundaries += [bisect.bisect(discard_regions[ref_index[chrom][0]], n[0]) % 2 for
                                                    n in my_read_data]
                             outside_boundaries += [
-                                bisect.bisect(discard_regions[ref_index[RI][0]], n[0] + len(n[2])) % 2 for n in
+                                bisect.bisect(discard_regions[ref_index[chrom][0]], n[0] + len(n[2])) % 2 for n in
                                 my_read_data]
                         if len(outside_boundaries) and any(outside_boundaries):
                             continue
 
-                        my_read_name = out_prefix_name + '-' + ref_index[RI][0] + '-' + str(read_name_count)
+                        my_read_name = out_prefix_name + '-' + ref_index[chrom][0] + '-' + str(read_name_count)
                         read_name_count += len(my_read_data)
 
                         # if desired, replace all low-quality bases with Ns
@@ -732,7 +731,7 @@ def main(raw_args=None):
                                 flag1 = sam_flag(['unmapped'])
                                 unmapped_records.append((my_read_name + '/1', my_read_data[0], flag1))
 
-                        my_ref_index = indices_by_ref_name[ref_index[RI][0]]
+                        my_ref_index = indices_by_ref_name[ref_index[chrom][0]]
 
                         # write SE output
                         if len(my_read_data) == 1:
@@ -853,7 +852,7 @@ def main(raw_args=None):
         if save_vcf:
             print('Writing output VCF...')
             for k in sorted(all_variants_out.keys()):
-                current_ref = ref_index[RI][0]
+                current_ref = ref_index[chrom][0]
                 my_id = '.'
                 my_quality = '.'
                 my_filter = 'PASS'
