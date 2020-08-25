@@ -427,6 +427,7 @@ def main(raw_args=None):
                 any_bad_nucl = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
                 # Ensure reference sequence matches the nucleotide in the vcf
                 if r_seq != n[1]:
+                    print(str(r_seq) + ' and ' + str(n[1]))
                     n_skipped[0] += 1
                     continue
                 # Ensure that we aren't trying to insert into an N region
@@ -514,8 +515,7 @@ def main(raw_args=None):
                 for n in vars_in_window:
                     print('variant in window = ' + str(n))
                     # change: added abs() so that insertions are also buffered.
-                    buffer_needed = max([max([abs(len(n[1]) - len(alt_allele)), 1]) for alt_allele in
-                                         n[2]])
+                    buffer_needed = max([max([abs(len(n[1]) - len(alt_allele)), 1]) for alt_allele in n[2]])
                     # -1 because going from VCF coords to array coords
                     structural_vars.append(
                         (n[0] - 1, buffer_needed))
