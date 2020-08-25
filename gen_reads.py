@@ -417,7 +417,7 @@ def main(raw_args=None):
                 - try to delete or alter any N characters
                 - don't match the reference base at their specified position
                 - any alt allele contains anything other than allowed characters"""
-        valid_variants = []
+        valid_variants_from_vcf = []
         n_skipped = [0, 0, 0]
         if ref_index[chrom][0] in input_variants:
             for n in input_variants[ref_index[chrom][0]]:
@@ -438,9 +438,9 @@ def main(raw_args=None):
                     n_skipped[2] += 1
                     continue
                 # If it passes the above tests, append to valid variants list
-                valid_variants.append(n)
+                valid_variants_from_vcf.append(n)
 
-            print('found', len(valid_variants), 'valid variants for ' + ref_index[chrom][0] + ' in input VCF...')
+            print('found', len(valid_variants_from_vcf), 'valid variants for ' + ref_index[chrom][0] + ' in input VCF...')
             if any(n_skipped):
                 print(sum(n_skipped), 'variants skipped...')
                 print(' - [' + str(n_skipped[0]) + '] ref allele does not match reference')
@@ -475,57 +475,52 @@ def main(raw_args=None):
             print('sampling reads...')
         tt = time.time()
 
+        # Applying variants to non-N regions
         for i in range(len(n_regions['non_N'])):
-            (pi, pf) = n_regions['non_N'][i]
-            number_target_windows = max([1, (pf - pi) // target_size])
-            bpd = int((pf - pi) / float(number_target_windows))
-
-            # TODO figure out what was being attempted with the below three lines
-            print(gc_window_size)
-            # bpd += gc_window_size - bpd%gc_window_size
-
-            # print len(refSequence), (pi,pf), n_target_windows
-            # print structural_vars
+            (initial_position, final_position) = n_regions['non_N'][i]
+            number_target_windows = max([1, (final_position - initial_position) // target_size])
+            base_pair_distance = int((final_position - initial_position) / float(number_target_windows))
 
             # if for some reason our region is too small to process, skip it! (sorry)
-            if number_target_windows == 1 and (pf - pi) < overlap_min_window_size:
-                # print 'Does this ever happen?'
+            if number_target_windows == 1 and (final_position - initial_position) < overlap_min_window_size:
                 continue
 
-            start = pi
-            end = min([start + bpd, pf])
-            # print '------------------RAWR:', (pi,pf), n_target_windows, bpd
+            start = initial_position
+            end = min([start + base_pair_distance, final_position])
             vars_from_prev_overlap = []
             vars_cancer_from_prev_overlap = []
-            vind_from_prev = 0
+            v_index_from_prev = 0
             is_last_time = False
             have_printed100 = False
 
             while True:
-
                 # which inserted variants are in this window?
                 vars_in_window = []
                 updated = False
-                for j in range(vind_from_prev, len(valid_variants)):
-                    v_pos = valid_variants[j][0]
-                    if start < v_pos < end:  # update: changed >= to >, so variant cannot be inserted in first position
-                        vars_in_window.append(tuple([v_pos - 1] + list(valid_variants[j][1:])))  # vcf --> array coords
-                    if v_pos >= end - overlap - 1 and updated is False:
+                for j in range(v_index_from_prev, len(valid_variants_from_vcf)):
+                    variants_position = valid_variants_from_vcf[j][0]
+                    # update: changed >= to >, so variant cannot be inserted in first position
+                    if start < variants_position < end:
+                        # vcf --> array coords
+                        vars_in_window.append(tuple([variants_position - 1] + list(valid_variants_from_vcf[j][1:])))
+                    if variants_position >= end - overlap - 1 and updated is False:
                         updated = True
-                        vind_from_prev = j
-                    if v_pos >= end:
+                        v_index_from_prev = j
+                    if variants_position >= end:
                         break
 
                 # determine which structural variants will affect our sampling window positions
                 structural_vars = []
                 for n in vars_in_window:
+                    print('variant in window = ' + str(n))
+                    # change: added abs() so that insertions are also buffered.
                     buffer_needed = max([max([abs(len(n[1]) - len(alt_allele)), 1]) for alt_allele in
-                                         n[2]])  # change: added abs() so that insertions are also buffered.
+                                         n[2]])
+                    # -1 because going from VCF coords to array coords
                     structural_vars.append(
-                        (n[0] - 1, buffer_needed))  # -1 because going from VCF coords to array coords
+                        (n[0] - 1, buffer_needed))
 
                 # adjust end-position of window based on inserted structural mutations
-                buffer_added = 0
                 keep_going = True
                 while keep_going:
                     keep_going = False
@@ -534,15 +529,14 @@ def main(raw_args=None):
                         # (which can cause problems if random mutations from the previous window land on top of them)
                         delta = (end - 1) - (n[0] + n[1]) - 2 - overlap
                         if delta < 0:
-                            # print 'DELTA:', delta, 'END:', end, '-->',
                             buffer_added = -delta
                             end += buffer_added
                             ####print end
                             keep_going = True
                             break
                 next_start = end - overlap
-                next_end = min([next_start + bpd, pf])
-                if next_end - next_start < bpd:
+                next_end = min([next_start + base_pair_distance, final_position])
+                if next_end - next_start < base_pair_distance:
                     end = next_end
                     is_last_time = True
 
@@ -597,7 +591,7 @@ def main(raw_args=None):
                     end = next_end
                     if is_last_time:
                         break
-                    if end >= pf:
+                    if end >= final_position:
                         is_last_time = True
                     vars_from_prev_overlap = []
                     continue
@@ -843,7 +837,7 @@ def main(raw_args=None):
                 end = next_end
                 if is_last_time:
                     break
-                if end >= pf:
+                if end >= final_position:
                     is_last_time = True
 
         if current_percent != 100 and not have_printed100:
