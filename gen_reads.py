@@ -427,7 +427,6 @@ def main(raw_args=None):
                 any_bad_nucl = any((nn not in ALLOWED_NUCL) for nn in [item for sublist in n[2] for item in sublist])
                 # Ensure reference sequence matches the nucleotide in the vcf
                 if r_seq != n[1]:
-                    print(str(r_seq) + ' and ' + str(n[1]))
                     n_skipped[0] += 1
                     continue
                 # Ensure that we aren't trying to insert into an N region
@@ -495,6 +494,7 @@ def main(raw_args=None):
             have_printed100 = False
 
             while True:
+                print('\n\nstarting ...\n\n')
                 # which inserted variants are in this window?
                 vars_in_window = []
                 updated = False
