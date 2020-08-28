@@ -7,6 +7,12 @@ LOW_PROB_THRESH = 1e-12
 
 
 def mean_ind_of_weighted_list(candidate_list: list) -> int:
+    """
+    Returns the index of the mean of a weighted list
+
+    :param candidate_list: weighted list
+    :return: index of mean
+    """
     my_mid = sum(candidate_list) / 2.0
     my_sum = 0.0
     for i in range(len(candidate_list)):
@@ -93,7 +99,8 @@ class DiscreteDistribution:
                 return self.values[bisect.bisect(self.cum_prob, r) - 1]
 
 
-# takes k_range, lambda, [0,1,2,..], returns a DiscreteDistribution object with the corresponding to a poisson distribution
+# takes k_range, lambda, [0,1,2,..], returns a DiscreteDistribution object
+# with the corresponding to a poisson distribution
 
 def poisson_list(k_range, input_lambda):
     min_weight = 1e-12

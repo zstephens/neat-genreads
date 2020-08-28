@@ -286,6 +286,7 @@ def main(raw_args=None):
     if input_vcf is not None:
         if cancer:
             (sample_names, input_variants) = parse_vcf(input_vcf, tumor_normal=True, ploidy=ploids)
+            # TODO figure out what Zach was trying to do with these
             tumor_ind = sample_names.index('TUMOR')
             normal_ind = sample_names.index('NORMAL')
         else:
@@ -310,6 +311,7 @@ def main(raw_args=None):
             exit(1)
         finally:
             f.close()
+
         # some validation
         n_in_bed_only = 0
         n_in_ref_only = 0
@@ -317,7 +319,7 @@ def main(raw_args=None):
             if k not in input_regions:
                 n_in_ref_only += 1
         for k in input_regions.keys():
-            if not k in ref_list:
+            if k not in ref_list:
                 n_in_bed_only += 1
                 del input_regions[k]
         if n_in_ref_only > 0:
@@ -333,10 +335,10 @@ def main(raw_args=None):
         try:
             f = open(discard_bed, 'r')
             for line in f:
-                [myChr, pos1, pos2] = line.strip().split('\t')[:3]
-                if myChr not in discard_regions:
-                    discard_regions[myChr] = [-1]
-                discard_regions[myChr].extend([int(pos1), int(pos2)])
+                [my_chr, pos1, pos2] = line.strip().split('\t')[:3]
+                if my_chr not in discard_regions:
+                    discard_regions[my_chr] = [-1]
+                discard_regions[my_chr].extend([int(pos1), int(pos2)])
         except IOError:
             print("\nProblem reading discard BED file.\n")
         finally:
@@ -403,7 +405,6 @@ def main(raw_args=None):
     for chrom in range(len(ref_index)):
 
         # read in reference sequence and notate blocks of Ns
-        # TODO convert this line to SeqIO
         (ref_sequence, n_regions) = read_ref(reference, ref_index[chrom], n_handling)
 
         # count total bp we'll be spanning so we can get an idea of how far along we are
@@ -474,6 +475,8 @@ def main(raw_args=None):
         else:
             print('sampling reads...')
         tt = time.time()
+        # start the progress bar
+        print("[", end='')
 
         # Applying variants to non-N regions
         for i in range(len(n_regions['non_N'])):
@@ -491,21 +494,14 @@ def main(raw_args=None):
             vars_cancer_from_prev_overlap = []
             v_index_from_prev = 0
             is_last_time = False
-            have_printed100 = False
-            start_progress_bar = True
 
             while True:
-                # start the progress bar
-                if start_progress_bar:
-                    print("[", end='')
-                    start_progress_bar = False
-
                 # which inserted variants are in this window?
                 vars_in_window = []
                 updated = False
                 for j in range(v_index_from_prev, len(valid_variants_from_vcf)):
                     variants_position = valid_variants_from_vcf[j][0]
-                    # update: changed >= to >, so variant cannot be inserted in first position
+                    # update: changed <= to <, so variant cannot be inserted in first position
                     if start < variants_position < end:
                         # vcf --> array coords
                         vars_in_window.append(tuple([variants_position - 1] + list(valid_variants_from_vcf[j][1:])))
@@ -548,11 +544,10 @@ def main(raw_args=None):
                 new_percent = int((current_progress * 100) / float(total_bp_span))
                 if new_percent > current_percent:
                     if new_percent <= 99 or (new_percent == 100 and not have_printed100):
-                        if new_percent % 20 == 0:
+                        if new_percent % 10 == 1:
                             print('-', end='')
                     current_percent = new_percent
                     if current_percent == 100:
-                        print(']')
                         have_printed100 = True
 
                 skip_this_window = False
@@ -574,7 +569,7 @@ def main(raw_args=None):
                             else:
                                 coverage_dat[2].append(off_target_scalar)
 
-                # offtarget and we're not interested?
+                # off-target and we're not interested?
                 if off_target_discard and target_hits <= read_len:
                     coverage_avg = 0.0
                     skip_this_window = True
@@ -642,6 +637,11 @@ def main(raw_args=None):
                     pass
                 else:
                     window_span = end - start
+                    print('window_span = ' + str(window_span))
+                    print('coverage = ' + str(coverage))
+                    print('read_len = ' + str(read_len))
+                    print('coverage_avg = ' + str(coverage_avg))
+
                     if paired_end:
                         if force_coverage:
                             reads_to_sample = int((window_span * float(coverage)) / (2 * read_len)) + 1
@@ -659,20 +659,21 @@ def main(raw_args=None):
                         reads_to_sample = 0
 
                     # sample reads
-                    ASDF2_TT = time.time()
-                    for i in range(reads_to_sample):
+                    for k in range(reads_to_sample):
 
                         is_unmapped = []
                         if paired_end:
                             my_fraglen = fraglen_distribution.sample()
                             my_read_data = sequences.sample_read(se_class, my_fraglen)
-                            if my_read_data is None:  # skip if we failed to find a valid position to sample read
+                            # skip if we failed to find a valid position to sample read
+                            if my_read_data is None:
                                 continue
                             if my_read_data[0][0] is None:
                                 is_unmapped.append(True)
                             else:
                                 is_unmapped.append(False)
-                                my_read_data[0][0] += start  # adjust mapping position based on window start
+                                # adjust mapping position based on window start
+                                my_read_data[0][0] += start
                             if my_read_data[1][0] is None:
                                 is_unmapped.append(True)
                             else:
@@ -680,13 +681,16 @@ def main(raw_args=None):
                                 my_read_data[1][0] += start
                         else:
                             my_read_data = sequences.sample_read(se_class)
-                            if my_read_data is None:  # skip if we failed to find a valid position to sample read
+                            # skip if we failed to find a valid position to sample read
+                            if my_read_data is None:
                                 continue
-                            if my_read_data[0][0] is None:  # unmapped read (lives in large insertion)
+                            # unmapped read (lives in large insertion)
+                            if my_read_data[0][0] is None:
                                 is_unmapped = [True]
                             else:
                                 is_unmapped = [False]
-                                my_read_data[0][0] += start  # adjust mapping position based on window start
+                                # adjust mapping position based on window start
+                                my_read_data[0][0] += start
 
                         # are we discarding offtargets?
                         outside_boundaries = []
@@ -712,10 +716,10 @@ def main(raw_args=None):
                         if n_max_qual > -1:
                             for j in range(len(my_read_data)):
                                 my_read_string = [n for n in my_read_data[j][2]]
-                                for k in range(len(my_read_data[j][3])):
-                                    adjusted_qual = ord(my_read_data[j][3][k]) - se_class.off_q
+                                for m in range(len(my_read_data[j][3])):
+                                    adjusted_qual = ord(my_read_data[j][3][m]) - se_class.off_q
                                     if adjusted_qual <= n_max_qual:
-                                        my_read_string[k] = 'N'
+                                        my_read_string[m] = 'N'
                                 my_read_data[j][2] = ''.join(my_read_string)
 
                         # flip a coin, are we forward or reverse strand?
@@ -824,7 +828,6 @@ def main(raw_args=None):
                         else:
                             print('\nError: Unexpected number of reads generated...\n')
                             exit(1)
-                    # print 'READS:',time.time()-ASDF2_TT
 
                     if not is_last_time:
                         output_file_writer.flush_buffers(bam_max=next_start)
@@ -844,7 +847,7 @@ def main(raw_args=None):
                     is_last_time = True
 
         if current_percent != 100 and not have_printed100:
-            print('100%')
+            print(']')
         else:
             print('')
         if only_vcf:
@@ -864,8 +867,6 @@ def main(raw_args=None):
                 # k[0] + 1 because we're going back to 1-based vcf coords
                 output_file_writer.write_vcf_record(current_ref, str(int(k[0]) + 1), my_id, k[1], k[2], my_quality,
                                                     my_filter, k[4])
-
-    # break
 
     # write unmapped reads to bam file
     if save_bam and len(unmapped_records):
