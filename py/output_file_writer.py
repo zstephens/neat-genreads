@@ -158,7 +158,7 @@ class OutputFileWriter:
         # BAM OUTPUT
         self.bam_file = None
         if bam_header is not None:
-            self.bam_file = BgzfWriter(bam, 'w', compresslevel=BAM_COMPRESSION_LEVEL)
+            self.bam_file = BgzfWriter(bam, 'w', compress_level=BAM_COMPRESSION_LEVEL)
 
             # WRITE BAM HEADER
             self.bam_file.write("BAM\1")

@@ -46,8 +46,8 @@ example_matrix_1 = [[0.0, 0.15, 0.7, 0.15],
                     [0.15, 0.0, 0.15, 0.7],
                     [0.7, 0.15, 0.0, 0.15],
                     [0.15, 0.7, 0.15, 0.0]]
-DEFAULT_1_TRI_FREQS = [copy.deepcopy(example_matrix_1) for n in range(16)]
-DEFAULT_1_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for n in ALL_TRI]
+DEFAULT_1_TRI_FREQS = [copy.deepcopy(example_matrix_1) for _ in range(16)]
+DEFAULT_1_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for _ in ALL_TRI]
 DEFAULT_MODEL_1 = [DEFAULT_1_OVERALL_MUT_RATE,
                    DEFAULT_1_HOMOZYGOUS_FREQ,
                    DEFAULT_1_INDEL_FRACTION,
@@ -65,14 +65,15 @@ DEFAULT_2_INDEL_FRACTION = 0.1
 DEFAULT_2_INS_VS_DEL = 0.3
 DEFAULT_2_INS_LENGTH_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 DEFAULT_2_INS_LENGTH_WEIGHTS = [0.1, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+# noinspection DuplicatedCode
 DEFAULT_2_DEL_LENGTH_VALUES = [1, 2, 3, 4, 5]
 DEFAULT_2_DEL_LENGTH_WEIGHTS = [0.3, 0.2, 0.2, 0.2, 0.1]
 example_matrix_2 = [[0.0, 0.15, 0.7, 0.15],
                     [0.15, 0.0, 0.15, 0.7],
                     [0.7, 0.15, 0.0, 0.15],
                     [0.15, 0.7, 0.15, 0.0]]
-DEFAULT_2_TRI_FREQS = [copy.deepcopy(example_matrix_2) for n in range(16)]
-DEFAULT_2_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for n in ALL_TRI]
+DEFAULT_2_TRI_FREQS = [copy.deepcopy(example_matrix_2) for _ in range(16)]
+DEFAULT_2_TRINUC_BIAS = [1. / float(len(ALL_TRI)) for _ in ALL_TRI]
 DEFAULT_MODEL_2 = [DEFAULT_2_OVERALL_MUT_RATE,
                    DEFAULT_2_HOMOZYGOUS_FREQ,
                    DEFAULT_2_INDEL_FRACTION,
@@ -85,40 +86,33 @@ DEFAULT_MODEL_2 = [DEFAULT_2_OVERALL_MUT_RATE,
                    DEFAULT_2_TRINUC_BIAS]
 
 
-#
-#	Container for reference sequences, applies mutations
-#
 class SequenceContainer:
-    def __init__(self, x_offset, sequence, ploidy, window_overlap, read_len, mut_models=[], mut_rate=None,
+    """
+    Container for reference sequences, applies mutations
+    """
+
+    def __init__(self, x_offset, sequence, ploidy, window_overlap, read_len, mut_models=None, mut_rate=None,
                  only_vcf=False):
+
         # initialize basic variables
         self.only_vcf = only_vcf
-        self.init_basic_vars(x_offset, sequence, ploidy, window_overlap, read_len)
-        # initialize mutation models
-        self.init_mut_models(mut_models, mut_rate)
-        # sample the number of variants that will be inserted into each ploid
-        self.init_poisson()
-        self.indels_to_add = [n.sample() for n in self.ind_pois]
-        self.snps_to_add = [n.sample() for n in self.snp_pois]
-        # initialize trinuc snp bias
-        self.init_trinuc_bias()
-
-    def init_basic_vars(self, x_offset, sequence, ploidy, window_overlap, read_len):
         self.x = x_offset
         self.ploidy = ploidy
         self.read_len = read_len
-        self.sequences = [Seq(str(sequence), IUPAC.unambiguous_dna).tomutable() for n in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence), IUPAC.unambiguous_dna).tomutable() for _ in range(self.ploidy)]
         self.seq_len = len(sequence)
-        self.indel_list = [[] for n in range(self.ploidy)]
-        self.snp_list = [[] for n in range(self.ploidy)]
-        self.all_cigar = [[] for n in range(self.ploidy)]
-        self.fm_pos = [[] for n in range(self.ploidy)]
-        self.fm_span = [[] for n in range(self.ploidy)]
-        # blackList[ploid][pos] = 0		safe to insert variant here
-        # blackList[ploid][pos] = 1		indel inserted here
-        # blackList[ploid][pos] = 2		snp inserted here
-        # blackList[ploid][pos] = 3		invalid position for various processing reasons
-        self.black_list = [np.zeros(self.seq_len, dtype='<i4') for n in range(self.ploidy)]
+        self.indel_list = [[] for _ in range(self.ploidy)]
+        self.snp_list = [[] for _ in range(self.ploidy)]
+        self.all_cigar = [[] for _ in range(self.ploidy)]
+        self.fm_pos = [[] for _ in range(self.ploidy)]
+        self.fm_span = [[] for _ in range(self.ploidy)]
+
+        # Blacklist explanation:
+        # black_list[ploid][pos] = 0		safe to insert variant here
+        # black_list[ploid][pos] = 1		indel inserted here
+        # black_list[ploid][pos] = 2		snp inserted here
+        # black_list[ploid][pos] = 3		invalid position for various processing reasons
+        self.black_list = [np.zeros(self.seq_len, dtype='<i4') for _ in range(self.ploidy)]
 
         # disallow mutations to occur on window overlap points
         self.win_buffer = window_overlap
@@ -126,14 +120,148 @@ class SequenceContainer:
             self.black_list[p][-self.win_buffer] = 3
             self.black_list[p][-self.win_buffer - 1] = 3
 
+        # initialize mutation models
+        if not mut_models:
+            default_model = [copy.deepcopy(DEFAULT_MODEL_1) for _ in range(self.ploidy)]
+            self.model_data = default_model[:self.ploidy]
+        else:
+            if len(mut_models) != self.ploidy:
+                print('\nError: Number of mutation models received is not equal to specified ploidy\n')
+                exit(1)
+            self.model_data = copy.deepcopy(mut_models)
+
+        # do we need to rescale mutation frequencies?
+        mut_rate_sum = sum([n[0] for n in self.model_data])
+        self.mut_rescale = mut_rate
+        if self.mut_rescale is None:
+            self.mut_scalar = 1.0
+        else:
+            self.mut_scalar = float(self.mut_rescale) // (mut_rate_sum / float(len(self.model_data)))
+
+        # how are mutations spread to each ploid, based on their specified mut rates?
+        self.ploid_mut_frac = [float(n[0]) / mut_rate_sum for n in self.model_data]
+        self.ploid_mut_prior = DiscreteDistribution(self.ploid_mut_frac, range(self.ploidy))
+
+        # init mutation models
+        #
+        # self.models[ploid][0] = average mutation rate
+        # self.models[ploid][1] = p(mut is homozygous | mutation occurs)
+        # self.models[ploid][2] = p(mut is indel | mut occurs)
+        # self.models[ploid][3] = p(insertion | indel occurs)
+        # self.models[ploid][4] = distribution of insertion lengths
+        # self.models[ploid][5] = distribution of deletion lengths
+        # self.models[ploid][6] = distribution of trinucleotide SNP transitions
+        # self.models[ploid][7] = p(trinuc mutates)
+        self.models = []
+        for n in self.model_data:
+            self.models.append([self.mut_scalar * n[0], n[1], n[2], n[3], DiscreteDistribution(n[5], n[4]),
+                                DiscreteDistribution(n[7], n[6]), []])
+            for m in n[8]:
+                # noinspection PyTypeChecker
+                self.models[-1][6].append([DiscreteDistribution(m[0], NUCL), DiscreteDistribution(m[1], NUCL),
+                                           DiscreteDistribution(m[2], NUCL), DiscreteDistribution(m[3], NUCL)])
+            self.models[-1].append([m for m in n[9]])
+
+        # initialize poisson attributes
+        self.indel_poisson, self.snp_poisson = self.init_poisson()
+
+        # sample the number of variants that will be inserted into each ploid
+        self.indels_to_add = [n.sample() for n in self.indel_poisson]
+        self.snps_to_add = [n.sample() for n in self.snp_poisson]
+
+        # initialize trinuc snp bias
+        # compute mutation positional bias given trinucleotide strings of the sequence (ONLY AFFECTS SNPs)
+        #
+        # note: since indels are added before snps, it's possible these positional biases aren't correctly utilized
+        #       at positions affected by indels. At the moment I'm going to consider this negligible.
+        trinuc_snp_bias = [[0. for _ in range(self.seq_len)] for _ in range(self.ploidy)]
+        self.trinuc_bias = [None for _ in range(self.ploidy)]
+        for p in range(self.ploidy):
+            for i in range(self.win_buffer + 1, self.seq_len - 1):
+                trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[str(self.sequences[p][i - 1:i + 2])]]
+            self.trinuc_bias[p] = DiscreteDistribution(trinuc_snp_bias[p][self.win_buffer + 1:self.seq_len - 1],
+                                                       range(self.win_buffer + 1, self.seq_len - 1))
+
+        # initialize coverage attributes
+        self.window_size = None
+        self.coverage_distribution = None
+        self.fraglen_ind_map = None
+
+    def update_basic_vars(self, x_offset, sequence, ploidy, window_overlap, read_len):
+        self.x = x_offset
+        self.ploidy = ploidy
+        self.read_len = read_len
+        self.sequences = [Seq(str(sequence), IUPAC.unambiguous_dna).tomutable() for _ in range(self.ploidy)]
+        self.seq_len = len(sequence)
+        self.indel_list = [[] for _ in range(self.ploidy)]
+        self.snp_list = [[] for _ in range(self.ploidy)]
+        self.all_cigar = [[] for _ in range(self.ploidy)]
+        self.fm_pos = [[] for _ in range(self.ploidy)]
+        self.fm_span = [[] for _ in range(self.ploidy)]
+        self.black_list = [np.zeros(self.seq_len, dtype='<i4') for _ in range(self.ploidy)]
+
+        # disallow mutations to occur on window overlap points
+        self.win_buffer = window_overlap
+        for p in range(self.ploidy):
+            self.black_list[p][-self.win_buffer] = 3
+            self.black_list[p][-self.win_buffer - 1] = 3
+
+    def update_mut_models(self, mut_models, mut_rate):
+        if not mut_models:
+            default_model = [copy.deepcopy(DEFAULT_MODEL_1) for _ in range(self.ploidy)]
+            self.model_data = default_model[:self.ploidy]
+        else:
+            if len(mut_models) != self.ploidy:
+                print('\nError: Number of mutation models received is not equal to specified ploidy\n')
+                exit(1)
+            self.model_data = copy.deepcopy(mut_models)
+
+        # do we need to rescale mutation frequencies?
+        mut_rate_sum = sum([n[0] for n in self.model_data])
+        self.mut_rescale = mut_rate
+        if self.mut_rescale is None:
+            self.mut_scalar = 1.0
+        else:
+            self.mut_scalar = float(self.mut_rescale) // (mut_rate_sum / float(len(self.model_data)))
+
+        # how are mutations spread to each ploid, based on their specified mut rates?
+        self.ploid_mut_frac = [float(n[0]) / mut_rate_sum for n in self.model_data]
+        self.ploid_mut_prior = DiscreteDistribution(self.ploid_mut_frac, range(self.ploidy))
+        self.models = []
+        for n in self.model_data:
+            self.models.append([self.mut_scalar * n[0], n[1], n[2], n[3], DiscreteDistribution(n[5], n[4]),
+                                DiscreteDistribution(n[7], n[6]), []])
+            for m in n[8]:
+                # noinspection PyTypeChecker
+                self.models[-1][6].append([DiscreteDistribution(m[0], NUCL), DiscreteDistribution(m[1], NUCL),
+                                           DiscreteDistribution(m[2], NUCL), DiscreteDistribution(m[3], NUCL)])
+            self.models[-1].append([m for m in n[9]])
+
+    def update_trinuc_bias(self):
+        trinuc_snp_bias = [[0. for _ in range(self.seq_len)] for _ in range(self.ploidy)]
+        self.trinuc_bias = [None for _ in range(self.ploidy)]
+        for p in range(self.ploidy):
+            for i in range(self.win_buffer + 1, self.seq_len - 1):
+                trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[str(self.sequences[p][i - 1:i + 2])]]
+            self.trinuc_bias[p] = DiscreteDistribution(trinuc_snp_bias[p][self.win_buffer + 1:self.seq_len - 1],
+                                                       range(self.win_buffer + 1, self.seq_len - 1))
+
     def init_coverage(self, coverage_data, frag_dist=None):
-        # if we're only creating a vcf, skip some expensive initialization related to coverage depth
+        """
+        Initializes coverage for the sequence container. Only makes changes if we are not in vcf-only mode.
+
+        :param coverage_data: A tuple containing the window size, gc scalars and target coverage values.
+        :param frag_dist: A probability distribution of the fragment size.
+        :return: Mean coverage value
+        """
+
+        # If we're only creating a vcf, skip some expensive initialization related to coverage depth
         if not self.only_vcf:
             (self.window_size, gc_scalars, target_cov_vals) = coverage_data
-            gc_cov_vals = [[] for n in self.sequences]
-            tr_cov_vals = [[] for n in self.sequences]
-            self.coverage_distribution = []
+            gc_cov_vals = [[] for _ in self.sequences]
+            tr_cov_vals = [[] for _ in self.sequences]
             avg_out = []
+            self.coverage_distribution = []
             for i in range(len(self.sequences)):
                 max_coord = min([len(self.sequences[i]) - self.read_len, len(self.all_cigar[i]) - self.read_len])
                 # Trying to fix a problem wherein the above line gives a negative answer
@@ -142,12 +270,12 @@ class SequenceContainer:
                 # compute gc-bias
                 j = 0
                 while j + self.window_size < len(self.sequences[i]):
-                    gc_c = self.sequences[i][j:j + self.window_size].count('G') + self.sequences[i][
-                                                                                  j:j + self.window_size].count('C')
+                    gc_c = self.sequences[i][j:j + self.window_size].count('G') + \
+                           self.sequences[i][j:j + self.window_size].count('C')
                     gc_cov_vals[i].extend([gc_scalars[gc_c]] * self.window_size)
                     j += self.window_size
-                gc_c = self.sequences[i][-self.window_size:].count('G') + self.sequences[i][-self.window_size:].count(
-                    'C')
+                gc_c = self.sequences[i][-self.window_size:].count('G') + \
+                       self.sequences[i][-self.window_size:].count('C')
                 gc_cov_vals[i].extend([gc_scalars[gc_c]] * (len(self.sequences[i]) - len(gc_cov_vals[i])))
                 #
                 tr_cov_vals[i].append(target_cov_vals[0])
@@ -161,7 +289,7 @@ class SequenceContainer:
                         tr_cov_vals[i].append(sum(target_cov_vals[self.fm_pos[i][j]:self.fm_span[i][j]]) / float(
                             self.fm_span[i][j] - self.fm_pos[i][j]))
                         prev_val = self.fm_pos[i][j]
-                    # print (i,j), self.adj[i][j], self.all_cigar[i][j], self.FM_pos[i][j], self.FM_span[i][j]
+
                 # shift by half of read length
                 if len(tr_cov_vals[i]) > int(self.read_len / 2.):
                     tr_cov_vals[i] = [0.0] * int(self.read_len // 2) + tr_cov_vals[i][:-int(self.read_len / 2.)]
@@ -192,19 +320,19 @@ class SequenceContainer:
                         flq.append(frag_dist.values[-1])
                     flq.append(LARGE_NUMBER)
 
-                    self.fraglens_ind_map = {}
+                    self.fraglen_ind_map = {}
                     for j in frag_dist.values:
-                        bInd = bisect.bisect(flq, j)
-                        if abs(flq[bInd - 1] - j) <= abs(flq[bInd] - j):
-                            self.fraglens_ind_map[j] = flq[bInd - 1]
+                        b_ind = bisect.bisect(flq, j)
+                        if abs(flq[b_ind - 1] - j) <= abs(flq[b_ind] - j):
+                            self.fraglen_ind_map[j] = flq[b_ind - 1]
                         else:
-                            self.fraglens_ind_map[j] = flq[bInd]
+                            self.fraglen_ind_map[j] = flq[b_ind]
 
                     self.coverage_distribution.append({})
-                    for flv in sorted(list(set(self.fraglens_ind_map.values()))):
+                    for flv in sorted(list(set(self.fraglen_ind_map.values()))):
                         buffer_val = self.read_len
                         for j in frag_dist.values:
-                            if self.fraglens_ind_map[j] == flv and j > buffer_val:
+                            if self.fraglen_ind_map[j] == flv and j > buffer_val:
                                 buffer_val = j
                         max_coord = min([len(self.sequences[i]) - buffer_val - 1,
                                          len(self.all_cigar[i]) - buffer_val + self.read_len - 2])
@@ -237,92 +365,41 @@ class SequenceContainer:
 
             return np.mean(avg_out)
 
-    def init_mut_models(self, mut_models, mut_rate):
-        if not mut_models:
-            default_model = [copy.deepcopy(DEFAULT_MODEL_1) for n in range(self.ploidy)]
-            self.model_data = default_model[:self.ploidy]
-        else:
-            if len(mut_models) != self.ploidy:
-                print('\nError: Number of mutation models recieved is not equal to specified ploidy\n')
-                exit(1)
-            self.model_data = copy.deepcopy(mut_models)
-
-        # do we need to rescale mutation frequencies?
-        mut_rateSum = sum([n[0] for n in self.model_data])
-        self.mut_rescale = mut_rate
-        if self.mut_rescale == None:
-            self.mut_scalar = 1.0
-        else:
-            self.mut_scalar = float(self.mut_rescale) // (mut_rateSum / float(len(self.model_data)))
-
-        # how are mutations spread to each ploid, based on their specified mut rates?
-        self.ploid_mut_frac = [float(n[0]) / mut_rateSum for n in self.model_data]
-        self.ploid_mut_prior = DiscreteDistribution(self.ploid_mut_frac, range(self.ploidy))
-
-        # init mutation models
-        #
-        # self.models[ploid][0] = average mutation rate
-        # self.models[ploid][1] = p(mut is homozygous | mutation occurs)
-        # self.models[ploid][2] = p(mut is indel | mut occurs)
-        # self.models[ploid][3] = p(insertion | indel occurs)
-        # self.models[ploid][4] = distribution of insertion lengths
-        # self.models[ploid][5] = distribution of deletion lengths
-        # self.models[ploid][6] = distribution of trinucleotide SNP transitions
-        # self.models[ploid][7] = p(trinuc mutates)
-        self.models = []
-        for n in self.model_data:
-            self.models.append([self.mut_scalar * n[0], n[1], n[2], n[3], DiscreteDistribution(n[5], n[4]),
-                                DiscreteDistribution(n[7], n[6]), []])
-            for m in n[8]:
-                self.models[-1][6].append([DiscreteDistribution(m[0], NUCL), DiscreteDistribution(m[1], NUCL),
-                                           DiscreteDistribution(m[2], NUCL), DiscreteDistribution(m[3], NUCL)])
-            self.models[-1].append([m for m in n[9]])
-
     def init_poisson(self):
         ind_l_list = [self.seq_len * self.models[i][0] * self.models[i][2] * self.ploid_mut_frac[i] for i in
                       range(len(self.models))]
         snp_l_list = [self.seq_len * self.models[i][0] * (1. - self.models[i][2]) * self.ploid_mut_frac[i] for i in
                       range(len(self.models))]
         k_range = range(int(self.seq_len * MAX_MUTFRAC))
-        self.ind_pois = [poisson_list(k_range, ind_l_list[n]) for n in range(len(self.models))]
-        self.snp_pois = [poisson_list(k_range, snp_l_list[n]) for n in range(len(self.models))]
+        # return (indel_poisson, snp_poisson)
+        return [poisson_list(k_range, ind_l_list[n]) for n in range(len(self.models))], \
+               [poisson_list(k_range, snp_l_list[n]) for n in range(len(self.models))]
 
-    def init_trinuc_bias(self):
-        # compute mutation positional bias given trinucleotide strings of the sequence (ONLY AFFECTS SNPs)
-        #
-        # note: since indels are added before snps, it's possible these positional biases aren't correctly utilized
-        #       at positions affected by indels. At the moment I'm going to consider this negligible.
-        trinuc_snp_bias = [[0. for n in range(self.seq_len)] for m in range(self.ploidy)]
-        self.trinuc_bias = [None for n in range(self.ploidy)]
-        for p in range(self.ploidy):
-            for i in range(self.win_buffer + 1, self.seq_len - 1):
-                trinuc_snp_bias[p][i] = self.models[p][7][ALL_IND[str(self.sequences[p][i - 1:i + 2])]]
-            self.trinuc_bias[p] = DiscreteDistribution(trinuc_snp_bias[p][self.win_buffer + 1:self.seq_len - 1],
-                                                       range(self.win_buffer + 1, self.seq_len - 1))
-
-    def update(self, x_offset, sequence, ploidy, window_overlap, read_len, mut_models=[], mut_rate=None):
+    def update(self, x_offset, sequence, ploidy, window_overlap, read_len, mut_models=None, mut_rate=None):
         # if mutation model is changed, we have to reinitialize it...
-        if ploidy != self.ploidy or mut_rate != self.mut_rescale or mut_models != []:
+        if ploidy != self.ploidy or mut_rate != self.mut_rescale or mut_models is not None:
             self.ploidy = ploidy
             self.mut_rescale = mut_rate
-            self.init_mut_models(mut_models, mut_rate)
+            self.update_mut_models(mut_models, mut_rate)
         # if sequence length is different than previous window, we have to redo snp/indel poissons
         if len(sequence) != self.seq_len:
             self.seq_len = len(sequence)
-            self.init_poisson()
+            self.indel_poisson, self.snp_poisson = self.init_poisson()
         # basic vars
-        self.init_basic_vars(x_offset, sequence, ploidy, window_overlap, read_len)
-        self.indels_to_add = [n.sample() for n in self.ind_pois]
-        self.snps_to_add = [n.sample() for n in self.snp_pois]
+        self.update_basic_vars(x_offset, sequence, ploidy, window_overlap, read_len)
+        self.indels_to_add = [n.sample() for n in self.indel_poisson]
+        self.snps_to_add = [n.sample() for n in self.snp_poisson]
         # initialize trinuc snp bias
         if not IGNORE_TRINUC:
-            self.init_trinuc_bias()
+            self.update_trinuc_bias()
 
     def insert_mutations(self, input_list):
-        for inpV in input_list:
+        for input_variable in input_list:
             which_ploid = []
-            wps = inpV[4][0]
-            if wps is None:  # if no genotype given, assume heterozygous and choose a single ploid based on their mut rates
+            wps = input_variable[4][0]
+
+            # if no genotype given, assume heterozygous and choose a single ploid based on their mut rates
+            if wps is None:
                 which_ploid.append(self.ploid_mut_prior.sample())
                 which_alt = [0]
             else:
@@ -332,13 +409,13 @@ class SequenceContainer:
                     else:
                         splt = wps.split('|')
                     which_ploid = []
-                    which_alt = []
                     for i in range(len(splt)):
                         if splt[i] == '1':
                             which_ploid.append(i)
                     # assume we're just using first alt for inserted variants?
-                    which_alt = [0 for n in which_ploid]
-                else:  # otherwise assume monoploidy
+                    which_alt = [0 for _ in which_ploid]
+                # otherwise assume monoploidy
+                else:
                     which_ploid = [0]
                     which_alt = [0]
 
@@ -349,22 +426,22 @@ class SequenceContainer:
 
             for i in range(len(which_ploid)):
                 p = which_ploid[i]
-                myAlt = inpV[2][which_alt[i]]
-                myVar = (inpV[0] - self.x, inpV[1], myAlt)
-                inLen = max([len(inpV[1]), len(myAlt)])
+                my_alt = input_variable[2][which_alt[i]]
+                my_var = (input_variable[0] - self.x, input_variable[1], my_alt)
+                in_len = max([len(input_variable[1]), len(my_alt)])
 
-                if myVar[0] < 0 or myVar[0] >= len(self.black_list[p]):
+                if my_var[0] < 0 or my_var[0] >= len(self.black_list[p]):
                     print('\nError: Attempting to insert variant out of window bounds:')
-                    print(myVar, '--> blackList[0:' + str(len(self.black_list[p])) + ']\n')
+                    print(my_var, '--> blackList[0:' + str(len(self.black_list[p])) + ']\n')
                     exit(1)
-                if len(inpV[1]) == 1 and len(myAlt) == 1:
-                    if self.black_list[p][myVar[0]]:
+                if len(input_variable[1]) == 1 and len(my_alt) == 1:
+                    if self.black_list[p][my_var[0]]:
                         continue
-                    self.snp_list[p].append(myVar)
-                    self.black_list[p][myVar[0]] = 2
+                    self.snp_list[p].append(my_var)
+                    self.black_list[p][my_var[0]] = 2
                 else:
                     indel_failed = False
-                    for k in range(myVar[0], myVar[0] + inLen + 1):
+                    for k in range(my_var[0], my_var[0] + in_len + 1):
                         if k >= len(self.black_list[p]):
                             indel_failed = True
                             continue
@@ -373,104 +450,111 @@ class SequenceContainer:
                             continue
                     if indel_failed:
                         continue
-                    for k in range(myVar[0], myVar[0] + inLen + 1):
+                    for k in range(my_var[0], my_var[0] + in_len + 1):
                         self.black_list[p][k] = 1
-                    self.indel_list[p].append(myVar)
+                    self.indel_list[p].append(my_var)
 
     def random_mutations(self):
 
-        #	add random indels
-        all_indels = [[] for n in self.sequences]
+        # add random indels
+        all_indels = [[] for _ in self.sequences]
         for i in range(self.ploidy):
             for j in range(self.indels_to_add[i]):
-                if random.random() <= self.models[i][1]:  # insert homozygous indel
-                    whichPloid = range(self.ploidy)
-                else:  # insert heterozygous indel
-                    whichPloid = [self.ploid_mut_prior.sample()]
+                # insert homozygous indel
+                if random.random() <= self.models[i][1]:
+                    which_ploid = range(self.ploidy)
+                # insert heterozygous indel
+                else:
+                    which_ploid = [self.ploid_mut_prior.sample()]
 
                 # try to find suitable places to insert indels
-                eventPos = -1
+                event_pos = -1
                 for attempt in range(MAX_ATTEMPTS):
-                    eventPos = random.randint(self.win_buffer, self.seq_len - 1)
-                    for p in whichPloid:
-                        if self.black_list[p][eventPos]:
-                            eventPos = -1
-                    if eventPos != -1:
+                    event_pos = random.randint(self.win_buffer, self.seq_len - 1)
+                    for p in which_ploid:
+                        if self.black_list[p][event_pos]:
+                            event_pos = -1
+                    if event_pos != -1:
                         break
-                if eventPos == -1:
+                if event_pos == -1:
                     continue
 
-                if random.random() <= self.models[i][3]:  # insertion
-                    inLen = self.models[i][4].sample()
+                # insertion
+                if random.random() <= self.models[i][3]:
+                    in_len = self.models[i][4].sample()
                     # sequence content of random insertions is uniformly random (change this later, maybe)
-                    inSeq = ''.join([random.choice(NUCL) for n in range(inLen)])
-                    ref_nucl = self.sequences[i][eventPos]
-                    myIndel = (eventPos, ref_nucl, ref_nucl + inSeq)
-                else:  # deletion
-                    inLen = self.models[i][5].sample()
-                    if eventPos + inLen + 1 >= len(self.sequences[i]):  # skip if deletion too close to boundary
+                    in_seq = ''.join([random.choice(NUCL) for _ in range(in_len)])
+                    ref_nucl = self.sequences[i][event_pos]
+                    my_indel = (event_pos, ref_nucl, ref_nucl + in_seq)
+                # deletion
+                else:
+                    in_len = self.models[i][5].sample()
+                    # skip if deletion too close to boundary
+                    if event_pos + in_len + 1 >= len(self.sequences[i]):
                         continue
-                    if inLen == 1:
-                        inSeq = self.sequences[i][eventPos + 1]
+                    if in_len == 1:
+                        in_seq = self.sequences[i][event_pos + 1]
                     else:
-                        inSeq = str(self.sequences[i][eventPos + 1:eventPos + inLen + 1])
-                    ref_nucl = self.sequences[i][eventPos]
-                    myIndel = (eventPos, ref_nucl + inSeq, ref_nucl)
+                        in_seq = str(self.sequences[i][event_pos + 1:event_pos + in_len + 1])
+                    ref_nucl = self.sequences[i][event_pos]
+                    my_indel = (event_pos, ref_nucl + in_seq, ref_nucl)
 
                 # if event too close to boundary, skip. if event conflicts with other indel, skip.
-                skipEvent = False
-                if eventPos + len(myIndel[1]) >= self.seq_len - self.win_buffer - 1:
-                    skipEvent = True
-                if skipEvent:
+                skip_event = False
+                if event_pos + len(my_indel[1]) >= self.seq_len - self.win_buffer - 1:
+                    skip_event = True
+                if skip_event:
                     continue
-                for p in whichPloid:
-                    for k in range(eventPos, eventPos + inLen + 1):
+                for p in which_ploid:
+                    for k in range(event_pos, event_pos + in_len + 1):
                         if self.black_list[p][k]:
-                            skipEvent = True
-                if skipEvent:
+                            skip_event = True
+                if skip_event:
                     continue
 
-                for p in whichPloid:
-                    for k in range(eventPos, eventPos + inLen + 1):
+                for p in which_ploid:
+                    for k in range(event_pos, event_pos + in_len + 1):
                         self.black_list[p][k] = 1
-                    all_indels[p].append(myIndel)
+                    all_indels[p].append(my_indel)
 
-        #	add random snps
-        all_snps = [[] for n in self.sequences]
+        # add random snps
+        all_snps = [[] for _ in self.sequences]
         for i in range(self.ploidy):
             for j in range(self.snps_to_add[i]):
-                if random.random() <= self.models[i][1]:  # insert homozygous SNP
-                    whichPloid = range(self.ploidy)
-                else:  # insert heterozygous SNP
-                    whichPloid = [self.ploid_mut_prior.sample()]
+                # insert homozygous SNP
+                if random.random() <= self.models[i][1]:
+                    which_ploid = range(self.ploidy)
+                # insert heterozygous SNP
+                else:
+                    which_ploid = [self.ploid_mut_prior.sample()]
 
                 # try to find suitable places to insert snps
-                eventPos = -1
+                event_pos = -1
                 for attempt in range(MAX_ATTEMPTS):
                     # based on the mutation model for the specified ploid, choose a SNP location based on trinuc bias
                     # (if there are multiple ploids, choose one at random)
                     if IGNORE_TRINUC:
-                        eventPos = random.randint(self.win_buffer + 1, self.seq_len - 2)
+                        event_pos = random.randint(self.win_buffer + 1, self.seq_len - 2)
                     else:
-                        ploid_to_use = whichPloid[random.randint(0, len(whichPloid) - 1)]
-                        eventPos = self.trinuc_bias[ploid_to_use].sample()
-                    for p in whichPloid:
-                        if self.black_list[p][eventPos]:
-                            eventPos = -1
-                    if eventPos != -1:
+                        ploid_to_use = which_ploid[random.randint(0, len(which_ploid) - 1)]
+                        event_pos = self.trinuc_bias[ploid_to_use].sample()
+                    for p in which_ploid:
+                        if self.black_list[p][event_pos]:
+                            event_pos = -1
+                    if event_pos != -1:
                         break
-                if eventPos == -1:
+                if event_pos == -1:
                     continue
 
-                ref_nucl = self.sequences[i][eventPos]
-                context = str(self.sequences[i][eventPos - 1]) + str(self.sequences[i][eventPos + 1])
+                ref_nucl = self.sequences[i][event_pos]
+                context = str(self.sequences[i][event_pos - 1]) + str(self.sequences[i][event_pos + 1])
                 # sample from tri-nucleotide substitution matrices to get SNP alt allele
                 new_nucl = self.models[i][6][TRI_IND[context]][NUC_IND[ref_nucl]].sample()
-                mySNP = (eventPos, ref_nucl, new_nucl)
+                my_snp = (event_pos, ref_nucl, new_nucl)
 
-                for p in whichPloid:
-                    all_snps[p].append(mySNP)
-                    self.black_list[p][mySNP[0]] = 2
+                for p in which_ploid:
+                    all_snps[p].append(my_snp)
+                    self.black_list[p][my_snp[0]] = 2
 
         # combine random snps with inserted snps, remove any snps that overlap indels
         for p in range(len(all_snps)):
@@ -496,10 +580,9 @@ class SequenceContainer:
         all_indels_ins = [sorted([list(m) for m in n]) for n in all_indels]
 
         # MODIFY REFERENCE STRING: INDELS
-        adj_to_add = [[] for n in range(self.ploidy)]
         for i in range(len(all_indels_ins)):
             rolling_adj = 0
-            temp_symbol_string = ['M' for n in self.sequences[i]]
+            temp_symbol_string = ['M' for _ in self.sequences[i]]
             # there's an off-by-one error somewhere in the position sampling routines.. this might fix it
             # temp_symbol_string.append('M')
             for j in range(len(all_indels_ins[i])):
@@ -524,23 +607,25 @@ class SequenceContainer:
                     elif d < 0:
                         temp_symbol_string[v_pos + 1] = 'D' * abs(d) + 'M'
 
-            # precompute cigar strings
+            # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
-                self.all_cigar[i].append(CigarString(listIn=temp_symbol_string[j:j + self.read_len]).get_string())
+                self.all_cigar[i].append(CigarString(list_in=temp_symbol_string[j:j + self.read_len]).get_string())
 
             # create some data structures we will need later:
-            # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e. corresponding to the unmodified reference genome)
-            # --- self.FM_span[ploid][pos]: number of reference positions spanned by a read originating from this coordinate
-            MD_so_far = 0
+            # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
+            #       corresponding to the unmodified reference genome)
+            # --- self.FM_span[ploid][pos]: number of reference positions spanned by a read originating from
+            #       this coordinate
+            md_so_far = 0
             for j in range(len(temp_symbol_string)):
-                self.fm_pos[i].append(MD_so_far)
+                self.fm_pos[i].append(md_so_far)
                 # fix an edge case with deletions
                 if 'D' in temp_symbol_string[j]:
                     self.fm_pos[i][-1] += temp_symbol_string[j].count('D')
                 # compute number of ref matches for each read
                 span_dif = len([n for n in temp_symbol_string[j:j + self.read_len] if 'M' in n])
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
-                MD_so_far += temp_symbol_string[j].count('M') + temp_symbol_string[j].count('D')
+                md_so_far += temp_symbol_string[j].count('M') + temp_symbol_string[j].count('D')
 
         # tally up all the variants we handled...
         count_dict = {}
@@ -553,20 +638,18 @@ class SequenceContainer:
                     count_dict[t] = []
                 count_dict[t].append(i)
 
-        #
-        #	TODO: combine multiple variants that happened to occur at same position into single vcf entry?
-        #
+        # TODO: combine multiple variants that happened to occur at same position into single vcf entry?
 
         output_variants = []
         for k in sorted(count_dict.keys()):
             output_variants.append(k + tuple([len(count_dict[k]) / float(self.ploidy)]))
-            ploid_string = ['0' for n in range(self.ploidy)]
+            ploid_string = ['0' for _ in range(self.ploidy)]
             for k2 in [n for n in count_dict[k]]:
                 ploid_string[k2] = '1'
             output_variants[-1] += tuple(['WP=' + '/'.join(ploid_string)])
         return output_variants
 
-    def sample_read(self, sequencingModel, frag_len=None):
+    def sample_read(self, sequencing_model, frag_len=None):
 
         # choose a ploid
         my_ploid = random.randint(0, self.ploidy - 1)
@@ -576,17 +659,17 @@ class SequenceContainer:
         attempts_thus_far = 0
 
         # choose a random position within the ploid, and generate quality scores / sequencing errors
-        readsToSample = []
-        if frag_len == None:
+        reads_to_sample = []
+        if frag_len is None:
             r_pos = self.coverage_distribution[my_ploid].sample()
 
             # sample read position and call function to compute quality scores / sequencing errors
             r_dat = self.sequences[my_ploid][r_pos:r_pos + self.read_len]
-            (myQual, myErrors) = sequencingModel.get_sequencing_errors(r_dat)
-            readsToSample.append([r_pos, myQual, myErrors, r_dat])
+            (my_qual, my_errors) = sequencing_model.get_sequencing_errors(r_dat)
+            reads_to_sample.append([r_pos, my_qual, my_errors, r_dat])
 
         else:
-            r_pos1 = self.coverage_distribution[my_ploid][self.fraglens_ind_map[frag_len]].sample()
+            r_pos1 = self.coverage_distribution[my_ploid][self.fraglen_ind_map[frag_len]].sample()
 
             # EXPERIMENTAL
             # coords_to_select_from = self.coverage_distribution[my_ploid][self.fraglens_ind_map[frag_len]].sample()
@@ -595,76 +678,82 @@ class SequenceContainer:
             r_pos2 = r_pos1 + frag_len - self.read_len
             r_dat1 = self.sequences[my_ploid][r_pos1:r_pos1 + self.read_len]
             r_dat2 = self.sequences[my_ploid][r_pos2:r_pos2 + self.read_len]
-            (myQual1, myErrors1) = sequencingModel.get_sequencing_errors(r_dat1)
-            (myQual2, myErrors2) = sequencingModel.get_sequencing_errors(r_dat2, is_reverse_strand=True)
-            readsToSample.append([r_pos1, myQual1, myErrors1, r_dat1])
-            readsToSample.append([r_pos2, myQual2, myErrors2, r_dat2])
+            (my_qual1, my_errors1) = sequencing_model.get_sequencing_errors(r_dat1)
+            (my_qual2, my_errors2) = sequencing_model.get_sequencing_errors(r_dat2, is_reverse_strand=True)
+            reads_to_sample.append([r_pos1, my_qual1, my_errors1, r_dat1])
+            reads_to_sample.append([r_pos2, my_qual2, my_errors2, r_dat2])
 
         # error format:
         # myError[i] = (type, len, pos, ref, alt)
 
-        # examine sequencing errors to-be-inserted.
-        #	- remove deletions that don't have enough bordering sequence content to "fill in"
-        # if error is valid, make the changes to the read data
+        """
+        examine sequencing errors to-be-inserted.
+            - remove deletions that don't have enough bordering sequence content to "fill in"
+            if error is valid, make the changes to the read data
+        """
         r_out = []
-        for r in readsToSample:
+        for r in reads_to_sample:
             try:
-                myCigar = self.all_cigar[my_ploid][r[0]]
+                my_cigar = self.all_cigar[my_ploid][r[0]]
             except IndexError:
                 print('Index error when attempting to find cigar string.')
                 print(my_ploid, len(self.all_cigar[my_ploid]), r[0])
                 if frag_len is not None:
                     print((r_pos1, r_pos2))
-                    print(frag_len, self.fraglens_ind_map[frag_len])
+                    print(frag_len, self.fraglen_ind_map[frag_len])
                 exit(1)
             total_d = sum([error[1] for error in r[2] if error[0] == 'D'])
             total_i = sum([error[1] for error in r[2] if error[0] == 'I'])
-            availB = len(self.sequences[my_ploid]) - r[0] - self.read_len - 1
+            avail_b = len(self.sequences[my_ploid]) - r[0] - self.read_len - 1
             # add buffer sequence to fill in positions that get deleted
             r[3] += self.sequences[my_ploid][r[0] + self.read_len:r[0] + self.read_len + total_d]
             expanded_cigar = []
-            extraCigar = []
+            extra_cigar = []
             adj = 0
-            sse_adj = [0 for n in range(self.read_len + max(sequencingModel.err_p[3]))]
+            sse_adj = [0 for n in range(self.read_len + max(sequencing_model.err_p[3]))]
             any_indel_err = False
 
             # sort by letter (D > I > S) such that we introduce all indel errors before substitution errors
             # secondarily, sort by index
-            arrangedErrors = {'D': [], 'I': [], 'S': []}
+            arranged_errors = {'D': [], 'I': [], 'S': []}
             for error in r[2]:
-                arrangedErrors[error[0]].append((error[2], error))
-            sortedErrors = []
-            for k in sorted(arrangedErrors.keys()):
-                sortedErrors.extend([n[1] for n in sorted(arrangedErrors[k])])
+                arranged_errors[error[0]].append((error[2], error))
+            sorted_errors = []
+            for k in sorted(arranged_errors.keys()):
+                sorted_errors.extend([n[1] for n in sorted(arranged_errors[k])])
 
             skip_indels = False
 
             # FIXED TdB 05JUN2018
-            # Moved this outside the for error loop, since it messes up the CIGAR string when more than one deletion is in the same read
+            # Moved this outside the for error loop, since it messes up the CIGAR string when
+            # more than one deletion is in the same read
             extra_cigar_val = []
             # END FIXED TdB
 
-            for error in sortedErrors:
+            for error in sorted_errors:
                 e_len = error[1]
                 e_pos = error[2]
                 if error[0] == 'D' or error[0] == 'I':
                     any_indel_err = True
 
                     # FIXED TdB 05JUN2018
-                    # Moved this OUTSIDE the for error loop, since it messes up the CIGAR string when more than one deletion is in the same read
+                    # Moved this OUTSIDE the for error loop, since it messes up the CIGAR string
+                    # when more than one deletion is in the same read
                     # extra_cigar_val = []
                     # END FIXED TdB
 
-                    if total_d > availB:  # if not enough bases to fill-in deletions, skip all indel erors
+                    if total_d > avail_b:  # if not enough bases to fill-in deletions, skip all indel erors
                         continue
-                    if expanded_cigar == []:
-                        expanded_cigar = CigarString(stringIn=myCigar).get_list()
+                    if not expanded_cigar:
+                        expanded_cigar = CigarString(string_in=my_cigar).get_list()
                         fill_to_go = total_d - total_i + 1
                         if fill_to_go > 0:
                             try:
                                 extra_cigar_val = CigarString(
-                                    stringIn=self.all_cigar[my_ploid][r[0] + fill_to_go]).get_list()[-fill_to_go:]
-                            except IndexError:  # applying the deletions we want requires going beyond region boundaries. skip all indel errors
+                                    string_in=self.all_cigar[my_ploid][r[0] + fill_to_go]).get_list()[-fill_to_go:]
+                            except IndexError:
+                                # Applying the deletions we want requires going beyond region boundaries.
+                                # Skip all indel errors
                                 skip_indels = True
 
                     if skip_indels:
@@ -678,8 +767,8 @@ class SequenceContainer:
                         if str(r[3][pi:pf]) == str(error[3]):
                             r[3] = r[3][:pi + 1] + r[3][pf:]
                             expanded_cigar = expanded_cigar[:pi + 1] + expanded_cigar[pf:]
-                            if pi + 1 == len(
-                                    expanded_cigar):  # weird edge case with del at very end of region. Make a guess and add a "M"
+                            # weird edge case with del at very end of region. Make a guess and add a "M"
+                            if pi + 1 == len(expanded_cigar):
                                 expanded_cigar.append('M')
                             expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
                         else:
@@ -713,12 +802,12 @@ class SequenceContainer:
 
             if any_indel_err:
                 if len(expanded_cigar):
-                    relevantCigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
-                    myCigar = CigarString(listIn=relevantCigar).get_string()
+                    relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
+                    my_cigar = CigarString(list_in=relevant_cigar).get_string()
 
                 r[3] = r[3][:self.read_len]
 
-            r_out.append([self.fm_pos[my_ploid][r[0]], myCigar, str(r[3]), str(r[1])])
+            r_out.append([self.fm_pos[my_ploid][r[0]], my_cigar, str(r[3]), str(r[1])])
 
         # r_out[i] = (pos, cigar, read_string, qual_string)
         return r_out
@@ -728,6 +817,7 @@ class SequencingError:
     """
     Container to model sequencing errors: computes quality scores and positions to insert errors
     """
+
     def __init__(self, read_len, error_model, rescaled_error):
 
         self.read_len = read_len
@@ -919,7 +1009,6 @@ class SequencingError:
 
 # parse mutation model pickle file
 def parse_input_mutation_model(model=None, which_default=1):
-
     if which_default == 1:
         out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_1]
     elif which_default == 2:
@@ -979,4 +1068,3 @@ def parse_input_mutation_model(model=None, which_default=1):
                 out_model[9][ALL_IND[trinuc]] = trinuc_mean
 
     return out_model
-
