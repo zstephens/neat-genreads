@@ -521,8 +521,7 @@ def main(raw_args=None):
                     # change: added abs() so that insertions are also buffered.
                     buffer_needed = max([max([abs(len(n[1]) - len(alt_allele)), 1]) for alt_allele in n[2]])
                     # -1 because going from VCF coords to array coords
-                    structural_vars.append(
-                        (n[0] - 1, buffer_needed))
+                    structural_vars.append((n[0] - 1, buffer_needed))
 
                 # adjust end-position of window based on inserted structural mutations
                 keep_going = True
@@ -547,9 +546,8 @@ def main(raw_args=None):
                 current_progress += end - start
                 new_percent = int((current_progress * 100) / float(total_bp_span))
                 if new_percent > current_percent:
-                    if new_percent <= 99 or (new_percent == 100 and not have_printed100):
-                        if new_percent % 20 == 0:
-                            print('-', end='')
+                    if new_percent <= 99 or (new_percent == 100 and not have_printed100) and new_percent % 20 == 0:
+                        print('-', end='')
                     current_percent = new_percent
                     if current_percent == 100:
                         print(']')

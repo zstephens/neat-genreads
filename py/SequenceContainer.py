@@ -1,6 +1,6 @@
 import random
 import copy
-import os
+import pathlib
 import bisect
 import pickle
 import numpy as np
@@ -732,8 +732,9 @@ class SequencingError:
 
         self.read_len = read_len
 
+        model_path = pathlib.Path(error_model)
         try:
-            error_dat = pickle.load(open(error_model, 'rb'), encoding="bytes")
+            error_dat = pickle.load(open(model_path, 'rb'), encoding="bytes")
         except IOError:
             print("\nProblem opening the sequencing error model.\n")
             exit(1)
