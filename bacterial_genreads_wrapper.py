@@ -32,7 +32,7 @@ class Bacterium:
         manipulation to unzip the file and fix genreads horribly formatted fasta file.
         :return: None
         """
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa']
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa', '-c', '1']
         gen_reads.main(args)
 
         # The following workaround is due to the fact that genReads writes out a compressed
@@ -68,8 +68,8 @@ class Bacterium:
         # re-write file with just the chrom name and sequence
         self.file.open('w').write(chromosome_name + sequence)
 
-    def sample(self):
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name]
+    def sample(self, coverage_value: int):
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '-c', coverage_value]
         gen_reads.main(args)
 
     def remove(self):
@@ -142,14 +142,15 @@ def evolve_population(population: list, generation: int) -> list:
     return new_population
 
 
-def sample_population(population: list):
+def sample_population(population: list, target_coverage: int):
     """
     This will create a fastq based on each member of the population.
+    :param target_coverage: The target coverage value for the sample.
     :param population: a list of bacteria
     :return: None
     """
     for bacterium in population:
-        bacterium.sample()
+        bacterium.sample(target_coverage)
 
 
 def main():
@@ -158,13 +159,17 @@ def main():
                         help="Reference file for organism in fasta format")
     parser.add_argument('-g', type=int, required=True, metavar='generations', help="Number of generations to run")
     parser.add_argument('-i', type=int, required=True, metavar='initial population', help="Initial population size")
-    parser.add_argument('-c', type=float, required=False, metavar='cull pct',
+    parser.add_argument('-k', type=float, required=False, metavar='cull pct',
                         help="Percentage of population to cull each cycle (0.5 will keep population relatively stable)",
                         default=0.5)
+    parser.add_argument('-c', type=int, required=False, default=10, metavar='coverage value',
+                        help='Target coverage value for final set of sampled fastqs')
     args = parser.parse_args()
+    print(args)
 
     (ref_fasta, init_population_size, generations) = (args.r, args.i, args.g)
-    cull_percentage = args.c
+    cull_percentage = args.k
+    coverage = args.c
 
     population = initialize_population(ref_fasta, init_population_size)
 
@@ -179,7 +184,7 @@ def main():
 
         population = new_population
 
-    sample_population(population)
+    sample_population(population, coverage)
 
 
 if __name__ == '__main__':

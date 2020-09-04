@@ -25,8 +25,8 @@ import numpy as np
 import argparse
 import pathlib
 
-from py.input_checking import required_field, check_file_open, is_in_range
-from py.ref_func import index_ref, read_ref, get_all_ref_regions, partition_ref_regions
+from py.input_checking import check_file_open, is_in_range
+from py.ref_func import index_ref, read_ref
 from py.vcf_func import parse_vcf
 from py.output_file_writer import OutputFileWriter, reverse_complement, sam_flag
 from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
@@ -636,10 +636,6 @@ def main(raw_args=None):
                     pass
                 else:
                     window_span = end - start
-                    print('window_span = ' + str(window_span))
-                    print('coverage = ' + str(coverage))
-                    print('read_len = ' + str(read_len))
-                    print('coverage_avg = ' + str(coverage_avg))
 
                     if paired_end:
                         if force_coverage:
