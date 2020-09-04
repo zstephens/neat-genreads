@@ -6,6 +6,7 @@ import random
 import pathlib
 import gzip
 import shutil
+import sys
 # from Bio import SeqIO
 
 
@@ -58,7 +59,7 @@ class Bacterium:
                 chromosome_name = first_line
             else:
                 print("Something went wrong with the fasta file")
-                exit(1)
+                sys.exit(1)
             for line in f:
                 if line.startswith(">"):
                     continue
@@ -136,7 +137,6 @@ def evolve_population(population: list, generation: int) -> list:
     for j in range(len(children_population)):
         names.append("bacterium_{}_{}".format(generation, j+1))
     for i in range(len(children_population)):
-        print(children_population[i].get_file())
         child = Bacterium(children_population[i].get_file(), names[i])
         new_population.append(child)
     return new_population
@@ -165,7 +165,6 @@ def main():
     parser.add_argument('-c', type=int, required=False, default=10, metavar='coverage value',
                         help='Target coverage value for final set of sampled fastqs')
     args = parser.parse_args()
-    print(args)
 
     (ref_fasta, init_population_size, generations) = (args.r, args.i, args.g)
     cull_percentage = args.k

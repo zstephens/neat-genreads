@@ -146,7 +146,7 @@ def main(raw_args=None):
     # if user specified no fastq, not fasta only, and no bam and no vcf, then print error and exit.
     if no_fastq and not fasta_instead and not save_bam and not save_vcf:
         print('\nERROR: No files would be written.\n')
-        exit(1)
+        sys.exit(1)
 
     if no_fastq:
         print('Bypassing FASTQ generation...')
@@ -157,7 +157,7 @@ def main(raw_args=None):
 
     if (fragment_size is None and fragment_std is not None) or (fragment_size is not None and fragment_std is None):
         print('\nERROR: --pe argument takes 2 space-separated arguments.\n')
-        exit(1)
+        sys.exit(1)
 
     # If user specified mean/std, or specified an empirical model, then the reads will be paired_ended
     # If not, then we're doing single-end reads.
@@ -214,14 +214,14 @@ def main(raw_args=None):
             [gc_scale_count, gc_scale_val] = pickle.load(open(gc_bias_model, 'rb'))
         except IOError:
             print("\nProblem reading the default gc-bias model.\n")
-            exit(1)
+            sys.exit(1)
         gc_window_size = gc_scale_count[-1]
     else:
         try:
             [gc_scale_count, gc_scale_val] = pickle.load(open(gc_bias_model, 'rb'))
         except IOError:
             print("\nProblem reading the gc-bias model.\n")
-            exit(1)
+            sys.exit(1)
         gc_window_size = gc_scale_count[-1]
 
     # Assign appropriate values to the needed variables if we're dealing with paired-ended data
@@ -233,7 +233,7 @@ def main(raw_args=None):
                 [potential_values, potential_prob] = pickle.load(open(fraglen_model, 'rb'))
             except IOError:
                 print('\nProblem loading the empirical fragment length model.\n')
-                exit(1)
+                sys.exit(1)
 
             fraglen_values = []
             fraglen_probability = []
@@ -308,7 +308,7 @@ def main(raw_args=None):
                     input_regions[my_chr].extend([int(pos1), int(pos2)])
         except IOError:
             print("\nProblem reading input target BED file.\n")
-            exit(1)
+            sys.exit(1)
         finally:
             f.close()
 
@@ -366,7 +366,7 @@ def main(raw_args=None):
                         mut_rate_values.extend([mut_rate * (pos2 - pos1)] * 2)
         except IOError:
             print("\nProblem reading mutational BED file.\n")
-            exit(1)
+            sys.exit(1)
         finally:
             f.close()
 
@@ -476,7 +476,7 @@ def main(raw_args=None):
             print('sampling reads...')
         tt = time.time()
         # start the progress bar
-        print("[", end='')
+        print("[", end='', flush=True)
 
         # Applying variants to non-N regions
         for i in range(len(n_regions['non_N'])):
@@ -544,7 +544,7 @@ def main(raw_args=None):
                 if new_percent > current_percent:
                     if new_percent <= 99 or (new_percent == 100 and not have_printed100):
                         if new_percent % 10 == 1:
-                            print('-', end='')
+                            print('-', end='', flush=True)
                     current_percent = new_percent
                     if current_percent == 100:
                         have_printed100 = True
@@ -822,7 +822,7 @@ def main(raw_args=None):
                                                                         sam_flag=flag2, mate_pos=my_read_data[1][0])
                         else:
                             print('\nError: Unexpected number of reads generated...\n')
-                            exit(1)
+                            sys.exit(1)
 
                     if not is_last_time:
                         output_file_writer.flush_buffers(bam_max=next_start)

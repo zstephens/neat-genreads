@@ -127,7 +127,7 @@ class SequenceContainer:
         else:
             if len(mut_models) != self.ploidy:
                 print('\nError: Number of mutation models received is not equal to specified ploidy\n')
-                exit(1)
+                sys.exit(1)
             self.model_data = copy.deepcopy(mut_models)
 
         # do we need to rescale mutation frequencies?
@@ -213,7 +213,7 @@ class SequenceContainer:
         else:
             if len(mut_models) != self.ploidy:
                 print('\nError: Number of mutation models received is not equal to specified ploidy\n')
-                exit(1)
+                sys.exit(1)
             self.model_data = copy.deepcopy(mut_models)
 
         # do we need to rescale mutation frequencies?
@@ -358,7 +358,7 @@ class SequenceContainer:
                         # for qcv in quantized_covVals:
                         #	mpl.plot([qcv[0], qcv[1]+1], [qcv[2],qcv[2]], 'r')
                         # mpl.show()
-                        # exit(1)
+                        # sys.exit(1)
 
                         self.coverage_distribution[i][flv] = DiscreteDistribution(coverage_vals,
                                                                                   range(len(coverage_vals)))
@@ -433,7 +433,7 @@ class SequenceContainer:
                 if my_var[0] < 0 or my_var[0] >= len(self.black_list[p]):
                     print('\nError: Attempting to insert variant out of window bounds:')
                     print(my_var, '--> blackList[0:' + str(len(self.black_list[p])) + ']\n')
-                    exit(1)
+                    sys.exit(1)
                 if len(input_variable[1]) == 1 and len(my_alt) == 1:
                     if self.black_list[p][my_var[0]]:
                         continue
@@ -570,7 +570,7 @@ class SequenceContainer:
                     print('\nError: Something went wrong!\n', all_snps[i][j], self.sequences[i][v_pos], '\n')
                     print(all_snps[i][j])
                     print(self.sequences[i][v_pos])
-                    exit(1)
+                    sys.exit(1)
                 else:
                     self.sequences[i][v_pos] = all_snps[i][j][2]
 
@@ -593,7 +593,7 @@ class SequenceContainer:
                 if all_indels_ins[i][j][1] != str(self.sequences[i][v_pos:v_pos2]):
                     print('\nError: Something went wrong!\n', all_indels_ins[i][j], [v_pos, v_pos2],
                           str(self.sequences[i][v_pos:v_pos2]), '\n')
-                    exit(1)
+                    sys.exit(1)
                 else:
                     # alter reference sequence
                     self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2],
@@ -701,7 +701,7 @@ class SequenceContainer:
                 if frag_len is not None:
                     print((r_pos1, r_pos2))
                     print(frag_len, self.fraglen_ind_map[frag_len])
-                exit(1)
+                sys.exit(1)
             total_d = sum([error[1] for error in r[2] if error[0] == 'D'])
             total_i = sum([error[1] for error in r[2] if error[0] == 'I'])
             avail_b = len(self.sequences[my_ploid]) - r[0] - self.read_len - 1
@@ -773,7 +773,7 @@ class SequenceContainer:
                             expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
                         else:
                             print('\nError, ref does not match alt while attempting to insert deletion error!\n')
-                            exit(1)
+                            sys.exit(1)
                         adj -= e_len
                         for i in range(e_pos, len(sse_adj)):
                             sse_adj[i] -= e_len
@@ -788,7 +788,7 @@ class SequenceContainer:
                         else:
                             print('\nError, ref does not match alt while attempting to insert insertion error!\n')
                             print('---', chr(r[3][e_pos + my_adj]), '!=', error[3])
-                            exit(1)
+                            sys.exit(1)
                         adj += e_len
                         for i in range(e_pos, len(sse_adj)):
                             sse_adj[i] += e_len
@@ -798,7 +798,7 @@ class SequenceContainer:
                         r[3][e_pos + sse_adj[e_pos]] = error[4]
                     else:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
-                        exit(1)
+                        sys.exit(1)
 
             if any_indel_err:
                 if len(expanded_cigar):
@@ -827,7 +827,7 @@ class SequencingError:
             error_dat = pickle.load(open(model_path, 'rb'), encoding="bytes")
         except IOError:
             print("\nProblem opening the sequencing error model.\n")
-            exit(1)
+            sys.exit(1)
 
         self.uniform = False
 
@@ -850,12 +850,12 @@ class SequencingError:
             self.pe_models = True
             if len(init_q1) != len(init_q2) or len(prob_q1) != len(prob_q2):
                 print('\nError: R1 and R2 quality score models are of different length.\n')
-                exit(1)
+                sys.exit(1)
 
         # This serves as a sanity check for the input model
         else:
             print('\nError: Something wrong with error model.\n')
-            exit(1)
+            sys.exit(1)
 
         self.q_err_rate = [0.] * (max(q_scores) + 1)
         for q in q_scores:
@@ -1015,7 +1015,7 @@ def parse_input_mutation_model(model=None, which_default=1):
         out_model = [copy.deepcopy(n) for n in DEFAULT_MODEL_2]
     else:
         print('\nError: Unknown default mutation model specified\n')
-        exit(1)
+        sys.exit(1)
 
     if model is not None:
         pickle_dict = pickle.load(open(model, "rb"))

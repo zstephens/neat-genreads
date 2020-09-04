@@ -24,7 +24,7 @@ def index_ref(reference_path: str) -> list:
     # sanity check
     if not absolute_reference_location.is_file():
         print("\nProblem reading the reference fasta file.\n")
-        exit(1)
+        sys.exit(1)
 
     filename = None
 
@@ -88,7 +88,7 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
         ref_file = open(absolute_reference_path, 'r')
     except IOError:
         print('\nProblem reading reference file.\n')
-        exit(1)
+        sys.exit(1)
 
     # TODO convert to SeqIO containers
     ref_file.seek(ref_inds_i[1])
@@ -137,7 +137,7 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
             n_info['big'].extend(region)
     else:
         print('\nERROR: UNKNOWN N_HANDLING MODE\n')
-        exit(1)
+        sys.exit(1)
 
     habitable_regions = []
     if not n_info['big']:

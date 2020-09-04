@@ -4,6 +4,7 @@ and issues an error if there is something wrong.
 """
 
 import pathlib
+import sys
 
 
 def required_field(variable_to_test: any, err_string: str) -> None:
@@ -16,7 +17,7 @@ def required_field(variable_to_test: any, err_string: str) -> None:
     """
     if variable_to_test is None:
         print('\n' + err_string + '\n')
-        exit(1)
+        sys.exit(1)
 
 
 def check_file_open(filename: str, err_string: str, required: bool = False) -> None:
@@ -31,13 +32,13 @@ def check_file_open(filename: str, err_string: str, required: bool = False) -> N
     if required or filename is not None:
         if filename is None:
             print('\n' + err_string + '\n')
-            exit(1)
+            sys.exit(1)
         else:
             try:
                 pathlib.Path(filename).resolve(strict=True)
             except FileNotFoundError:
                 print('\n' + err_string + '\n')
-                exit(1)
+                sys.exit(1)
 
 
 def check_dir(directory: str, err_string: str) -> None:
@@ -65,4 +66,4 @@ def is_in_range(value: float, lower_bound: float, upper_bound: float, err_string
     """
     if value < lower_bound or value > upper_bound:
         print('\n' + err_string + '\n')
-        exit(1)
+        sys.exit(1)
