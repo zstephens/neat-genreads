@@ -70,8 +70,22 @@ class Bacterium:
         self.file.open('w').write(chromosome_name + sequence)
 
     def sample(self, coverage_value: int):
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '-c', str(coverage_value)]
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '-c', str(coverage_value), '--pe', '300 30']
         gen_reads.main(args)
+
+        # The following workaround is due to the fact that genReads writes out a compressed
+        # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
+        # fasta files, so we further have to unzip it for it to actually work.
+        filename1 = pathlib.Path().absolute() / (self.name + "_read1.fq")
+        filename2 = pathlib.Path().absolute() / (self.name + "_read2.fq")
+        new_name1 = self.name + "_read1.fq.gz"
+        new_name2 = self.name + "_read2.fq.gz"
+
+        filename1.rename(pathlib.Path(pathlib.Path().absolute(), new_name1))
+        if filename2.is_file():
+            filename2.rename(pathlib.Path(pathlib.Path().absolute(), new_name2))
+
+        # end workaround
 
     def remove(self):
         pathlib.Path.unlink(self.file)
