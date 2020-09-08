@@ -70,7 +70,7 @@ class Bacterium:
         self.file.open('w').write(chromosome_name + sequence)
 
     def sample(self, coverage_value: int):
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '-c', coverage_value]
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '-c', str(coverage_value)]
         gen_reads.main(args)
 
     def remove(self):
