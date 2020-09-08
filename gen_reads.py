@@ -841,10 +841,8 @@ def main(raw_args=None):
                 if end >= final_position:
                     is_last_time = True
 
-        if current_percent != 100 and not have_printed100:
-            print(']')
-        else:
-            print('')
+        print(']', flush=True)
+
         if only_vcf:
             print('VCF generation completed in ', end='')
         else:
