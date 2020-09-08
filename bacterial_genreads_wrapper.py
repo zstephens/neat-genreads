@@ -70,7 +70,7 @@ class Bacterium:
         self.file.open('w').write(chromosome_name + sequence)
 
     def sample(self, coverage_value: int):
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '-c', str(coverage_value), '--pe', '300 30']
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '-c', str(coverage_value), '--pe', '300', '30']
         gen_reads.main(args)
 
         # The following workaround is due to the fact that genReads writes out a compressed
