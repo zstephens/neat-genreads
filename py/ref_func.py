@@ -26,19 +26,21 @@ def index_ref(reference_path: str) -> list:
         print("\nProblem reading the reference fasta file.\n")
         sys.exit(1)
 
-    filename = None
+    index_filename = None
 
     # check if the reference file already exists
     if absolute_reference_location.with_suffix('.fai').is_file():
         print('found index ' + absolute_reference_location.with_suffix('.fai'))
-        filename = absolute_reference_location.with_suffix('.fai')
+        index_filename = absolute_reference_location.with_suffix('.fai')
     elif absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai').is_file():
         print('found index ' + absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai'))
-        filename = absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai')
+        index_filename = absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai')
+    else:
+        pass
 
     ref_indices = []
-    if filename is not None:
-        fai = open(filename, 'r')
+    if index_filename is not None:
+        fai = open(index_filename, 'r')
         for line in fai:
             splt = line[:-1].split('\t')
             seq_len = int(splt[1])
@@ -57,7 +59,6 @@ def index_ref(reference_path: str) -> list:
     prev_p = None
     seq_len = 0
 
-    # TODO I really don't like this while true statement
     while True:
         data = ref_file.readline()
         if not data:
@@ -186,7 +187,7 @@ def get_all_ref_regions(ref_path, ref_inds, n_handling, save_output=False):
     else:
         print('enumerating all non-N regions in reference sequence...')
         for RI in range(len(ref_inds)):
-            (refSequence, N_regions) = read_ref(ref_path, ref_inds[RI], n_handling, quiet=True)
+            (ref_sequence, N_regions) = read_ref(ref_path, ref_inds[RI], n_handling, quiet=True)
             ref_name = ref_inds[RI][0]
             out_regions[ref_name] = [n for n in N_regions['non_N']]
         if save_output:
