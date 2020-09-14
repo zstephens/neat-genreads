@@ -24,6 +24,7 @@ import pickle
 import numpy as np
 import argparse
 import pathlib
+from Bio import SeqIO
 
 from py.input_checking import check_file_open, is_in_range
 from py.ref_func import index_ref, read_ref
@@ -78,7 +79,7 @@ def main(raw_args=None):
     parser.add_argument('-v', type=str, required=False, metavar='vcf.file', default=None,
                         help="Input VCF file of variants to include")
     parser.add_argument('--pe', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(None, None),
-                        help='paired-end fragment length mean and std')
+                        help='Paired-end fragment length mean and std')
     parser.add_argument('--pe-model', type=str, required=False, metavar='<str>', default=None,
                         help='empirical fragment length distribution')
     parser.add_argument('--gc-model', type=str, required=False, metavar='<str>', default=None,
@@ -268,8 +269,7 @@ def main(raw_args=None):
     Process Inputs
     """
 
-    # index reference
-    # TODO change reference processing to Biopython
+    # index reference: [("chromosome_name", # bases in the contig, byte index where the seq begins,
     ref_index = index_ref(reference)
 
     if paired_end:
@@ -277,8 +277,8 @@ def main(raw_args=None):
     else:
         n_handling = ('ignore', read_len)
 
-    # TODO pretty sure all this can be handled by SeqIO
     indices_by_ref_name = {ref_index[n][0]: n for n in range(len(ref_index))}
+    ref_list = [n[0] for n in ref_index]
 
     # parse input variants, if present
     # TODO read this in as a pandas dataframe
@@ -297,7 +297,6 @@ def main(raw_args=None):
     # parse input targeted regions, if present
     # TODO convert bed to pandas dataframe
     input_regions = {}
-    ref_list = [n[0] for n in ref_index]
     if input_bed is not None:
         try:
             with open(input_bed, 'r') as f:
@@ -406,6 +405,9 @@ def main(raw_args=None):
 
         # read in reference sequence and notate blocks of Ns
         (ref_sequence, n_regions) = read_ref(reference, ref_index[chrom], n_handling)
+        print(ref_sequence)
+
+        sys.exit(1)
 
         # count total bp we'll be spanning so we can get an idea of how far along we are
         # (for printing progress indicators)
