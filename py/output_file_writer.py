@@ -97,13 +97,13 @@ class OutputFileWriter:
         self.fasta_instead = fasta_instead
         # TODO Eliminate paired end as an option for fastas
         if self.fasta_instead:
-            fq1 = pathlib.Path(out_prefix + '.fasta')
+            fq1 = pathlib.Path(out_prefix + '.fasta.gz')
             fq2 = None
         else:
-            fq1 = pathlib.Path(out_prefix + '_read1.fq')
-            fq2 = pathlib.Path(out_prefix + '_read2.fq')
+            fq1 = pathlib.Path(out_prefix + '_read1.fq.gz')
+            fq2 = pathlib.Path(out_prefix + '_read2.fq.gz')
         bam = pathlib.Path(out_prefix + '_golden.bam')
-        vcf = pathlib.Path(out_prefix + '_golden.vcf')
+        vcf = pathlib.Path(out_prefix + '_golden.vcf.gz')
 
         self.no_fastq = no_fastq
         if not self.no_fastq:
