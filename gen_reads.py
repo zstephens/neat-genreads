@@ -269,7 +269,10 @@ def main(raw_args=None):
     Process Inputs
     """
 
-    # index reference: [("chromosome_name", # bases in the contig, byte index where the seq begins,
+    # index reference: [(0: chromosome name, 1: byte index where the contig seq begins,
+    #                    2: byte index where the next contig begins, 3: contig seq length),
+    #                    (repeat for every chrom)]
+    # TODO check to see if this might work better as a dataframe
     ref_index = index_ref(reference)
 
     if paired_end:
@@ -286,7 +289,7 @@ def main(raw_args=None):
     if input_vcf is not None:
         if cancer:
             (sample_names, input_variants) = parse_vcf(input_vcf, tumor_normal=True, ploidy=ploids)
-            # TODO figure out what Zach was trying to do with these
+            # TODO figure out what these were going to be used for
             tumor_ind = sample_names.index('TUMOR')
             normal_ind = sample_names.index('NORMAL')
         else:
@@ -405,9 +408,6 @@ def main(raw_args=None):
 
         # read in reference sequence and notate blocks of Ns
         (ref_sequence, n_regions) = read_ref(reference, ref_index[chrom], n_handling)
-        print(ref_sequence)
-
-        sys.exit(1)
 
         # count total bp we'll be spanning so we can get an idea of how far along we are
         # (for printing progress indicators)

@@ -70,8 +70,7 @@ def parse_line(vcf_line, col_dict, col_samp):
 def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
     tt = time.time()
     print('--------------------------------')
-    sys.stdout.write('reading input VCF...\n')
-    sys.stdout.flush()
+    print('reading input VCF...\n', flush=True)
 
     col_dict = {}
     col_samp = []

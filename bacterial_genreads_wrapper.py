@@ -36,18 +36,18 @@ class Bacterium:
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa', '-c', '1']
         gen_reads.main(args)
 
-        # The following workaround is due to the fact that genReads writes out a compressed
-        # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
-        # fasta files, so we further have to unzip it for it to actually work.
-        self.file = pathlib.Path().absolute() / (self.name + ".fasta")
-        new_name = self.name + ".fasta.gz"
-        self.file.rename(pathlib.Path(pathlib.Path().absolute(), new_name))
-        self.file = pathlib.Path().absolute() / (self.name + ".fasta.gz")
-        true_path = pathlib.Path().absolute() / (self.name + ".fasta")
-        unzip_file(self.file, true_path)
-        pathlib.Path.unlink(pathlib.Path().absolute() / (self.name + ".fasta.gz"))  # deletes unused zip file
-        self.file = true_path
-        # end workaround
+        # # The following workaround is due to the fact that genReads writes out a compressed
+        # # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
+        # # fasta files, so we further have to unzip it for it to actually work.
+        # self.file = pathlib.Path().absolute() / (self.name + ".fasta")
+        # new_name = self.name + ".fasta.gz"
+        # self.file.rename(pathlib.Path(pathlib.Path().absolute(), new_name))
+        # self.file = pathlib.Path().absolute() / (self.name + ".fasta.gz")
+        # true_path = pathlib.Path().absolute() / (self.name + ".fasta")
+        # unzip_file(self.file, true_path)
+        # pathlib.Path.unlink(pathlib.Path().absolute() / (self.name + ".fasta.gz"))  # deletes unused zip file
+        # self.file = true_path
+        # # end workaround
 
         # Now we further have to fix the fasta file, which outputs in a form that doesn't make much sense,
         # so that it can be properly analyzed in the next generation by genreads.
@@ -74,16 +74,16 @@ class Bacterium:
                 '-c', str(coverage_value), '--pe', '300', '30']
         gen_reads.main(args)
 
-        # The following workaround is due to the fact that genReads writes out a compressed
-        # fasta but does not put the .gz extension on it.
-        filename1 = pathlib.Path().absolute() / (self.name + "_read1.fq")
-        filename2 = pathlib.Path().absolute() / (self.name + "_read2.fq")
-        new_name1 = self.name + "_read1.fq.gz"
-        new_name2 = self.name + "_read2.fq.gz"
+        # # The following workaround is due to the fact that genReads writes out a compressed
+        # # fasta but does not put the .gz extension on it.
+        # filename1 = pathlib.Path().absolute() / (self.name + "_read1.fq")
+        # filename2 = pathlib.Path().absolute() / (self.name + "_read2.fq")
+        # new_name1 = self.name + "_read1.fq.gz"
+        # new_name2 = self.name + "_read2.fq.gz"
 
-        filename1.rename(pathlib.Path(pathlib.Path().absolute(), new_name1))
-        if filename2.is_file():
-            filename2.rename(pathlib.Path(pathlib.Path().absolute(), new_name2))
+        # filename1.rename(pathlib.Path(pathlib.Path().absolute(), new_name1))
+        # if filename2.is_file():
+        #     filename2.rename(pathlib.Path(pathlib.Path().absolute(), new_name2))
 
         # end workaround
 
@@ -174,7 +174,8 @@ def main():
     parser.add_argument('-g', type=int, required=True, metavar='generations', help="Number of generations to run")
     parser.add_argument('-i', type=int, required=True, metavar='initial population', help="Initial population size")
     parser.add_argument('-k', type=float, required=False, metavar='cull pct',
-                        help="Percentage of population to cull each cycle (0.5 will keep population relatively stable)",
+                        help="Percentage of population to cull each cycle "
+                             "(The default of 0.5 will keep population relatively stable)",
                         default=0.5)
     parser.add_argument('-c', type=int, required=False, default=10, metavar='coverage value',
                         help='Target coverage value for final set of sampled fastqs')

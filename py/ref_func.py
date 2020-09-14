@@ -6,9 +6,12 @@ import random
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 
-
 OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
 ALLOWED_NUCL = ['A', 'C', 'G', 'T']
+
+
+class Dog:
+    pass
 
 
 def index_ref(reference_path: str) -> list:
@@ -43,12 +46,16 @@ def index_ref(reference_path: str) -> list:
         fai = open(index_filename, 'r')
         for line in fai:
             splt = line[:-1].split('\t')
+            # Defined as the number of bases in the contig
             seq_len = int(splt[1])
+            # Defined as the byte index where the contig sequence begins
             offset = int(splt[2])
+            # Defined as bases per line in the Fasta file
             line_ln = int(splt[3])
             n_lines = seq_len // line_ln
             if seq_len % line_ln != 0:
                 n_lines += 1
+            # Item 3 in this gives you the byte position of the next contig, I believe
             ref_indices.append((splt[0], offset, offset + seq_len + n_lines, seq_len))
         fai.close()
         return ref_indices
@@ -79,7 +86,6 @@ def index_ref(reference_path: str) -> list:
 
 
 def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
-
     tt = time.time()
     if not quiet:
         print('reading ' + ref_inds_i[0] + '... ')
