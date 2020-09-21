@@ -81,7 +81,7 @@ class Bacterium:
 
     def sample(self, coverage_value: int):
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name,
-                '-c', str(coverage_value), '--pe', '300', '30']
+                '-c', str(coverage_value), '--pe', '500', '50']
         gen_reads.main(args)
 
     def remove(self):
