@@ -79,9 +79,9 @@ class Bacterium:
         shutil.copy(temp_file, self.file)
         pathlib.Path.unlink(temp_file)
 
-    def sample(self, coverage_value: int):
+    def sample(self, coverage_value: int, fragment_size: int, fragment_std: int):
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name,
-                '-c', str(coverage_value), '--pe', '300', '30']
+                '-c', str(coverage_value), '--pe', str(fragment_size), str(fragment_std)]
         gen_reads.main(args)
 
     def remove(self):
@@ -154,7 +154,7 @@ def evolve_population(population: list, generation: int) -> list:
     return new_population
 
 
-def sample_population(population: list, target_coverage: int):
+def sample_population(population: list, target_coverage: int, fragment_size: int, fragment_std: int):
     """
     This will create a fastq based on each member of the population.
     :param target_coverage: The target coverage value for the sample.
@@ -162,7 +162,7 @@ def sample_population(population: list, target_coverage: int):
     :return: None
     """
     for bacterium in population:
-        bacterium.sample(target_coverage)
+        bacterium.sample(target_coverage, fragment_size, fragment_std)
 
 
 def extract_names(reference: str) -> list:
@@ -191,11 +191,14 @@ def main():
                         default=0.5)
     parser.add_argument('-c', type=int, required=False, default=10, metavar='coverage value',
                         help='Target coverage value for final set of sampled fastqs')
+    parser.add_argument('--pe', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(500, 50),
+                        help='Paired-end fragment length mean and std')
     args = parser.parse_args()
 
     (ref_fasta, init_population_size, generations) = (args.r, args.i, args.g)
     cull_percentage = args.k
     coverage = args.c
+    (fragment_size, fragment_std) = args.pe
 
     chrom_names = extract_names(ref_fasta)
 
@@ -212,7 +215,7 @@ def main():
 
         population = new_population
 
-    sample_population(population, coverage)
+    sample_population(population, coverage, fragment_size, fragment_std)
 
 
 if __name__ == '__main__':

@@ -123,7 +123,7 @@ def main(raw_args=None):
     # (cancer, cancer_model, cancer_purity) = (args.cancer, args.cm, args.cp)
     (cancer, cancer_model, cancer_purity) = (False, None, 0.8)
     (off_target_scalar, off_target_discard, force_coverage, rescale_qual) = (args.to, args.discard_offtarget,
-                                                                             args.force_coverage, args.rescale_qual)
+                          args.force_coverage, args.rescale_qual)
     # important flags
     (save_bam, save_vcf, fasta_instead, gzipped_out, no_fastq) = \
         (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
