@@ -741,7 +741,7 @@ def main(raw_args=None):
 
                         # write SE output
                         if len(my_read_data) == 1:
-                            if no_fastq is not True:
+                            if not no_fastq:
                                 if is_forward:
                                     output_file_writer.write_fastq_record(my_read_name, my_read_data[0][2],
                                                                           my_read_data[0][3])

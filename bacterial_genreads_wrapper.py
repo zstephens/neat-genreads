@@ -7,13 +7,15 @@ import pathlib
 import gzip
 import shutil
 import sys
+import copy
 # from Bio import SeqIO
 
 
 class Bacterium:
-    def __init__(self, reference: str, name: str):
+    def __init__(self, reference: str, name: str, chrom_names: list):
         self.reference = pathlib.Path(reference)
         self.name = name
+        self.chroms = chrom_names
         # Temporarily set the reference as the bacterium's file, until it is analyzed
         self.file = pathlib.Path(reference)
         self.analyze()
@@ -27,6 +29,9 @@ class Bacterium:
     def get_file(self):
         return self.file
 
+    def get_chroms(self):
+        return self.chroms
+
     def analyze(self):
         """
         This function is supposed to just run genreads for the bacterium, but doing so requires some file
@@ -35,57 +40,49 @@ class Bacterium:
         """
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa', '-c', '1']
         gen_reads.main(args)
+        self.file = pathlib.Path().absolute() / (self.name + ".fasta.gz")
 
-        # # The following workaround is due to the fact that genReads writes out a compressed
-        # # fasta but does not put the .gz extension on it. Also, genReads cannot handle gzipped
-        # # fasta files, so we further have to unzip it for it to actually work.
-        # self.file = pathlib.Path().absolute() / (self.name + ".fasta")
-        # new_name = self.name + ".fasta.gz"
-        # self.file.rename(pathlib.Path(pathlib.Path().absolute(), new_name))
-        # self.file = pathlib.Path().absolute() / (self.name + ".fasta.gz")
-        # true_path = pathlib.Path().absolute() / (self.name + ".fasta")
-        # unzip_file(self.file, true_path)
-        # pathlib.Path.unlink(pathlib.Path().absolute() / (self.name + ".fasta.gz"))  # deletes unused zip file
-        # self.file = true_path
-        # # end workaround
+        # The following workaround is due to the fact that genReads cannot handle gzipped
+        # fasta files, so we have to unzip it for it to actually work.
+        unzipped_path = pathlib.Path().absolute() / (self.name + ".fasta")
+        unzip_file(self.file, unzipped_path)
+        pathlib.Path.unlink(pathlib.Path().absolute() / (self.name + ".fasta.gz"))  # deletes unused zip file
+        self.file = unzipped_path
+        # end workaround
 
         # Now we further have to fix the fasta file, which outputs in a form that doesn't make much sense,
         # so that it can be properly analyzed in the next generation by genreads.
+        temp_name_list = copy.deepcopy(self.chroms)
+        temp_file = self.file.parents[0] / 'neat_temporary_fasta_file.fa'
+        temp_file.touch()
         chromosome_name = ""
         sequence = ""
         with self.file.open() as f:
-            first_line = f.readline()
-            if first_line.startswith(">"):
-                chromosome_name = first_line
-            else:
-                print("Something went wrong with the fasta file")
-                sys.exit(1)
             for line in f:
                 if line.startswith(">"):
-                    continue
+                    for name in temp_name_list:
+                        if name in line:
+                            if chromosome_name != ">" + name + "\n":
+                                if sequence:
+                                    temp_file.open('a').write(chromosome_name + sequence)
+                                    sequence = ""
+                                chromosome_name = ">" + name + "\n"
+                                temp_name_list.remove(name)
+                            else:
+                                continue
+                    if not chromosome_name:
+                        print("Something went wrong with the generated fasta file.\n")
+                        sys.exit(1)
                 else:
                     sequence = sequence + line
-            f.close()
-        # re-write file with just the chrom name and sequence
-        self.file.open('w').write(chromosome_name + sequence)
+        temp_file.open('a').write(chromosome_name + sequence)
+        shutil.copy(temp_file, self.file)
+        pathlib.Path.unlink(temp_file)
 
     def sample(self, coverage_value: int):
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name,
                 '-c', str(coverage_value), '--pe', '300', '30']
         gen_reads.main(args)
-
-        # # The following workaround is due to the fact that genReads writes out a compressed
-        # # fasta but does not put the .gz extension on it.
-        # filename1 = pathlib.Path().absolute() / (self.name + "_read1.fq")
-        # filename2 = pathlib.Path().absolute() / (self.name + "_read2.fq")
-        # new_name1 = self.name + "_read1.fq.gz"
-        # new_name2 = self.name + "_read2.fq.gz"
-
-        # filename1.rename(pathlib.Path(pathlib.Path().absolute(), new_name1))
-        # if filename2.is_file():
-        #     filename2.rename(pathlib.Path(pathlib.Path().absolute(), new_name2))
-
-        # end workaround
 
     def remove(self):
         pathlib.Path.unlink(self.file)
@@ -119,10 +116,11 @@ def cull(population: list, percentage: float = 0.5) -> list:
     return population
 
 
-def initialize_population(reference: str, pop_size) -> list:
+def initialize_population(reference: str, pop_size: int, chrom_names: list) -> list:
     """
     The purpose of this function is to evolve the initial population of bacteria. All bacteria are stored as
     Bacterium objects.
+    :param chrom_names: A list of contigs from the original fasta
     :param reference: string path to the reference fasta file
     :param pop_size: size of the population to initialize.
     :return population: returns a list of bacterium objects.
@@ -132,7 +130,7 @@ def initialize_population(reference: str, pop_size) -> list:
         names.append("bacterium_0_{}".format(j+1))
     population = []
     for i in range(pop_size):
-        new_member = Bacterium(reference, names[i])
+        new_member = Bacterium(reference, names[i], chrom_names)
         population.append(new_member)
     return population
 
@@ -151,7 +149,7 @@ def evolve_population(population: list, generation: int) -> list:
     for j in range(len(children_population)):
         names.append("bacterium_{}_{}".format(generation, j+1))
     for i in range(len(children_population)):
-        child = Bacterium(children_population[i].get_file(), names[i])
+        child = Bacterium(children_population[i].get_file(), names[i], children_population[i].get_chroms())
         new_population.append(child)
     return new_population
 
@@ -165,6 +163,20 @@ def sample_population(population: list, target_coverage: int):
     """
     for bacterium in population:
         bacterium.sample(target_coverage)
+
+
+def extract_names(reference: str) -> list:
+    ref_names = []
+    absolute_reference_path = pathlib.Path(reference)
+    with open(absolute_reference_path, 'r') as ref:
+        for line in ref:
+            if line.startswith(">"):
+                ref_names.append(line[1:].rstrip())
+    if not ref_names:
+        print("Malformed fasta file. Missing properly formatted chromosome names.\n")
+        sys.exit(1)
+
+    return ref_names
 
 
 def main():
@@ -185,7 +197,9 @@ def main():
     cull_percentage = args.k
     coverage = args.c
 
-    population = initialize_population(ref_fasta, init_population_size)
+    chrom_names = extract_names(ref_fasta)
+
+    population = initialize_population(ref_fasta, init_population_size, chrom_names)
 
     for i in range(generations):
         new_population = evolve_population(population, i+1)

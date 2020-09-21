@@ -105,6 +105,7 @@ class OutputFileWriter:
         bam = pathlib.Path(out_prefix + '_golden.bam')
         vcf = pathlib.Path(out_prefix + '_golden.vcf.gz')
 
+        # TODO Make a fasta-specific method
         self.no_fastq = no_fastq
         if not self.no_fastq:
             if gzipped:
