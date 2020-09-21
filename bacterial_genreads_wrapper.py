@@ -82,6 +82,7 @@ class Bacterium:
     def sample(self, coverage_value: int, fragment_size: int, fragment_std: int):
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name,
                 '-c', str(coverage_value), '--pe', str(fragment_size), str(fragment_std)]
+
         gen_reads.main(args)
 
     def remove(self):
@@ -181,10 +182,10 @@ def extract_names(reference: str) -> list:
 
 def main():
     parser = argparse.ArgumentParser(description='bacterial_genreads_wrapper.py')
-    parser.add_argument('-r', type=str, required=True, metavar='reference fasta',
+    parser.add_argument('-r', type=str, required=True, metavar='reference.fasta',
                         help="Reference file for organism in fasta format")
     parser.add_argument('-g', type=int, required=True, metavar='generations', help="Number of generations to run")
-    parser.add_argument('-i', type=int, required=True, metavar='initial population', help="Initial population size")
+    parser.add_argument('-i', type=int, required=True, metavar='initial pop', help="Initial population size")
     parser.add_argument('-k', type=float, required=False, metavar='cull pct',
                         help="Percentage of population to cull each cycle "
                              "(The default of 0.5 will keep population relatively stable)",
