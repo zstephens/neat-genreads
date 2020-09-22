@@ -13,6 +13,12 @@ import copy
 
 class Bacterium:
     def __init__(self, reference: str, name: str, chrom_names: list):
+        """
+        Class Bacterium for keeping track of all the elements of a bacterium for the purposes of this simulation
+        :param reference: The str representing the location of the reference file
+        :param name: The name of this particular bacterium.
+        :param chrom_names: The list of chromosome names from the progenitor bacterium
+        """
         self.reference = pathlib.Path(reference)
         self.name = name
         self.chroms = chrom_names
@@ -80,21 +86,35 @@ class Bacterium:
         pathlib.Path.unlink(temp_file)
 
     def sample(self, coverage_value: int, fragment_size: int, fragment_std: int):
+        """
+        This function simple runs genreads on the file associated with this bacterium
+        :param coverage_value: What depth of coverage to sample the reads at.
+        :param fragment_size: The mean insert size for the resultant fastqs.
+        :param fragment_std: The standard deviation of the insert size
+        :return: None
+        """
         args = ['-r', str(self.reference), '-R', '101', '-o', self.name,
                 '-c', str(coverage_value), '--pe', str(fragment_size), str(fragment_std)]
 
         gen_reads.main(args)
 
     def remove(self):
-        pathlib.Path.unlink(self.file)
-
+        """
+        This function simple deletes the file associated with this bacterium, or raises an error if there is a problem
+        :return: None
+        """
+        try:
+            pathlib.Path.unlink(self.file)
+        except FileExistsError:
+            print('\nThere was a problem deleting a file\n')
+            raise FileExistsError()
 
 def unzip_file(zipped_file: pathlib, unzipped_file: pathlib):
     """
     This unzips a gzipped file, then saves the unzipped file as a new file.
     :param zipped_file: pathlib object that points to the zipped file
     :param unzipped_file: pathlib object that points to the unzipped file
-    :return:
+    :return: None
     """
     with gzip.open(zipped_file, 'rb') as f_in:
         with open(unzipped_file, 'wb') as f_out:
@@ -142,7 +162,7 @@ def evolve_population(population: list, generation: int) -> list:
     each member of the population.
     :param generation: Helps determine the starting point of the numbering system so the bacteria have unique names
     :param population: A list of fasta files representing the bacteria.
-    :return:
+    :return: None
     """
     children_population = population + population
     names = []
@@ -167,6 +187,11 @@ def sample_population(population: list, target_coverage: int, fragment_size: int
 
 
 def extract_names(reference: str) -> list:
+    """
+    This function attempts to extract the chromosome names from a fasta file
+    :param reference: The fasta file to analyze
+    :return: A list of chromosome names
+    """
     ref_names = []
     absolute_reference_path = pathlib.Path(reference)
     with open(absolute_reference_path, 'r') as ref:
