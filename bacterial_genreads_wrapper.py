@@ -109,6 +109,7 @@ class Bacterium:
             print('\nThere was a problem deleting a file\n')
             raise FileExistsError()
 
+
 def unzip_file(zipped_file: pathlib, unzipped_file: pathlib):
     """
     This unzips a gzipped file, then saves the unzipped file as a new file.

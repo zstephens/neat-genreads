@@ -4,7 +4,6 @@ import os
 import pathlib
 import random
 from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC
 
 OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
 ALLOWED_NUCL = ['A', 'C', 'G', 'T']
@@ -100,7 +99,7 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
     # TODO convert to SeqIO containers
     ref_file.seek(ref_inds_i[1])
     my_dat = ''.join(ref_file.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
-    my_dat = Seq(my_dat.upper(), IUPAC.unambiguous_dna)
+    my_dat = Seq(my_dat.upper())
     my_dat = my_dat.tomutable()
 
     # find N regions

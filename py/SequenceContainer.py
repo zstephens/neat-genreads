@@ -3,9 +3,9 @@ import copy
 import pathlib
 import bisect
 import pickle
+import sys
 import numpy as np
 from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC
 
 from py.probability import DiscreteDistribution, poisson_list, quantize_list
 from py.neat_cigar import CigarString
@@ -99,7 +99,7 @@ class SequenceContainer:
         self.x = x_offset
         self.ploidy = ploidy
         self.read_len = read_len
-        self.sequences = [Seq(str(sequence), IUPAC.unambiguous_dna).tomutable() for _ in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence)).tomutable() for _ in range(self.ploidy)]
         self.seq_len = len(sequence)
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
@@ -191,7 +191,7 @@ class SequenceContainer:
         self.x = x_offset
         self.ploidy = ploidy
         self.read_len = read_len
-        self.sequences = [Seq(str(sequence), IUPAC.unambiguous_dna).tomutable() for _ in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence)).tomutable() for _ in range(self.ploidy)]
         self.seq_len = len(sequence)
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
@@ -596,8 +596,7 @@ class SequenceContainer:
                     sys.exit(1)
                 else:
                     # alter reference sequence
-                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2],
-                                                                        IUPAC.unambiguous_dna).tomutable() + \
+                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2],).tomutable() + \
                                         self.sequences[i][v_pos2:]
                     # notate indel positions for cigar computation
                     d = len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])
