@@ -40,31 +40,10 @@ Table of Contents
 
 ## Requirements
 
-* Python 2.7
-
-* List of Required Packages for each file. The main function is bolded, and the first instance of any package in the table is *italicized*.
-
-| File		| Packages Needed |
-| ----		| ------------    |
-| **gen_reads** | *sys* \| *copy* \| *random* \| *re* \| *time* \| *bisect* \| *pickle* \| *numpy* \| *argparse* \| *pathlib* \| *SeqIO* 	|
-|bacterial_genreads_wrapper | argparse \| random \| pathlib \| sys \| copy \| *gzip* \| *shutil*	|
-|vcf_compare_OLD | sys \| copy \| time \| bisect \| re \| numpy \| *optparse* \| *IUPAC* \| *Seq*	|
-|genSeqErrorModel | gzip \| numpy \| argparse \| sys \| pickle \| *os* \| *matplotlib.pyplot*	|
-|compute_gc | time \| argparse \| numpy \| pickle \| SeqIO |
-|compute_fraglen | pickle \| argparse \| *platform* \| *doctest* \| *pysam*	|
-|gen_mut_model | os \| re \| pickle \| argparse \| numpy \| SeqIO \| *pandas*	|
-|plotMutModel | argparse \| sys \| pickle \| bisect \| numpy \| matplotlib.pylot \| *matplotlib.colors* \| *matplotlib.cm*	|
-|validateBam | sys \| os \| gzip \| *unpack*	|
-|validateFQ | sys |
-|merge_jobs | os \| argparse |
-|neat_cigar | re |
-|vcf_func | sys \| time \| os \| re \| random |
-|ref_func | sys \| time \| os \| pathlib \| random \| Seq \| IUPAC |
-|SequenceContainer | random \| copy \| pathlib \| bisect \| pickle \| numpy \| Seq \| IUPAC |
-|biopython_modified_bgzf | *zlib* \| *struct* |
-|output_file_writer | sys \| os \| re \| gzip \| Seq \| IUPAC \| SeqIO \| pathlib \| \* \| *pack* |
-|probability | random \| bisect \| copy \| numpy |
-|input_checking | pathlib \| sys |
+* Python 3.6+
+* Biopython 1.77+
+* Matplotlib 3.2.2+
+* Numpy 1.19.0+
 
 
 ## Usage
