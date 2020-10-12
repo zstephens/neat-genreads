@@ -32,10 +32,11 @@ def index_ref(reference_path: str) -> list:
 
     # check if the reference file already exists
     if absolute_reference_location.with_suffix('.fai').is_file():
-        print('found index ' + absolute_reference_location.with_suffix('.fai'))
+        print('found index ' + str(absolute_reference_location.with_suffix('.fai')))
         index_filename = absolute_reference_location.with_suffix('.fai')
     elif absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai').is_file():
-        print('found index ' + absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai'))
+        print('found index ' +
+              str(absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai')))
         index_filename = absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai')
     else:
         pass
