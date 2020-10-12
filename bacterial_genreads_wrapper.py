@@ -93,7 +93,7 @@ class Bacterium:
         :param fragment_std: The standard deviation of the insert size
         :return: None
         """
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name,
+        args = ['-r', str(self.file), '-M', '0', '-R', '101', '-o', self.name,
                 '-c', str(coverage_value), '--pe', str(fragment_size), str(fragment_std)]
 
         gen_reads.main(args)
