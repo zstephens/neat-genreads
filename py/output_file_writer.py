@@ -4,7 +4,6 @@ import re
 import gzip
 from struct import pack
 from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC
 from Bio import SeqIO
 import gzip
 from Bio.bgzf import *
