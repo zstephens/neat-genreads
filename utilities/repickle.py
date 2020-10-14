@@ -2,10 +2,7 @@ import sys
 import os
 import pathlib
 import glob
-try:
-    import cPickle as pickle
-finally:
-    import pickle
+import pickle
 
 
 def main():
