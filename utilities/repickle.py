@@ -15,7 +15,7 @@ def main():
     os.chdir(dir_to_repickle)
     for file in glob.glob("*.p"):
         data = pickle.load(open(file, 'rb'), encoding="bytes")
-        pickle.dump(data, open(file, "wb"), pickle.HIGHEST_PROTOCOL)
+        pickle.dump(data, open(file, "wb"))
 
 
 if __name__ == "__main__":
