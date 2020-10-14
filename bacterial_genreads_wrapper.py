@@ -195,10 +195,16 @@ def extract_names(reference: str) -> list:
     """
     ref_names = []
     absolute_reference_path = pathlib.Path(reference)
-    with open(absolute_reference_path, 'r') as ref:
-        for line in ref:
-            if line.startswith(">"):
-                ref_names.append(line[1:].rstrip())
+    if absolute_reference_path.suffix == '.gz':
+        with gzip.open(absolute_reference_path, 'rt') as ref:
+            for line in ref:
+                if line.startswith(">"):
+                    ref_names.append(line[1:].rstrip())
+    else:
+        with open(absolute_reference_path, 'r') as ref:
+            for line in ref:
+                if line.startswith(">"):
+                    ref_names.append(line[1:].rstrip())
     if not ref_names:
         print("Malformed fasta file. Missing properly formatted chromosome names.\n")
         sys.exit(1)
