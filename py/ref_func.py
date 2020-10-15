@@ -10,10 +10,6 @@ OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
 ALLOWED_NUCL = ['A', 'C', 'G', 'T']
 
 
-class Dog:
-    pass
-
-
 def index_ref(reference_path: str) -> list:
     """
     Index reference fasta
