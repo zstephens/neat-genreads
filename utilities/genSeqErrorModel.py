@@ -22,10 +22,12 @@ import pickle
 import matplotlib.pyplot as mpl
 
 # enables import from neighboring package
-print(pathlib.Path(__file__).resolve().parents[1])
-sys.path.append(pathlib.Path(__file__).resolve().parents[1])
+# print(pathlib.Path(__file__).resolve().parents[1] / 'py')
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
+print(sys.path)
 
 from py.probability import DiscreteDistribution
+
 
 
 def parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff):
