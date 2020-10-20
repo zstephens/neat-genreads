@@ -12,7 +12,7 @@
 import pickle
 import argparse
 import platform
-import doctest
+
 os = platform.system()
 if os !='Windows':
     import pysam

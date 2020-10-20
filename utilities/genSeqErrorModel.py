@@ -16,13 +16,13 @@ import os
 import gzip
 import numpy as np
 import argparse
+import pathlib
 import sys
 import pickle
 import matplotlib.pyplot as mpl
 
-# # absolute path to this script
-# sim_path = '/'.join(os.path.realpath(__file__).split('/')[:-2]) + '/py/'
-# sys.path.append(sim_path)
+# enables import from neighboring package
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from py.probability import DiscreteDistribution
 
