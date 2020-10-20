@@ -24,7 +24,6 @@ import pickle
 import numpy as np
 import argparse
 import pathlib
-from Bio import SeqIO
 
 from py.input_checking import check_file_open, is_in_range
 from py.ref_func import index_ref, read_ref
