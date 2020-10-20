@@ -196,7 +196,7 @@ def main(raw_args=None):
         mut_rate = None
 
     if mut_rate != -1 and mut_rate is not None:
-        is_in_range(mut_rate, 0, 0.3, 'Error: -M must be between 0 and 0.3')
+        is_in_range(mut_rate, 0.0, 1.0, 'Error: -M must be between 0 and 0.3')
 
     # sequencing error model
     if se_model is None:

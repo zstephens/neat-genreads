@@ -94,7 +94,7 @@ class Bacterium:
         :return: None
         """
         args = ['-r', str(self.file), '-M', '0', '-R', '101', '-o', self.name,
-                '-c', str(coverage_value), '--pe', str(fragment_size), str(fragment_std)]
+                '-c', str(coverage_value), '--pe', str(fragment_size), str(fragment_std), '--vcf', '--bam']
 
         gen_reads.main(args)
 

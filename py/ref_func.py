@@ -1,16 +1,13 @@
 import sys
 import time
 import os
+import gzip
 import pathlib
 import random
 from Bio.Seq import Seq
 
 OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
 ALLOWED_NUCL = ['A', 'C', 'G', 'T']
-
-
-class Dog:
-    pass
 
 
 def index_ref(reference_path: str) -> list:
@@ -61,7 +58,10 @@ def index_ref(reference_path: str) -> list:
         return ref_indices
 
     print('Index not found, creating one... ')
-    ref_file = open(absolute_reference_location, 'r')
+    if absolute_reference_location.suffix == ".gz":
+        ref_file = gzip.open(absolute_reference_location, 'rt')
+    else:
+        ref_file = open(absolute_reference_location, 'r')
     prev_r = None
     prev_p = None
     seq_len = 0
@@ -91,11 +91,11 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
         print('reading ' + ref_inds_i[0] + '... ')
 
     absolute_reference_path = pathlib.Path(ref_path)
-    try:
+    if absolute_reference_path.suffix == '.gz':
+        ref_file = gzip.open(absolute_reference_path, 'rt')
+    else:
         ref_file = open(absolute_reference_path, 'r')
-    except IOError:
-        print('\nProblem reading reference file.\n')
-        sys.exit(1)
+
 
     # TODO convert to SeqIO containers
     ref_file.seek(ref_inds_i[1])
