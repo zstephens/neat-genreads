@@ -17,14 +17,12 @@ import gzip
 import numpy as np
 import argparse
 import sys
-import pathlib
 import pickle
 import matplotlib.pyplot as mpl
 
 # enables import from neighboring package
 # print(pathlib.Path(__file__).resolve().parents[1] / 'py')
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
-print(sys.path)
+sys.path.append("..")
 
 from py.probability import DiscreteDistribution
 
