@@ -8,7 +8,7 @@ import numpy as np
 from Bio.Seq import Seq
 
 from py.probability import DiscreteDistribution, poisson_list
-from py import CigarString
+from py.neat_cigar import CigarString
 
 """
 Constants needed for analysis

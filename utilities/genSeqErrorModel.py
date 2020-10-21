@@ -22,6 +22,7 @@ import matplotlib.pyplot as mpl
 
 # enables import from neighboring package
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+print("path {}".format(os.path.dirname(os.path.abspath(__file__))))
 
 from py.probability import DiscreteDistribution
 print(DiscreteDistribution)
