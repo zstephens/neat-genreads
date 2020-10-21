@@ -23,10 +23,8 @@ import matplotlib.pyplot as mpl
 
 # enables import from neighboring package
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
-print("path {}".format(str(pathlib.Path(__file__).resolve().parents[1])))
 
 from py.probability import DiscreteDistribution
-print(DiscreteDistribution)
 
 
 def parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff):
