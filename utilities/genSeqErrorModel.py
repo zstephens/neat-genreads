@@ -21,10 +21,10 @@ import pickle
 import matplotlib.pyplot as mpl
 
 # enables import from neighboring package
-# print(pathlib.Path(__file__).resolve().parents[1] / 'py')
-sys.path.append("..")
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from py.probability import DiscreteDistribution
+print(DiscreteDistribution)
 
 
 
