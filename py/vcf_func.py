@@ -4,39 +4,36 @@ import os
 import re
 import random
 
-INCLUDE_HOMS = False
-INCLUDE_FAIL = False
-CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND = True
 
-
-def parse_line(splt, col_dict, col_samp):
+def parse_line(vcf_line, col_dict, col_samp):
     #	check if we want to proceed..
-    ra = splt[col_dict['REF']]
-    aa = splt[col_dict['ALT']]
+    reference_allele = vcf_line[col_dict['REF']]
+    alternate_allele = vcf_line[col_dict['ALT']]
     # enough columns?
-    if len(splt) != len(col_dict):
+    if len(vcf_line) != len(col_dict):
         return None
     # exclude homs / filtered?
-    if not (INCLUDE_HOMS) and (aa == '.' or aa == '' or aa == ra):
+    # There was an attempt I think to make these optional that was never implemented.
+    if alternate_allele == '.' or alternate_allele == '' or alternate_allele == reference_allele:
         return None
-    if not (INCLUDE_FAIL) and (splt[col_dict['FILTER']] != 'PASS' and splt[col_dict['FILTER']] != '.'):
+    if vcf_line[col_dict['FILTER']] != 'PASS' and vcf_line[col_dict['FILTER']] != '.':
         return None
 
     #	default vals
-    alt_alleles = [aa]
+    alt_alleles = [alternate_allele]
     alt_freqs = []
 
     gt_per_samp = []
 
     #	any alt alleles?
-    alt_split = aa.split(',')
+    alt_split = alternate_allele.split(',')
     if len(alt_split) > 1:
         alt_alleles = alt_split
 
     #	check INFO for AF
     af = None
-    if 'INFO' in col_dict and ';AF=' in ';' + splt[col_dict['INFO']]:
-        info = splt[col_dict['INFO']] + ';'
+    if 'INFO' in col_dict and ';AF=' in ';' + vcf_line[col_dict['INFO']]:
+        info = vcf_line[col_dict['INFO']] + ';'
         af = re.findall(r"AF=.*?(?=;)", info)[0][3:]
     if af is not None:
         af_splt = af.split(',')
@@ -49,19 +46,19 @@ def parse_line(splt, col_dict, col_samp):
 
     gt_per_samp = None
     #	if available (i.e. we simulated it) look for WP in info
-    if len(col_samp) == 0 and 'INFO' in col_dict and 'WP=' in splt[col_dict['INFO']]:
-        info = splt[col_dict['INFO']] + ';'
+    if len(col_samp) == 0 and 'INFO' in col_dict and 'WP=' in vcf_line[col_dict['INFO']]:
+        info = vcf_line[col_dict['INFO']] + ';'
         gt_per_samp = [re.findall(r"WP=.*?(?=;)", info)[0][3:]]
     else:
         #	if no sample columns, check info for GT
-        if len(col_samp) == 0 and 'INFO' in col_dict and 'GT=' in splt[col_dict['INFO']]:
-            info = splt[col_dict['INFO']] + ';'
+        if len(col_samp) == 0 and 'INFO' in col_dict and 'GT=' in vcf_line[col_dict['INFO']]:
+            info = vcf_line[col_dict['INFO']] + ';'
             gt_per_samp = [re.findall(r"GT=.*?(?=;)", info)[0][3:]]
         elif len(col_samp):
-            fmt = ':' + splt[col_dict['FORMAT']] + ':'
+            fmt = ':' + vcf_line[col_dict['FORMAT']] + ':'
             if ':GT:' in fmt:
                 gt_ind = fmt.split(':').index('GT')
-                gt_per_samp = [splt[col_samp[iii]].split(':')[gt_ind - 1] for iii in range(len(col_samp))]
+                gt_per_samp = [vcf_line[col_samp[iii]].split(':')[gt_ind - 1] for iii in range(len(col_samp))]
                 for i in range(len(gt_per_samp)):
                     gt_per_samp[i] = gt_per_samp[i].replace('.', '0')
         if gt_per_samp is None:
@@ -73,8 +70,7 @@ def parse_line(splt, col_dict, col_samp):
 def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
     tt = time.time()
     print('--------------------------------')
-    sys.stdout.write('reading input VCF...\n')
-    sys.stdout.flush()
+    print('reading input VCF...\n', flush=True)
 
     col_dict = {}
     col_samp = []
@@ -103,19 +99,16 @@ def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
                     gt_eval = gt[:2]
                 else:
                     gt_eval = gt[:1]
+                # For some reason this had an additional "if True" inserted. I guess it was supposed to be an option
+                # the user could set but was never implemented.
                 if None in gt_eval:
-                    if CHOOSE_RANDOM_PLOID_IF_NO_GT_FOUND:
-                        if not printed_warning:
-                            print('Warning: Found variants without a GT field, assuming heterozygous...')
-                            printed_warning = True
-                        for i in range(len(gt_eval)):
-                            tmp = ['0'] * ploidy
-                            tmp[random.randint(0, ploidy - 1)] = '1'
-                            gt_eval[i] = '/'.join(tmp)
-                    else:
-                        # skip because no GT field was found
-                        n_skipped += 1
-                        continue
+                    if not printed_warning:
+                        print('Warning: Found variants without a GT field, assuming heterozygous...')
+                        printed_warning = True
+                    for i in range(len(gt_eval)):
+                        tmp = ['0'] * ploidy
+                        tmp[random.randint(0, ploidy - 1)] = '1'
+                        gt_eval[i] = '/'.join(tmp)
                 non_reference = False
                 for gtVal in gt_eval:
                     if gtVal is not None:
@@ -157,7 +150,8 @@ def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
                         print('Detected 2 sample columns in input VCF, assuming tumor/normal.')
                     else:
                         print(
-                            'Warning: Multiple sample columns present in input VCF. By default genReads uses only the first column.')
+                            'Warning: Multiple sample columns present in input VCF. By default genReads uses '
+                            'only the first column.')
                 else:
                     samp_names = ['Unknown']
                 if tumor_normal:

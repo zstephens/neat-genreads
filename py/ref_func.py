@@ -1,50 +1,79 @@
 import sys
 import time
 import os
+import gzip
+import pathlib
 import random
 from Bio.Seq import Seq
 
-#	Index reference fasta
-def index_ref(reference_path):
+OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
+ALLOWED_NUCL = ['A', 'C', 'G', 'T']
+
+
+def index_ref(reference_path: str) -> list:
+    """
+    Index reference fasta
+    :param reference_path: string path to the reference
+    :return: reference index in list from
+    """
     tt = time.time()
 
-    filename = None
-    if os.path.isfile(reference_path + 'i'):
-        print('found index ' + reference_path + 'i')
-        filename = reference_path + 'i'
-    if os.path.isfile(reference_path + '.fai'):
-        print('found index ' + reference_path + '.fai')
-        filename = reference_path + '.fai'
+    absolute_reference_location = pathlib.Path(reference_path)
 
-    ref_inds = []
-    if filename is not None:
-        fai = open(filename, 'r')
+    # sanity check
+    if not absolute_reference_location.is_file():
+        print("\nProblem reading the reference fasta file.\n")
+        sys.exit(1)
+
+    index_filename = None
+
+    # check if the reference file already exists
+    if absolute_reference_location.with_suffix('.fai').is_file():
+        print('found index ' + str(absolute_reference_location.with_suffix('.fai')))
+        index_filename = absolute_reference_location.with_suffix('.fai')
+    elif absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai').is_file():
+        print('found index ' +
+              str(absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai')))
+        index_filename = absolute_reference_location.with_suffix(absolute_reference_location.suffix + '.fai')
+    else:
+        pass
+
+    ref_indices = []
+    if index_filename is not None:
+        fai = open(index_filename, 'r')
         for line in fai:
             splt = line[:-1].split('\t')
+            # Defined as the number of bases in the contig
             seq_len = int(splt[1])
+            # Defined as the byte index where the contig sequence begins
             offset = int(splt[2])
+            # Defined as bases per line in the Fasta file
             line_ln = int(splt[3])
             n_lines = seq_len // line_ln
             if seq_len % line_ln != 0:
                 n_lines += 1
-            ref_inds.append((splt[0], offset, offset + seq_len + n_lines, seq_len))
+            # Item 3 in this gives you the byte position of the next contig, I believe
+            ref_indices.append((splt[0], offset, offset + seq_len + n_lines, seq_len))
         fai.close()
-        return ref_inds
+        return ref_indices
 
-    sys.stdout.write('index not found, creating one... ')
-    sys.stdout.flush()
-    ref_file = open(reference_path, 'r')
+    print('Index not found, creating one... ')
+    if absolute_reference_location.suffix == ".gz":
+        ref_file = gzip.open(absolute_reference_location, 'rt')
+    else:
+        ref_file = open(absolute_reference_location, 'r')
     prev_r = None
     prev_p = None
     seq_len = 0
-    while 1:
+
+    while True:
         data = ref_file.readline()
         if not data:
-            ref_inds.append((prev_r, prev_p, ref_file.tell() - len(data), seq_len))
+            ref_indices.append((prev_r, prev_p, ref_file.tell() - len(data), seq_len))
             break
-        if data[0] == '>':
+        elif data[0] == '>':
             if prev_p is not None:
-                ref_inds.append((prev_r, prev_p, ref_file.tell() - len(data), seq_len))
+                ref_indices.append((prev_r, prev_p, ref_file.tell() - len(data), seq_len))
             seq_len = 0
             prev_p = ref_file.tell()
             prev_r = data[1:-1]
@@ -53,18 +82,22 @@ def index_ref(reference_path):
     ref_file.close()
 
     print('{0:.3f} (sec)'.format(time.time() - tt))
-    return ref_inds
+    return ref_indices
 
 
 def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
-    OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
-    ALLOWED_NUCL = ['A', 'C', 'G', 'T']
     tt = time.time()
     if not quiet:
-        sys.stdout.write('reading ' + ref_inds_i[0] + '... ')
-        sys.stdout.flush()
+        print('reading ' + ref_inds_i[0] + '... ')
 
-    ref_file = open(ref_path, 'r')
+    absolute_reference_path = pathlib.Path(ref_path)
+    if absolute_reference_path.suffix == '.gz':
+        ref_file = gzip.open(absolute_reference_path, 'rt')
+    else:
+        ref_file = open(absolute_reference_path, 'r')
+
+
+    # TODO convert to SeqIO containers
     ref_file.seek(ref_inds_i[1])
     my_dat = ''.join(ref_file.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
     my_dat = Seq(my_dat.upper())
@@ -111,7 +144,7 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
             n_info['big'].extend(region)
     else:
         print('\nERROR: UNKNOWN N_HANDLING MODE\n')
-        exit(1)
+        sys.exit(1)
 
     habitable_regions = []
     if not n_info['big']:
@@ -127,13 +160,24 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
         if n[0] != n[1]:
             n_info['non_N'].append(n)
 
+    ref_file.close()
+
     if not quiet:
         print('{0:.3f} (sec)'.format(time.time() - tt))
+
     return my_dat, n_info
 
 
-#	find all non-N regions in reference sequence ahead of time, for computing jobs in parallel
 def get_all_ref_regions(ref_path, ref_inds, n_handling, save_output=False):
+    """
+    Find all non-N regions in reference sequence ahead of time, for computing jobs in parallel
+
+    :param ref_path:
+    :param ref_inds:
+    :param n_handling:
+    :param save_output:
+    :return:
+    """
     out_regions = {}
     fn = ref_path + '.nnr'
     if os.path.isfile(fn) and not (save_output):
@@ -149,7 +193,7 @@ def get_all_ref_regions(ref_path, ref_inds, n_handling, save_output=False):
     else:
         print('enumerating all non-N regions in reference sequence...')
         for RI in range(len(ref_inds)):
-            (refSequence, N_regions) = read_ref(ref_path, ref_inds[RI], n_handling, quiet=True)
+            (ref_sequence, N_regions) = read_ref(ref_path, ref_inds[RI], n_handling, quiet=True)
             ref_name = ref_inds[RI][0]
             out_regions[ref_name] = [n for n in N_regions['non_N']]
         if save_output:
@@ -161,8 +205,16 @@ def get_all_ref_regions(ref_path, ref_inds, n_handling, save_output=False):
         return out_regions
 
 
-#	find which of the non-N regions are going to be used for this job
 def partition_ref_regions(in_regions, ref_inds, my_job, n_jobs):
+    """
+    Find which of the non-N regions are going to be used for this job
+
+    :param in_regions:
+    :param ref_inds:
+    :param my_job:
+    :param n_jobs:
+    :return:
+    """
     tot_size = 0
     for RI in range(len(ref_inds)):
         ref_name = ref_inds[RI][0]

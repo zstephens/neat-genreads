@@ -7,6 +7,12 @@ LOW_PROB_THRESH = 1e-12
 
 
 def mean_ind_of_weighted_list(candidate_list: list) -> int:
+    """
+    Returns the index of the mean of a weighted list
+
+    :param candidate_list: weighted list
+    :return: index of mean
+    """
     my_mid = sum(candidate_list) / 2.0
     my_sum = 0.0
     for i in range(len(candidate_list)):
@@ -36,15 +42,6 @@ class DiscreteDistribution:
                 print('\nError: length and weights and values vectors must be the same.\n')
                 exit(1)
             self.degenerate = degenerate_val
-            # prune values with probability too low to be worth using [DOESN'T REALLY IMPROVE PERFORMANCE]
-            ####if self.degenerate != None:
-            ####	for i in xrange(len(self.weights)-1,-1,-1):
-            ####		if self.weights[i] < LOW_PROB_THRESH:
-            ####			del self.weights[i]
-            ####			del self.values[i]
-            ####	if len(self.weights) == 0:
-            ####		print '\nError: probability distribution has no usable values.\n'
-            ####		exit(1)
 
             if self.method == 'alias':
                 len_weights = len(self.weights)
@@ -76,6 +73,9 @@ class DiscreteDistribution:
                 self.cum_prob = np.cumsum(self.weights).tolist()[:-1]
                 self.cum_prob.insert(0, 0.)
 
+            else:
+                print("\nUnknown discreet distribution method.\n")
+
     def __str__(self):
         return str(self.weights) + ' ' + str(self.values) + ' ' + self.method
 
@@ -99,7 +99,8 @@ class DiscreteDistribution:
                 return self.values[bisect.bisect(self.cum_prob, r) - 1]
 
 
-# takes k_range, lambda, [0,1,2,..], returns a DiscreteDistribution object with the corresponding to a poisson distribution
+# takes k_range, lambda, [0,1,2,..], returns a DiscreteDistribution object
+# with the corresponding to a poisson distribution
 
 def poisson_list(k_range, input_lambda):
     min_weight = 1e-12

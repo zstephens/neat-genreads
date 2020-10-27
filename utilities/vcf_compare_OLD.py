@@ -24,7 +24,6 @@ import numpy as np
 import optparse
 
 from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC
 
 EV_BPRANGE = 50  # how far to either side of a particular variant location do we want to check for equivalents?
 

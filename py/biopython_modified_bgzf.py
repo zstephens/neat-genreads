@@ -21,10 +21,10 @@ import struct
 
 class BgzfWriter:
 
-    def __init__(self, filename=None, mode="w", fileobj=None, compresslevel=6):
-        if fileobj:
+    def __init__(self, filename=None, mode="w", file_obj=None, compress_level=6):
+        if file_obj:
             assert filename is None
-            handle = fileobj
+            handle = file_obj
         else:
             if "w" not in mode.lower() and "a" not in mode.lower():
                 raise ValueError("Must use write or append mode, not %r" % mode)
@@ -35,14 +35,14 @@ class BgzfWriter:
         self._text = "b" not in mode.lower()
         self._handle = handle
         self._buffer = b""
-        self.compresslevel = compresslevel
+        self.compress_level = compress_level
 
     def _write_block(self, block):
         _bgzf_header = b"\x1f\x8b\x08\x04\x00\x00\x00\x00\x00\xff\x06\x00\x42\x43\x02\x00"
         start_offset = self._handle.tell()
         assert len(block) <= 65536
         # Giving a negative window bits means no gzip/zlib headers, -15 used in samtools
-        c = zlib.compressobj(self.compresslevel,
+        c = zlib.compressobj(self.compress_level,
                              zlib.DEFLATED,
                              -15,
                              zlib.DEF_MEM_LEVEL,

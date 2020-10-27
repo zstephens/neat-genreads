@@ -3,7 +3,8 @@ This file contains several standard functions that will be used throughout the p
 and issues an error if there is something wrong.
 """
 
-import os
+import pathlib
+import sys
 
 
 def required_field(variable_to_test: any, err_string: str) -> None:
@@ -16,12 +17,13 @@ def required_field(variable_to_test: any, err_string: str) -> None:
     """
     if variable_to_test is None:
         print('\n' + err_string + '\n')
-        exit(1)
+        sys.exit(1)
 
 
 def check_file_open(filename: str, err_string: str, required: bool = False) -> None:
     """
     Checks that the filename is not empty and that it is indeed a  file
+
     :param filename: file name, string
     :param err_string: string of the error if it is not a file
     :param required: If not required, skips the check
@@ -30,13 +32,13 @@ def check_file_open(filename: str, err_string: str, required: bool = False) -> N
     if required or filename is not None:
         if filename is None:
             print('\n' + err_string + '\n')
-            exit(1)
+            sys.exit(1)
         else:
             try:
-                open(filename, 'r')
-            except ValueError:
+                pathlib.Path(filename).resolve(strict=True)
+            except FileNotFoundError:
                 print('\n' + err_string + '\n')
-                exit(1)
+                sys.exit(1)
 
 
 def check_dir(directory: str, err_string: str) -> None:
@@ -46,15 +48,16 @@ def check_dir(directory: str, err_string: str) -> None:
     :param err_string: string of the error in case it is not a directory or doesn't exist
     :return: None
     """
-    if not os.path.isdir(directory):
+    if not pathlib.Path(directory).is_dir():
         print('\n' + err_string + '\n')
-        exit(1)
+        raise NotADirectoryError
 
 
 def is_in_range(value: float, lower_bound: float, upper_bound: float, err_string: str) -> None:
     """
-    Checks that value (val) is between the lower bound (lb) and upper bound (ub), and if not prints an error message
-    (errString) and exits the program.
+    Checks that value is between the lower bound and upper bound, and if not prints an error message
+    (err_string) and exits the program.
+
     :param value: float for the value
     :param lower_bound: float for the upper bound
     :param upper_bound: float for the lower bound
@@ -63,4 +66,4 @@ def is_in_range(value: float, lower_bound: float, upper_bound: float, err_string
     """
     if value < lower_bound or value > upper_bound:
         print('\n' + err_string + '\n')
-        exit(1)
+        sys.exit(1)

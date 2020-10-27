@@ -2,22 +2,31 @@ import re
 
 
 class CigarString:
-    def __init__(self, stringIn=None, listIn=None):
+    """
+    Creates and modifies CigarString for output
+    """
+    def __init__(self, string_in=None, list_in=None):
 
-        if stringIn is None and listIn is None:
+        if string_in is None and list_in is None:
             print('\nError: CigarString object not initialized.\n')
             exit(1)
 
         self.cigar_data = []
 
-        if stringIn is not None:
-            self.join_cigar(j_string_in=stringIn)
+        if string_in is not None:
+            self.join_cigar(j_string_in=string_in)
 
-        if listIn is not None:
-            self.join_cigar(j_list_in=listIn)
+        if list_in is not None:
+            self.join_cigar(j_list_in=list_in)
 
     @staticmethod
     def string_to_list(string_to_covert: str) -> list:
+        """
+        Converts cigar string to a full list
+
+        :param string_to_covert: Cigar string to convert to list
+        :return: cigar string in list format
+        """
 
         cigar_dat = []
         letters = re.split(r"\d+", string_to_covert)[1:]
@@ -36,6 +45,12 @@ class CigarString:
 
     @staticmethod
     def list_to_string(list_to_convert: list) -> str:
+        """
+        Convert a cigar string in list format to a standard cigar string
+
+        :param list_to_convert: Cigar string in list format
+        :return: cigar string in string format
+        """
 
         symbols = ''
         current_sym = list_to_convert[0]
@@ -65,7 +80,14 @@ class CigarString:
 
         return self.list_to_string(self.cigar_data)
 
-    def join_cigar(self, j_string_in=None, j_list_in=None):
+    def join_cigar(self, j_string_in: str = None, j_list_in: list = None):
+        """
+        Adds an inputted cigar string in string or list format to the existing cigar string
+
+        :param j_string_in: cigar string in string format
+        :param j_list_in: cigar string in list format
+        :return: None
+        """
 
         if j_string_in is None and j_list_in is None:
             print('\nError: Invalid join operation in CigarString\n')
@@ -77,7 +99,15 @@ class CigarString:
         if j_list_in is not None:
             self.cigar_data += j_list_in
 
-    def insert_cigar_element(self, pos, i_string_in=None, i_list_in=None):
+    def insert_cigar_element(self, pos: int, i_string_in: str = None, i_list_in: list = None):
+        """
+        Inserts a cigar string in either string or list format to the existing cigar string at position pos.
+
+        :param pos: integer position where to insert the input cigar string
+        :param i_string_in: input cigar string in string format
+        :param i_list_in: input cigar string in list format
+        :return:
+        """
 
         if i_string_in is None and i_list_in is None:
             print('\nError: Invalid insertion operation in CigarString\n')
@@ -100,7 +130,7 @@ if __name__ == '__main__':
     str1 = '50M10D7I23M'
     str2 = '10I25M'
     iPos = 20
-    my_cigar = CigarString(stringIn=str1)
+    my_cigar = CigarString(string_in=str1)
     my_cigar.insert_cigar_element(iPos, i_string_in=str2)
     assert(my_cigar.get_string() == "20M10I55M10D7I23M")
     print("passed")
