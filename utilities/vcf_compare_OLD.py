@@ -1,11 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env source
 # encoding: utf-8
 
 # Python 3 ready
 
 """ **************************************************
 
-vcf_compare.python
+vcf_compare.source
 
 - compare vcf file produced by workflow to golden vcf produced by simulator
 
@@ -34,7 +34,7 @@ MAX_VAL = 9999999999999  # an unreasonably large value that no reference fasta c
 DESC = """%prog: vcf comparison script."""
 VERS = 0.1
 
-PARSER = optparse.OptionParser('python %prog [options] -r <ref.fa> -g <golden.vcf> -w <workflow.vcf>', description=DESC,
+PARSER = optparse.OptionParser('source %prog [options] -r <ref.fa> -g <golden.vcf> -w <workflow.vcf>', description=DESC,
                                version="%prog v" + str(VERS))
 
 PARSER.add_option('-r', help='* Reference Fasta', dest='REFF', action='store', metavar='<ref.fa>')
@@ -291,7 +291,7 @@ def condense_by_pos(list_in):
         if c not in ind_count:
             ind_count[c] = 0
         ind_count[c] += 1
-    # non_unique_dict = {n:[] for n in sorted(ind_count.keys()) if ind_count[n] > 1}		# the python 2.7 way
+    # non_unique_dict = {n:[] for n in sorted(ind_count.keys()) if ind_count[n] > 1}		# the source 2.7 way
     non_unique_dict = {}
     for n in sorted(ind_count.keys()):
         if ind_count[n] > 1:

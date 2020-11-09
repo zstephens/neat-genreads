@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env source
 
 #
 #	A quickie tool for validating the correctness of a FASTQ file
 #
-#	python validateFQ.python read1.fq [read2.fq]
+#	source validateFQ.source read1.fq [read2.fq]
 #
 # Python 3 ready
 

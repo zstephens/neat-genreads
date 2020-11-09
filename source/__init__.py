@@ -5,3 +5,4 @@ Created on Mon Nov  9 10:41:07 2020
 @author: membry2
 """
 
+from source.probability import *
