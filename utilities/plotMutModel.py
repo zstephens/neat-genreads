@@ -3,7 +3,7 @@
 #
 #	a quick script for comparing mutation models
 #
-#	python plotMutModel.py -i model1.p [model2.p] [model3.p]... -l legend_label1 [legend_label2] [legend_label3]... -o path/to/pdf_plot_prefix 
+#	python plotMutModel.python -i model1.p [model2.p] [model3.p]... -l legend_label1 [legend_label2] [legend_label3]... -o path/to/pdf_plot_prefix
 #
 # Python 3 ready
 
@@ -20,7 +20,7 @@ import argparse
 # mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
 
 parser = argparse.ArgumentParser(
-    description='Plot and compare mutation models from gen_mut_model.py Usage: python plotMutModel.py -i model1.p [model2.p] [model3.p]... -l legend_label1 [legend_label2] [legend_label3]... -o path/to/pdf_plot_prefix')
+    description='Plot and compare mutation models from gen_mut_model.python Usage: python plotMutModel.python -i model1.p [model2.p] [model3.p]... -l legend_label1 [legend_label2] [legend_label3]... -o path/to/pdf_plot_prefix')
 parser.add_argument('-i', type=str, required=True, metavar='<str>', nargs='+',
                     help="* mutation_model_1.p [mutation_model_2.p] [mutation_model_3] ...")
 parser.add_argument('-l', type=str, required=True, metavar='<str>', nargs='+',

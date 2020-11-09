@@ -52,7 +52,7 @@ def main():
     # if parsing a dbsnp vcf, and no CAF= is found in info tag, use this as default val for population freq
     VCF_DEFAULT_POP_FREQ = 0.00001
 
-    parser = argparse.ArgumentParser(description='gen_mut_model.py')
+    parser = argparse.ArgumentParser(description='gen_mut_model.python')
     parser.add_argument('-r', type=str, required=True, metavar='/path/to/reference.fasta',
                         help="Reference file for organism in fasta format")
     parser.add_argument('-m', type=str, required=True, metavar='/path/to/mutations.vcf',

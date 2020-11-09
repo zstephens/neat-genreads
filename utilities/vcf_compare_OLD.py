@@ -5,7 +5,7 @@
 
 """ **************************************************
 
-vcf_compare.py
+vcf_compare.python
 
 - compare vcf file produced by workflow to golden vcf produced by simulator
 
