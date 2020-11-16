@@ -7,8 +7,8 @@ import sys
 import numpy as np
 from Bio.Seq import Seq
 
-from py.probability import DiscreteDistribution, poisson_list
-from py.neat_cigar import CigarString
+from source.probability import DiscreteDistribution, poisson_list
+from source.neat_cigar import CigarString
 
 """
 Constants needed for analysis
@@ -596,7 +596,7 @@ class SequenceContainer:
                     sys.exit(1)
                 else:
                     # alter reference sequence
-                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2],).tomutable() + \
+                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2]).tomutable() + \
                                         self.sequences[i][v_pos2:]
                     # notate indel positions for cigar computation
                     d = len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])

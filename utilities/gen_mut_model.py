@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env source
 
 # Python 3 ready
 
@@ -52,7 +52,7 @@ def main():
     # if parsing a dbsnp vcf, and no CAF= is found in info tag, use this as default val for population freq
     VCF_DEFAULT_POP_FREQ = 0.00001
 
-    parser = argparse.ArgumentParser(description='gen_mut_model.py')
+    parser = argparse.ArgumentParser(description='gen_mut_model.source')
     parser.add_argument('-r', type=str, required=True, metavar='/path/to/reference.fasta',
                         help="Reference file for organism in fasta format")
     parser.add_argument('-m', type=str, required=True, metavar='/path/to/mutations.vcf',
@@ -174,7 +174,7 @@ def main():
     matching_variants = matching_variants.rename(columns={0: "CHROM", 1: 'chr_start', 2: 'ID', 3: 'REF', 4: 'ALT',
                                                           5: 'QUAL', 6: 'FILTER', 7: 'INFO'})
 
-    # Change the indexing by -1 to match python format indexing (0-based)
+    # Change the indexing by -1 to match source format indexing (0-based)
     matching_variants['chr_start'] = matching_variants['chr_start'] - 1
     matching_variants['chr_end'] = matching_variants['chr_start']
 

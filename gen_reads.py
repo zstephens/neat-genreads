@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env source
 # encoding: utf-8
 """ ////////////////////////////////////////////////////////////////////////////////
    ///                                                                          ///
-  ///       gen_reads.py                                                        ///
+  ///       gen_reads.source                                                        ///
  ///        VERSION 2.0: HARDER, BETTER, FASTER, STRONGER!                    ///
 ///////                                                                      //////
    ///      Variant and read simulator for benchmarking NGS workflows          ///
@@ -25,12 +25,12 @@ import numpy as np
 import argparse
 import pathlib
 
-from py.input_checking import check_file_open, is_in_range
-from py.ref_func import index_ref, read_ref
-from py.vcf_func import parse_vcf
-from py.output_file_writer import OutputFileWriter, reverse_complement, sam_flag
-from py.probability import DiscreteDistribution, mean_ind_of_weighted_list
-from py.SequenceContainer import SequenceContainer, SequencingError, parse_input_mutation_model
+from source.input_checking import check_file_open, is_in_range
+from source.ref_func import index_ref, read_ref
+from source.vcf_func import parse_vcf
+from source.output_file_writer import OutputFileWriter, reverse_complement, sam_flag
+from source.probability import DiscreteDistribution, mean_ind_of_weighted_list
+from source.SequenceContainer import SequenceContainer, SequencingError, parse_input_mutation_model
 
 """
 Some constants needed for analysis

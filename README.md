@@ -3,13 +3,9 @@ NEAT-genReads is a fine-grained read simulator. GenReads simulates real-looking 
 
 This is an in-progress v2.0 of the software. For a previous stable release please see: [genReads1](https://github.com/zstephens/genReads1)
 
-
-***PLEASE NOTE: The module "pysam" does not work on Windows OS. If you are using a windows system and wish to input a BAM file, you will first have to use samtools to convert the BAM to a SAM file.****
-
 To cite this work, please use:
 
 > Stephens, Zachary D., Matthew E. Hudson, Liudmila S. Mainzer, Morgan Taschuk, Matthew R. Weber, and Ravishankar K. Iyer. "Simulating next-generation sequencing datasets from empirical mutation and sequencing models." PloS one 11, no. 11 (2016): e0167047.
-
 
 
 Table of Contents
@@ -41,8 +37,11 @@ Table of Contents
 
 ## Requirements
 
-* Python 2.7
-* Numpy 1.9.1+
+* Python 3.6+
+* Biopython 1.77+
+* Matplotlib 3.2.2+
+* Numpy 1.19.0+
+
 
 ## Usage
 Here's the simplest invocation of genReads using default parameters. This command produces a single ended fastq file with reads of length 101, ploidy 2, coverage 10X, using the default sequencing substitution, GC% bias, and mutation rate models.

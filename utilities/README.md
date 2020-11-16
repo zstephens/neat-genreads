@@ -33,7 +33,7 @@ python computeGC.py			\
 
 The main function in this file will save a pickle (.p) in the location and with the name from the path the user provides with the -o command.
 
-**Please be aware that pysam is not usable on windows, so any BAM file will need to be turned into a SAM file using samtools beforehand.
+**Please be aware that pysam is not usable on Windows, so any BAM file will need to be turned into a SAM file using samtools beforehand.**
 
 To convert a BAM file to a SAM file using samtools, use the following command:
 

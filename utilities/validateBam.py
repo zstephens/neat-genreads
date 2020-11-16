@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env source
 
 # Python 3 ready
 
