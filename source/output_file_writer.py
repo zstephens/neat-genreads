@@ -9,7 +9,7 @@ import gzip
 from Bio.bgzf import *
 import pathlib
 
-# from py.biopython_modified_bgzf import BgzfWriter
+# from source.biopython_modified_bgzf import BgzfWriter
 
 BAM_COMPRESSION_LEVEL = 6
 

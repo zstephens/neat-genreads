@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env source
 
 import gen_reads
 import argparse
@@ -213,7 +213,7 @@ def extract_names(reference: str) -> list:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='bacterial_genreads_wrapper.py')
+    parser = argparse.ArgumentParser(description='bacterial_genreads_wrapper.source')
     parser.add_argument('-r', type=str, required=True, metavar='reference.fasta',
                         help="Reference file for organism in fasta format")
     parser.add_argument('-g', type=int, required=True, metavar='generations', help="Number of generations to run")

@@ -1,4 +1,4 @@
-#!/user/env/bin python
+#!/user/env/bin source
 
 # Copyright 2010-2013 by Peter Cock.
 # All rights reserved.
@@ -11,7 +11,7 @@
 #                                                                  #######
 #    06/02/2015:                                                   #######
 #        - I picked out the bits and pieces of code needed         #######
-#          to write BAM files, removed python 3.0 compatibility    #######
+#          to write BAM files, removed source 3.0 compatibility    #######
 #                                                                  #######
 ##########################################################################
 

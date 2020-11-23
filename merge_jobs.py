@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env source
 import os
 import argparse
 
@@ -71,7 +71,7 @@ def catBams(l,outName,samtools_exe):
 #####################################
 
 def main():
-	parser = argparse.ArgumentParser(description='merge_jobs.py')
+	parser = argparse.ArgumentParser(description='merge_jobs.source')
 	parser.add_argument('-i', type=str, required=True, metavar='<str>', nargs='+', help="* input prefix: [prefix_1] [prefix_2] ...")
 	parser.add_argument('-o', type=str, required=True, metavar='<str>',            help="* output prefix")
 	parser.add_argument('-s', type=str, required=True, metavar='<str>',            help="* /path/to/samtools")
