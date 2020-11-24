@@ -21,6 +21,7 @@ import pathlib
 import pickle
 import matplotlib.pyplot as mpl
 import pysam
+from functools import reduce
 
 # enables import from neighboring package
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -31,123 +32,72 @@ from source.probability import DiscreteDistribution
 def parse_fq(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
     init_smooth = 0.
     prob_smooth = 0.
-    print_every = 10000
 
     #Takes a gzip or sam file and returns the simulation's average error rate,
     print('reading ' + input_file + '...')
-    is_sam = False
-    is_bam = False
-    is_fq = False
+    is_aligned = False
+    lines_to_read = 0
     try:
-        if input_file[-3:] == '.gz':
-            print('detected gzip suffix...')
-            f = gzip.open(input_file, 'r')
-            is_fq = True
-        elif input_file[-4:] == '.bam':
-            print('detected bam file....')
-            f = pysam.AlignmentFile(input_file, 'rb')
-            is_bam = True
-        elif input_file[-4:] == '.sam':
-            print('detected sam input....')
-            f = open(input_file, 'r')
-            is_sam = True
+        if input_file[-4:] == '.bam' or input_file[-4:] == '.sam':
+            print('detected aligned file....')
+            stats = pysam.idxstats(input_file).strip().split('\n')
+            lines_to_read = reduce(lambda x, y: x + y, [eval('+'.join(l.rstrip('\n').split('\t')[2:])) for l in stats])
+            f = pysam.AlignmentFile(input_file)
+            is_aligned = True
         else:
-            f = open(input_file, 'r')
-            is_fq = True
+            print('detected fastq file....')
+            with pysam.FastxFile(input_file) as f:
+                for _ in f:
+                    lines_to_read += 1
+            f = pysam.FastxFile(input_file)
     except FileNotFoundError:
-        print("Something wrong with input file.")
+        print("Check input file. Must be fastq, gzipped fastq, or bam/sam file.")
         sys.exit(1)
 
-    r_read = 0
     actual_readlen = 0
     q_dict = {}
-    if is_bam:
-        for read in f.fetch():
-            data4 = read
-            data4 = data4.query_alignment_sequence
-            if actual_readlen == 0:
-                actual_readlen = len(data4) - 1
-                print('assuming read length is uniform...')
-                print('detected read length (from first read found):', actual_readlen)
-                prior_q = np.zeros([actual_readlen, real_q])
-                total_q = [None] + [np.zeros([real_q, real_q]) for n in range(actual_readlen - 1)]
+    current_line = 0
+    quarters = lines_to_read // 4
 
-            # sanity-check readlengths
-            if len(data4) - 1 != actual_readlen:
-                print('skipping read with unexpected length...')
-                continue
+    if is_aligned:
+        g = f.fetch()
+    else:
+        g = f
 
-            for i in range(len(data4) - 1):
-                q = data4[i] - off_q
-                q_dict[q] = True
-                prev_q = q
-                if i == 0:
-                    prior_q[i][q] += 1
-                else:
-                    total_q[i][prev_q, q] += 1
-                    prior_q[i][q] += 1
+    for read in g:
+        if is_aligned:
+            qualities_to_check = read.query_alignment_qualities
+        else:
+            qualities_to_check = read.get_quality_array()
+        if actual_readlen == 0:
+            actual_readlen = len(qualities_to_check) - 1
+            print('assuming read length is uniform...')
+            print('detected read length (from first read found):', actual_readlen)
+            prior_q = np.zeros([actual_readlen, real_q])
+            total_q = [None] + [np.zeros([real_q, real_q]) for n in range(actual_readlen - 1)]
 
-            r_read += 1
-            if r_read % print_every == 0:
-                print(r_read)
-            if max_reads > 0 and r_read >= max_reads:
-                break
+        # sanity-check readlengths
+        if len(qualities_to_check) - 1 != actual_readlen:
+            print('skipping read with unexpected length...')
+            continue
+
+        for i in range(actual_readlen):
+            q = qualities_to_check[i]
+            q_dict[q] = True
+            prev_q = q
+            if i == 0:
+                prior_q[i][q] += 1
+            else:
+                total_q[i][prev_q, q] += 1
+                prior_q[i][q] += 1
+
+        current_line += 1
+        if current_line % quarters == 0:
+            print(f'{(current_line/lines_to_read)*100:.0f}%')
+        if max_reads > 0 and current_line >= max_reads:
+            break
+
     f.close()
-
-    # while True:
-    #     if is_bam:
-    #         for read in f.fetch():
-    #             print(read)
-    #     elif is_sam:
-    #         data4 = f.readline()
-    #         if not len(data4):
-    #             break
-    #         try:
-    #             data4 = data4.split('\t')[10]
-    #         except IndexError:
-    #             break
-    #     # need to add some input checking here? Yup, probably.
-    #     else:
-    #         data1 = f.readline()
-    #         data2 = f.readline()
-    #         data3 = f.readline()
-    #         data4 = f.readline()
-    #         if not all([data1, data2, data3, data4]):
-    #             break
-    #
-    #     if actual_readlen == 0:
-    #         if is_fq:
-    #             total_size = os.path.getsize(input_file)
-    #             entry_size = sum([len(n) for n in [data1, data2, data3, data4]])
-    #             print('estimated number of reads in file:', int(float(total_size) / entry_size))
-    #         actual_readlen = len(data4) - 1
-    #         print('assuming read length is uniform...')
-    #         print('detected read length (from first read found):', actual_readlen)
-    #         prior_q = np.zeros([actual_readlen, real_q])
-    #         total_q = [None] + [np.zeros([real_q, real_q]) for n in range(actual_readlen - 1)]
-    #
-    #     # sanity-check readlengths
-    #     if len(data4) - 1 != actual_readlen:
-    #         print('skipping read with unexpected length...')
-    #         continue
-    #
-    #     for i in range(len(data4) - 1):
-    #         q = data4[i] - off_q
-    #         q_dict[q] = True
-    #         prev_q = q
-    #         if i == 0:
-    #             prior_q[i][q] += 1
-    #         else:
-    #             total_q[i][prev_q, q] += 1
-    #             prior_q[i][q] += 1
-    #
-    #
-    #     r_read += 1
-    #     if r_read % print_every == 0:
-    #         print(r_read)
-    #     if max_reads > 0 and r_read >= max_reads:
-    #         break
-    # f.close()
 
     # some sanity checking again...
     q_range = [min(q_dict.keys()), max(q_dict.keys())]
@@ -258,9 +208,10 @@ def parse_fq(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
     count_dict = {}
     for q in q_scores:
         count_dict[q] = 0
+    samp_quarters = len(range(1, n_samp + 1)) // 4
     for samp in range(1, n_samp + 1):
-        if samp % print_every == 0:
-            print(samp)
+        if samp % samp_quarters == 0:
+            print(f'{(samp/samp_quarters)*100:.0f}%')
         my_q = init_dist_by_pos[0].sample()
         count_dict[my_q] += 1
         for i in range(1, len(init_q)):
