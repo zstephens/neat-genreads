@@ -10,6 +10,7 @@ from Bio.Seq import Seq
 from source.probability import DiscreteDistribution, poisson_list
 from source.neat_cigar import CigarString
 
+
 """
 Constants needed for analysis
 """

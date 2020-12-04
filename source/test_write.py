@@ -8,6 +8,7 @@ from timeit import default_timer as timer
 class OutputFileWriter1:
     def __init__(self, out_prefix, gzipped, fasta):
         start = timer()
+        self.buffer = []
 
         if gzipped:
             file = pathlib.Path(out_prefix + '.fasta.gz')

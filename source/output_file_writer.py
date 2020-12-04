@@ -85,7 +85,8 @@ CIGAR_PACKED = {'M': 0, 'I': 1, 'D': 2, 'N': 3, 'S': 4, 'H': 5, 'P': 6, '=': 7, 
 SEQ_PACKED = {'=': 0, 'A': 1, 'C': 2, 'M': 3, 'G': 4, 'R': 5, 'S': 6, 'V': 7,
               'T': 8, 'W': 9, 'Y': 10, 'H': 11, 'K': 12, 'D': 13, 'B': 14, 'N': 15}
 
-BUFFER_BATCH_SIZE = 1000  # write out to file after this many reads
+# TODO figure out an optimum batch size
+BUFFER_BATCH_SIZE = 8000  # write out to file after this many reads
 
 
 # TODO find a better way to write output files
@@ -104,6 +105,8 @@ class OutputFileWriter:
         bam = pathlib.Path(out_prefix + '_golden.bam')
         vcf = pathlib.Path(out_prefix + '_golden.vcf.gz')
 
+        print(fq1)
+        print(fq2)
         # TODO Make a fasta-specific method
         self.no_fastq = no_fastq
         if not self.no_fastq:

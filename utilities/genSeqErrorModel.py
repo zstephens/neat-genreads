@@ -12,19 +12,16 @@
 # Python 3 ready
 
 
-import os
-import gzip
 import numpy as np
 import argparse
 import sys
-import pathlib
 import pickle
 import matplotlib.pyplot as mpl
 import pysam
 from functools import reduce
 
 # enables import from neighboring package
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
+# sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 from source.probability import DiscreteDistribution
 
@@ -94,7 +91,7 @@ def parse_fq(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
         current_line += 1
         if current_line % quarters == 0:
             print(f'{(current_line/lines_to_read)*100:.0f}%')
-        if max_reads > 0 and current_line >= max_reads:
+        if 0 < max_reads <= current_line:
             break
 
     f.close()

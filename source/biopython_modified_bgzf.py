@@ -29,6 +29,7 @@ class BgzfWriter:
             if "w" not in mode.lower() and "a" not in mode.lower():
                 raise ValueError("Must use write or append mode, not %r" % mode)
             if "a" in mode.lower():
+                raise NotImplementedError("Append mode is not implemented yet")
                 handle = open(filename, "ab")
             else:
                 handle = open(filename, "wb")
