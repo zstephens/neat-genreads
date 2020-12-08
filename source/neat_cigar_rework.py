@@ -280,6 +280,13 @@ class CigarString(Cigar):
             sys.exit(1)
         return Cigar.string_from_elements(ret)
 
+    def count_elements(self, element: str) -> int:
+        count = 0
+        for item in self.items():
+            if item[1] == element:
+                count += item[0]
+        return count
+
 
 if __name__ == '__main__':
     print('testing CigarString class...')

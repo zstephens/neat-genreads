@@ -587,10 +587,8 @@ class SequenceContainer:
             rolling_adj = 0
             temp_symbol_string = CigarStringNew(str(len(self.sequences[i])) + "M")
             # TODO Delete commented out lines once CigarString works 100%
-            # temp_symbol_string = ['M' for _ in self.sequences[i]]
-            # Zach's comment: there's an off-by-one error somewhere in the position sampling routines..
-            # this might fix it
-            # temp_symbol_string.append('M')
+            temp_symbol_string2 = ['M' for _ in self.sequences[i]]
+
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
                 v_pos2 = v_pos + len(all_indels_ins[i][j][1])
@@ -603,7 +601,6 @@ class SequenceContainer:
                     sys.exit(1)
                 else:
                     # alter reference sequence
-                    # TODO need to fix this line too
                     self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2]).tomutable() + \
                                         self.sequences[i][v_pos2:]
                     # notate indel positions for cigar computation
@@ -611,19 +608,19 @@ class SequenceContainer:
                         cigar_to_insert = CigarStringNew(str(indel_length) + 'I')
                         temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, len(all_indels_ins[i][j][1]))
                         # TODO Delete commented out lines once CigarString works 100%
-                        # temp_symbol_string = temp_symbol_string[:v_pos + 1] + ['I'] * indel_length + temp_symbol_string[
-                        #                                                                   v_pos2 + 1:]
+                        temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
+                                              ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
                     elif indel_length < 0:
                         cigar_to_insert = CigarStringNew(str(abs(indel_length)) + 'D1M')
                         temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, indel_length)
                         # TODO Delete commented out lines once CigarString works 100%
-                        # temp_symbol_string[v_pos + 1] = 'D' * abs(indel_length) + 'M'
+                        temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
                 self.test[i].append(temp_symbol_string.get_cigar_fragment(j, j+self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
-                # self.all_cigar[i].append(CigarString(list_in=temp_symbol_string[j:j + self.read_len]).get_string())
+                self.all_cigar[i].append(CigarString(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
 
             # create some data structures we will need later:
             # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
@@ -631,15 +628,22 @@ class SequenceContainer:
             # --- self.FM_span[ploid][pos]: number of reference positions spanned by a read originating from
             #       this coordinate
             md_so_far = 0
-            for j in range(len(temp_symbol_string)):
+            for item in temp_symbol_string.items():
+                if item[1] != 'I':
+                    for j in range(item[0]):
+                        self.fm_pos[i].append(md_so_far)
+                        md_so_far += 1
+                else:
+                   pass
+            for j in range(len(temp_symbol_string2)):
                 self.fm_pos[i].append(md_so_far)
                 # fix an edge case with deletions
-                if 'D' in temp_symbol_string[j]:
-                    self.fm_pos[i][-1] += temp_symbol_string[j].count('D')
+                if temp_symbol_string2[j] == 'D':
+                    self.fm_pos[i][-1] += temp_symbol_string2[j].count('D')
                 # compute number of ref matches for each read
-                span_dif = len([n for n in temp_symbol_string[j:j + self.read_len] if 'M' in n])
+                span_dif = len([n for n in temp_symbol_string2[j:j + self.read_len] if 'M' in n])
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
-                md_so_far += temp_symbol_string[j].count('M') + temp_symbol_string[j].count('D')
+                md_so_far += temp_symbol_string2[j].count('M') + temp_symbol_string2[j].count('D')
 
         # tally up all the variants we handled...
         count_dict = {}
@@ -759,6 +763,7 @@ class SequenceContainer:
                     if total_d > avail_b:  # if not enough bases to fill-in deletions, skip all indel erors
                         continue
                     if not expanded_cigar:
+                        expanded_cigar2 = CigarStringNew(my_cigar)
                         expanded_cigar = CigarString(string_in=my_cigar).get_list()
                         fill_to_go = total_d - total_i + 1
                         if fill_to_go > 0:
