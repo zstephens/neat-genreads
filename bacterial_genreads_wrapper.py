@@ -44,7 +44,7 @@ class Bacterium:
         manipulation to unzip the file and fix genreads horribly formatted fasta file.
         :return: None
         """
-        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa', '-c', '1', '--rng', '1']
+        args = ['-r', str(self.reference), '-R', '101', '-o', self.name, '--fa', '-c', '1']
         gen_reads.main(args)
         self.file = pathlib.Path().absolute() / (self.name + ".fasta.gz")
 

@@ -585,9 +585,9 @@ class SequenceContainer:
         # MODIFY REFERENCE STRING: INDELS
         for i in range(len(all_indels_ins)):
             rolling_adj = 0
-            # TODO rework this section so that we use the new method
-            temp_symbol_string2 = CigarStringNew(str(len(self.sequences[i])) + "M")
-            temp_symbol_string = ['M' for _ in self.sequences[i]]
+            temp_symbol_string = CigarStringNew(str(len(self.sequences[i])) + "M")
+            # TODO Delete commented out lines once CigarString works 100%
+            # temp_symbol_string = ['M' for _ in self.sequences[i]]
             # Zach's comment: there's an off-by-one error somewhere in the position sampling routines..
             # this might fix it
             # temp_symbol_string.append('M')
@@ -609,22 +609,21 @@ class SequenceContainer:
                     # notate indel positions for cigar computation
                     if indel_length > 0:
                         cigar_to_insert = CigarStringNew(str(indel_length) + 'I')
-                        print(list(temp_symbol_string2.items()))
-                        temp_symbol_string2.insert_cigar_element(v_pos+1, cigar_to_insert, len(all_indels_ins[i][j][1]))
-                        print(list(temp_symbol_string2.items()))
-                        temp_symbol_string = temp_symbol_string[:v_pos + 1] + ['I'] * indel_length + temp_symbol_string[
-                                                                                          v_pos2 + 1:]
+                        temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, len(all_indels_ins[i][j][1]))
+                        # TODO Delete commented out lines once CigarString works 100%
+                        # temp_symbol_string = temp_symbol_string[:v_pos + 1] + ['I'] * indel_length + temp_symbol_string[
+                        #                                                                   v_pos2 + 1:]
                     elif indel_length < 0:
                         cigar_to_insert = CigarStringNew(str(abs(indel_length)) + 'D1M')
-                        print(list(temp_symbol_string2.items()))
-                        temp_symbol_string2.insert_cigar_element(v_pos+1, cigar_to_insert, indel_length)
-                        print(list(temp_symbol_string2.items()))
-                        temp_symbol_string[v_pos + 1] = 'D' * abs(indel_length) + 'M'
+                        temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, indel_length)
+                        # TODO Delete commented out lines once CigarString works 100%
+                        # temp_symbol_string[v_pos + 1] = 'D' * abs(indel_length) + 'M'
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
-                self.test[i].append(CigarStringNew(temp_symbol_string2[j:j + self.read_len].cigar))
-                self.all_cigar[i].append(CigarString(list_in=temp_symbol_string[j:j + self.read_len]).get_string())
+                self.test[i].append(temp_symbol_string.get_cigar_fragment(j, j+self.read_len))
+                # TODO Delete commented out lines once CigarString works 100%
+                # self.all_cigar[i].append(CigarString(list_in=temp_symbol_string[j:j + self.read_len]).get_string())
 
             # create some data structures we will need later:
             # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
