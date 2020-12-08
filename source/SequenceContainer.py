@@ -7,6 +7,7 @@ import sys
 import numpy as np
 from Bio.Seq import Seq
 
+from source.neat_cigar_rework import CigarString as CigarStringNew
 from source.probability import DiscreteDistribution, poisson_list
 from source.neat_cigar import CigarString
 
@@ -105,6 +106,7 @@ class SequenceContainer:
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
+        self.test = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
 
@@ -583,13 +585,17 @@ class SequenceContainer:
         # MODIFY REFERENCE STRING: INDELS
         for i in range(len(all_indels_ins)):
             rolling_adj = 0
+            # TODO rework this section so that we use the new method
+            temp_symbol_string2 = CigarStringNew(str(len(self.sequences[i])) + "M")
             temp_symbol_string = ['M' for _ in self.sequences[i]]
-            # there's an off-by-one error somewhere in the position sampling routines.. this might fix it
+            # Zach's comment: there's an off-by-one error somewhere in the position sampling routines..
+            # this might fix it
             # temp_symbol_string.append('M')
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
                 v_pos2 = v_pos + len(all_indels_ins[i][j][1])
-                rolling_adj += len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])
+                indel_length = len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])
+                rolling_adj += indel_length
 
                 if all_indels_ins[i][j][1] != str(self.sequences[i][v_pos:v_pos2]):
                     print('\nError: Something went wrong!\n', all_indels_ins[i][j], [v_pos, v_pos2],
@@ -597,18 +603,27 @@ class SequenceContainer:
                     sys.exit(1)
                 else:
                     # alter reference sequence
+                    # TODO need to fix this line too
                     self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2]).tomutable() + \
                                         self.sequences[i][v_pos2:]
                     # notate indel positions for cigar computation
-                    d = len(all_indels_ins[i][j][2]) - len(all_indels_ins[i][j][1])
-                    if d > 0:
-                        temp_symbol_string = temp_symbol_string[:v_pos + 1] + ['I'] * d + temp_symbol_string[
+                    if indel_length > 0:
+                        cigar_to_insert = CigarStringNew(str(indel_length) + 'I')
+                        print(list(temp_symbol_string2.items()))
+                        temp_symbol_string2.insert_cigar_element(v_pos+1, cigar_to_insert, len(all_indels_ins[i][j][1]))
+                        print(list(temp_symbol_string2.items()))
+                        temp_symbol_string = temp_symbol_string[:v_pos + 1] + ['I'] * indel_length + temp_symbol_string[
                                                                                           v_pos2 + 1:]
-                    elif d < 0:
-                        temp_symbol_string[v_pos + 1] = 'D' * abs(d) + 'M'
+                    elif indel_length < 0:
+                        cigar_to_insert = CigarStringNew(str(abs(indel_length)) + 'D1M')
+                        print(list(temp_symbol_string2.items()))
+                        temp_symbol_string2.insert_cigar_element(v_pos+1, cigar_to_insert, indel_length)
+                        print(list(temp_symbol_string2.items()))
+                        temp_symbol_string[v_pos + 1] = 'D' * abs(indel_length) + 'M'
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
+                self.test[i].append(CigarStringNew(temp_symbol_string2[j:j + self.read_len].cigar))
                 self.all_cigar[i].append(CigarString(list_in=temp_symbol_string[j:j + self.read_len]).get_string())
 
             # create some data structures we will need later:
