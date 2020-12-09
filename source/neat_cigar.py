@@ -107,6 +107,13 @@ class CigarString:
         :param i_string_in: input cigar string in string format
         :param i_list_in: input cigar string in list format
         :return:
+
+        >>>str1 = '50M10D7I23M'
+        >>>str2 = '10I25M'
+        >>>iPos = 20
+        >>>my_cigar = CigarString(string_in=str1)
+        >>>my_cigar.insert_cigar_element(iPos, i_string_in=str2)
+        >>>assert(my_cigar.get_string() == "20M10I55M10D7I23M")
         """
 
         if i_string_in is None and i_list_in is None:
@@ -123,14 +130,3 @@ class CigarString:
         if i_list_in is not None:
             self.cigar_data = self.cigar_data[:pos] + i_list_in + self.cigar_data[pos:]
 
-
-if __name__ == '__main__':
-    print('testing CigarString class...')
-
-    str1 = '50M10D7I23M'
-    str2 = '10I25M'
-    iPos = 20
-    my_cigar = CigarString(string_in=str1)
-    my_cigar.insert_cigar_element(iPos, i_string_in=str2)
-    assert(my_cigar.get_string() == "20M10I55M10D7I23M")
-    print("passed")

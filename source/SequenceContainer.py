@@ -638,7 +638,7 @@ class SequenceContainer:
                 # compute number of ref matches for each read
                 span_dif = len([n for n in temp_symbol_string_list[j:j + self.read_len] if 'M' in n])
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
-                md_so_far += temp_symbol_string_list[j].count('M') + temp_symbol_string_list.count('D')
+                md_so_far += temp_symbol_string_list[j].count('M') + temp_symbol_string_list[j].count('D')
 
         # tally up all the variants we handled...
         count_dict = {}
