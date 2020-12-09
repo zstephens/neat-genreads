@@ -4,6 +4,8 @@ import pathlib
 import bisect
 import pickle
 import sys
+from time import time
+
 import numpy as np
 from Bio.Seq import Seq
 
@@ -106,7 +108,6 @@ class SequenceContainer:
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
-        self.test = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
 
@@ -587,7 +588,7 @@ class SequenceContainer:
             rolling_adj = 0
             temp_symbol_string = CigarStringNew(str(len(self.sequences[i])) + "M")
             # TODO Delete commented out lines once CigarString works 100%
-            temp_symbol_string2 = ['M' for _ in self.sequences[i]]
+            # temp_symbol_string2 = ['M' for _ in self.sequences[i]]
 
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
@@ -608,19 +609,19 @@ class SequenceContainer:
                         cigar_to_insert = CigarStringNew(str(indel_length) + 'I')
                         temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, len(all_indels_ins[i][j][1]))
                         # TODO Delete commented out lines once CigarString works 100%
-                        temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
-                                              ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
+                        # temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
+                        #                       ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
                     elif indel_length < 0:
                         cigar_to_insert = CigarStringNew(str(abs(indel_length)) + 'D1M')
                         temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, indel_length)
                         # TODO Delete commented out lines once CigarString works 100%
-                        temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
+                        # temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
-                self.test[i].append(temp_symbol_string.get_cigar_fragment(j, j+self.read_len))
+                self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j+self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
-                self.all_cigar[i].append(CigarString(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
+                # self.all_cigar[i].append(CigarString(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
 
             # create some data structures we will need later:
             # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
@@ -628,22 +629,16 @@ class SequenceContainer:
             # --- self.FM_span[ploid][pos]: number of reference positions spanned by a read originating from
             #       this coordinate
             md_so_far = 0
-            for item in temp_symbol_string.items():
-                if item[1] != 'I':
-                    for j in range(item[0]):
-                        self.fm_pos[i].append(md_so_far)
-                        md_so_far += 1
-                else:
-                   pass
-            for j in range(len(temp_symbol_string2)):
+            temp_symbol_string_list = temp_symbol_string.string_to_list()
+            for j in range(len(temp_symbol_string_list)):
                 self.fm_pos[i].append(md_so_far)
                 # fix an edge case with deletions
-                if temp_symbol_string2[j] == 'D':
-                    self.fm_pos[i][-1] += temp_symbol_string2[j].count('D')
+                if temp_symbol_string_list[j] == 'D':
+                    self.fm_pos[i][-1] += temp_symbol_string_list[j].count('D')
                 # compute number of ref matches for each read
-                span_dif = len([n for n in temp_symbol_string2[j:j + self.read_len] if 'M' in n])
+                span_dif = len([n for n in temp_symbol_string_list[j:j + self.read_len] if 'M' in n])
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
-                md_so_far += temp_symbol_string2[j].count('M') + temp_symbol_string2[j].count('D')
+                md_so_far += temp_symbol_string_list[j].count('M') + temp_symbol_string_list.count('D')
 
         # tally up all the variants we handled...
         count_dict = {}
@@ -709,22 +704,22 @@ class SequenceContainer:
             - remove deletions that don't have enough bordering sequence content to "fill in"
             if error is valid, make the changes to the read data
         """
-        r_out = []
-        for r in reads_to_sample:
+        read_out = []
+        for read in reads_to_sample:
             try:
-                my_cigar = self.all_cigar[my_ploid][r[0]]
+                my_cigar = self.all_cigar[my_ploid][read[0]]
             except IndexError:
                 print('Index error when attempting to find cigar string.')
-                print(my_ploid, len(self.all_cigar[my_ploid]), r[0])
+                print(my_ploid, len(self.all_cigar[my_ploid]), read[0])
                 if frag_len is not None:
                     print((r_pos1, r_pos2))
                     print(frag_len, self.fraglen_ind_map[frag_len])
                 sys.exit(1)
-            total_d = sum([error[1] for error in r[2] if error[0] == 'D'])
-            total_i = sum([error[1] for error in r[2] if error[0] == 'I'])
-            avail_b = len(self.sequences[my_ploid]) - r[0] - self.read_len - 1
+            total_d = sum([error[1] for error in read[2] if error[0] == 'D'])
+            total_i = sum([error[1] for error in read[2] if error[0] == 'I'])
+            avail_b = len(self.sequences[my_ploid]) - read[0] - self.read_len - 1
             # add buffer sequence to fill in positions that get deleted
-            r[3] += self.sequences[my_ploid][r[0] + self.read_len:r[0] + self.read_len + total_d]
+            read[3] += self.sequences[my_ploid][read[0] + self.read_len:read[0] + self.read_len + total_d]
             expanded_cigar = []
             extra_cigar = []
             adj = 0
@@ -734,7 +729,7 @@ class SequenceContainer:
             # sort by letter (D > I > S) such that we introduce all indel errors before substitution errors
             # secondarily, sort by index
             arranged_errors = {'D': [], 'I': [], 'S': []}
-            for error in r[2]:
+            for error in read[2]:
                 arranged_errors[error[0]].append((error[2], error))
             sorted_errors = []
             for k in sorted(arranged_errors.keys()):
@@ -763,13 +758,18 @@ class SequenceContainer:
                     if total_d > avail_b:  # if not enough bases to fill-in deletions, skip all indel erors
                         continue
                     if not expanded_cigar:
-                        expanded_cigar2 = CigarStringNew(my_cigar)
-                        expanded_cigar = CigarString(string_in=my_cigar).get_list()
+                        expanded_cigar = CigarStringNew(my_cigar).string_to_list()
+                        # TODO delete these lines using old CigarString once it is working 100%
+                        # expanded_cigar = CigarString(string_in=my_cigar).get_list()
                         fill_to_go = total_d - total_i + 1
                         if fill_to_go > 0:
                             try:
-                                extra_cigar_val = CigarString(
-                                    string_in=self.all_cigar[my_ploid][r[0] + fill_to_go]).get_list()[-fill_to_go:]
+                                # TODO delete these lines using old CigarString once it is working 100%
+                                # extra_cigar_val = CigarString(string_in=self.all_cigar[my_ploid][read[0]
+                                #                                + fill_to_go]).get_list()[-fill_to_go:]
+                                extra_cigar_val = CigarStringNew(self.all_cigar[my_ploid][read[0]
+                                                                 + fill_to_go]).string_to_list()[-fill_to_go:]
+
                             except IndexError:
                                 # Applying the deletions we want requires going beyond region boundaries.
                                 # Skip all indel errors
@@ -783,8 +783,8 @@ class SequenceContainer:
                         my_adj = sse_adj[e_pos]
                         pi = e_pos + my_adj
                         pf = e_pos + my_adj + e_len + 1
-                        if str(r[3][pi:pf]) == str(error[3]):
-                            r[3] = r[3][:pi + 1] + r[3][pf:]
+                        if str(read[3][pi:pf]) == str(error[3]):
+                            read[3] = read[3][:pi + 1] + read[3][pf:]
                             expanded_cigar = expanded_cigar[:pi + 1] + expanded_cigar[pf:]
                             # weird edge case with del at very end of region. Make a guess and add a "M"
                             if pi + 1 == len(expanded_cigar):
@@ -800,21 +800,21 @@ class SequenceContainer:
                     # insert insertion error into read and update cigar string accordingly
                     else:
                         my_adj = sse_adj[e_pos]
-                        if str(r[3][e_pos + my_adj]) == error[3]:
-                            r[3] = r[3][:e_pos + my_adj] + error[4] + r[3][e_pos + my_adj + 1:]
+                        if str(read[3][e_pos + my_adj]) == error[3]:
+                            read[3] = read[3][:e_pos + my_adj] + error[4] + read[3][e_pos + my_adj + 1:]
                             expanded_cigar = expanded_cigar[:e_pos + my_adj] + ['I'] * e_len + expanded_cigar[
                                                                                                e_pos + my_adj:]
                         else:
                             print('\nError, ref does not match alt while attempting to insert insertion error!\n')
-                            print('---', chr(r[3][e_pos + my_adj]), '!=', error[3])
+                            print('---', chr(read[3][e_pos + my_adj]), '!=', error[3])
                             sys.exit(1)
                         adj += e_len
                         for i in range(e_pos, len(sse_adj)):
                             sse_adj[i] += e_len
 
                 else:  # substitution errors, much easier by comparison...
-                    if str(r[3][e_pos + sse_adj[e_pos]]) == error[3]:
-                        r[3][e_pos + sse_adj[e_pos]] = error[4]
+                    if str(read[3][e_pos + sse_adj[e_pos]]) == error[3]:
+                        read[3][e_pos + sse_adj[e_pos]] = error[4]
                     else:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
                         sys.exit(1)
@@ -822,14 +822,16 @@ class SequenceContainer:
             if any_indel_err:
                 if len(expanded_cigar):
                     relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
-                    my_cigar = CigarString(list_in=relevant_cigar).get_string()
+                    my_cigar2 = CigarStringNew.list_to_string(relevant_cigar)
+                    # TODO delete this line once new cigar is 100% working
+                    # my_cigar = CigarString(list_in=relevant_cigar).get_string()
 
-                r[3] = r[3][:self.read_len]
+                read[3] = read[3][:self.read_len]
 
-            r_out.append([self.fm_pos[my_ploid][r[0]], my_cigar, str(r[3]), str(r[1])])
+            read_out.append([self.fm_pos[my_ploid][read[0]], my_cigar, str(read[3]), str(read[1])])
 
-        # r_out[i] = (pos, cigar, read_string, qual_string)
-        return r_out
+        # read_out[i] = (pos, cigar, read_string, qual_string)
+        return read_out
 
 
 class SequencingError:

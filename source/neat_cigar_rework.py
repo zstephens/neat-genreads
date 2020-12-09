@@ -2,6 +2,7 @@ import sys
 from itertools import groupby
 from operator import itemgetter
 
+
 class Cigar(object):
     """
     This code borrowed in whole from https://github.com/brentp/cigar
@@ -61,7 +62,7 @@ class Cigar(object):
 
     def items(self):
         if self.cigar == "*":
-            yield (0, None)
+            yield 0, None
             raise StopIteration
         cig_iter = groupby(self.cigar, lambda c: c.isdigit())
         for g, n in cig_iter:
@@ -77,12 +78,10 @@ class Cigar(object):
         """
         sum of MIS=X ops shall equal the sequence length.
         """
-        return sum(l for l, op,in self.items() \
-                               if op in Cigar.read_consuming_ops)
+        return sum(l for l, op in self.items() if op in Cigar.read_consuming_ops)
 
     def reference_length(self):
-        return sum(l for l, op in self.items() \
-                               if op in Cigar.ref_consuming_ops)
+        return sum(l for l, op in self.items() if op in Cigar.ref_consuming_ops)
 
     def mask_left(self, n_seq_bases, mask="S"):
         """
@@ -92,7 +91,7 @@ class Cigar(object):
         cigs = list(self.items())
         new_cigs = []
 
-        c, cum_len  = self.cigar, 0
+        c, cum_len = self.cigar, 0
         for i, (l, op) in enumerate(cigs):
             if op in Cigar.read_consuming_ops:
                 cum_len += l
@@ -111,16 +110,13 @@ class Cigar(object):
         else:
             pass
 
-        new_cigs[:i] = [(l, op if op in "HS" else "S") for l, op in
-                new_cigs[:i]]
+        new_cigs[:i] = [(l, op if op in "HS" else "S") for l, op in new_cigs[:i]]
         new_cigs.extend(cigs[i + 1:])
         return Cigar(Cigar.string_from_elements(new_cigs)).merge_like_ops()
-
 
     @classmethod
     def string_from_elements(self, elements):
         return "".join("%i%s" % (l, op) for l, op in elements if l !=0)
-
 
     def mask_right(self, n_seq_bases, mask="S"):
         """
@@ -128,7 +124,6 @@ class Cigar(object):
         soft-masked unless they are already hard-masked.
         """
         return Cigar(Cigar(self._reverse_cigar()).mask_left(n_seq_bases, mask)._reverse_cigar())
-
 
     def _reverse_cigar(self):
         return Cigar.string_from_elements(list(self.items())[::-1])
@@ -167,7 +162,29 @@ class CigarString(Cigar):
         :param length: If consuming spaces, length of cigar to be added
         :param insertion_cigar: A cigar to insert into current cigar string
         :param pos: integer position where to insert the input cigar string
-        :return:
+        :return: None
+        str1 = CigarString('50M10D7I23M')
+        >>>str2 = CigarString('10I25M')
+        >>>iPos = 55
+        >>>str1.insert_cigar_element(iPos, str2)
+        >>>assert(str1.cigar == "50M5D10I25M5D7I23M")
+
+        >>>str1 = CigarString('50M10D7I23M')
+        >>>iPos = 20
+        >>>str1.insert_cigar_element(iPos, str2)
+        >>>assert(str1.cigar == "20M10I55M10D7I23M")
+
+        >>>str1 = CigarString('11100M')
+        >>>str2 = CigarString('2I')
+        >>>iPos = 5785 + 1
+        >>>str1.insert_cigar_element(iPos, str2, 1)
+        >>>assert (str1.cigar == "5786M2I5313M")
+
+        >>>str1 = CigarString('11100M')
+        >>>str2 = CigarString('1D1M')
+        >>>iPos = 6610 + 1
+        >>>str1.insert_cigar_element(iPos, str2, -1)
+        >>>assert (str1.cigar == "6611M1D4489M")
         """
 
         if insertion_cigar is None:
@@ -214,6 +231,33 @@ class CigarString(Cigar):
         :param start: start point of sequence to retrieve
         :param end: end point of sequence to retrieve
         :return: The sequence that spans start to end
+        >>>str1 = CigarString('10M5D10M')
+        >>>start = 0
+        >>>end = 14
+        >>>frag = str1.get_cigar_fragment(start, end)
+        >>>assert(frag == "10M4D")
+
+        >>>str1 = CigarString('10M2D10M')
+        >>>start = 10
+        >>>end = 12
+        >>>frag = str1.get_cigar_fragment(start, end)
+        >>>assert(frag == "2D")
+
+        >>>str1 = CigarString('10M1D10M')
+        >>>start = 10
+        >>>end = 12
+        >>>frag = str1.get_cigar_fragment(start, end)
+        >>>assert(frag == "1D1M")
+
+        >>>str1 = CigarString('102M2I10000M')
+        >>>start1 = 1
+        >>>end1 = 102
+        >>>frag1 = str1.get_cigar_fragment(start1, end1)
+        >>>start2 = 102
+        >>>end2 = 203
+        >>>frag2 = str1.get_cigar_fragment(start2, end2)
+        >>>assert(frag1 == "101M")
+        >>>assert(frag2 == "2I99M")
         """
         # Minus 1 because python slices don't include the end coordinate
         window_size = end - start
@@ -236,7 +280,6 @@ class CigarString(Cigar):
             # Minus 1 because of indexing
             current_pos = -1
             previous_pos = -1
-            current_index = 0
             start_found = False
             ret = []
             for item in self.items():
@@ -280,6 +323,7 @@ class CigarString(Cigar):
             sys.exit(1)
         return Cigar.string_from_elements(ret)
 
+    # TODO use this method or delete it.
     def count_elements(self, element: str) -> int:
         count = 0
         for item in self.items():
@@ -287,79 +331,50 @@ class CigarString(Cigar):
                 count += item[0]
         return count
 
+    def string_to_list(self) -> list:
+        """
+        Converts the cigar string to a full list.
 
-if __name__ == '__main__':
-    print('testing CigarString class...')
+        :return: cigar string in list format.
+        """
+        cigar_dat = []
+        d_reserve = 0
+        for item in self.items():
+            if item[1] == 'D':
+                d_reserve = item[0]
+            if item[1] in ['M', 'I']:
+                if d_reserve:
+                    cigar_dat += ['D' * d_reserve + item[1]] + [item[1]] * (item[0] - 1)
+                else:
+                    cigar_dat += [item[1]] * item[0]
+                d_reserve = 0
+        return cigar_dat
 
-    str1 = CigarString('50M10D7I23M')
-    str2 = CigarString('10I25M')
-    iPos = 55
+    @staticmethod
+    def list_to_string(input_list: list) -> str:
+        """
+        Convert a cigar string in list format to a standard cigar string
 
-    str1.insert_cigar_element(iPos, str2)
-    print(str1.cigar)
-    assert(str1.cigar == "50M5D10I25M5D7I23M")
-    print("passed")
+        :param input_list: Cigar string in list format
+        :return: cigar string in string format
+        """
 
-    str1 = CigarString('50M10D7I23M')
-    iPos = 20
-    str1.insert_cigar_element(iPos, str2)
-    print(str1.cigar)
-    assert(str1.cigar == "20M10I55M10D7I23M")
-    print("passed")
-
-    str1 = CigarString('11100M')
-    str2 = CigarString('2I')
-    iPos = 5785 + 1
-    str1.insert_cigar_element(iPos, str2, 1)
-    print(str1.cigar)
-    assert (str1.cigar == "5786M2I5313M")
-    print("passed")
-
-    str1 = CigarString('11100M')
-    str2 = CigarString('1D1M')
-    iPos = 6610 + 1
-    str1.insert_cigar_element(iPos, str2, -1)
-    print(str1.cigar)
-    assert (str1.cigar == "6611M1D4489M")
-    print("passed")
-
-    str1 = CigarString('10M5D10M')
-    # [('10', 'M'), ('5', 'D'), ('10', 'M')]
-    start = 0
-    end = 14
-    frag = str1.get_cigar_fragment(start, end)
-    print(frag)
-    assert(frag == "10M4D")
-
-    str1 = CigarString('10M2D10M')
-    # [(10, 'M'), (2, 'D'), (10, 'M')]
-    start = 10
-    end = 12
-    frag = str1.get_cigar_fragment(start, end)
-    print(frag)
-    assert(frag == "2D")
-    print("passed")
-
-    str1 = CigarString('10M1D10M')
-    # [(10, 'M'), (1, 'D'), (10, 'M')]
-    start = 10
-    end = 12
-    frag = str1.get_cigar_fragment(start, end)
-    print(frag)
-    assert(frag == "1D1M")
-    print("passed")
-
-    str1 = CigarString('102M2I10000M')
-    start1 = 1
-    end1 = 102
-    frag1 = str1.get_cigar_fragment(start1, end1)
-    start2 = 102
-    end2 = 203
-    frag2 = str1.get_cigar_fragment(start2, end2)
-    print(frag1)
-    print(frag2)
-    assert(frag1 == "101M")
-    assert(frag2 == "2I99M")
-
-
-
+        symbols = ''
+        current_sym = input_list[0]
+        current_count = 1
+        if 'D' in current_sym:
+            current_sym = current_sym[-1]
+        for k in range(1, len(input_list)):
+            next_sym = input_list[k]
+            if len(next_sym) == 1 and next_sym == current_sym:
+                current_count += 1
+            else:
+                symbols += str(current_count) + current_sym
+                if 'D' in next_sym:
+                    symbols += str(next_sym.count('D')) + 'D'
+                    current_sym = next_sym[-1]
+                else:
+                    current_sym = next_sym
+                current_count = 1
+        symbols += str(current_count) + current_sym
+        return symbols
