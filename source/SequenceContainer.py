@@ -13,7 +13,6 @@ from source.neat_cigar_rework import CigarString as CigarStringNew
 from source.probability import DiscreteDistribution, poisson_list
 from source.neat_cigar import CigarString
 
-
 """
 Constants needed for analysis
 """
@@ -607,19 +606,20 @@ class SequenceContainer:
                     # notate indel positions for cigar computation
                     if indel_length > 0:
                         cigar_to_insert = CigarStringNew(str(indel_length) + 'I')
-                        temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, len(all_indels_ins[i][j][1]))
+                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert,
+                                                                len(all_indels_ins[i][j][1]))
                         # TODO Delete commented out lines once CigarString works 100%
                         # temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
                         #                       ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
                     elif indel_length < 0:
                         cigar_to_insert = CigarStringNew(str(abs(indel_length)) + 'D1M')
-                        temp_symbol_string.insert_cigar_element(v_pos+1, cigar_to_insert, indel_length)
+                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert, indel_length)
                         # TODO Delete commented out lines once CigarString works 100%
                         # temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
-                self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j+self.read_len))
+                self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
                 # self.all_cigar[i].append(CigarString(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
 
@@ -768,7 +768,8 @@ class SequenceContainer:
                                 # extra_cigar_val = CigarString(string_in=self.all_cigar[my_ploid][read[0]
                                 #                                + fill_to_go]).get_list()[-fill_to_go:]
                                 extra_cigar_val = CigarStringNew(self.all_cigar[my_ploid][read[0]
-                                                                 + fill_to_go]).string_to_list()[-fill_to_go:]
+                                                                                          + fill_to_go]).string_to_list()[
+                                                  -fill_to_go:]
 
                             except IndexError:
                                 # Applying the deletions we want requires going beyond region boundaries.
