@@ -790,7 +790,14 @@ class SequenceContainer:
                             # weird edge case with del at very end of region. Make a guess and add a "M"
                             if pi + 1 == len(expanded_cigar):
                                 expanded_cigar.append('M')
-                            expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
+                            try:
+                                expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
+                            except ValueError as e:
+                                print(f'pi = {pi}')
+                                print(f'expanded_cigar = {expanded_cigar}')
+                                print("Debug")
+                                sys.exit(1)
+
                         else:
                             print('\nError, ref does not match alt while attempting to insert deletion error!\n')
                             sys.exit(1)
