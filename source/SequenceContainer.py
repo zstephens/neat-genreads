@@ -768,8 +768,7 @@ class SequenceContainer:
                                 # extra_cigar_val = CigarString(string_in=self.all_cigar[my_ploid][read[0]
                                 #                                + fill_to_go]).get_list()[-fill_to_go:]
                                 extra_cigar_val = CigarStringNew(self.all_cigar[my_ploid][read[0]
-                                                                                          + fill_to_go]).string_to_list()[
-                                                  -fill_to_go:]
+                                                                 + fill_to_go]).string_to_list()[-fill_to_go:]
 
                             except IndexError:
                                 # Applying the deletions we want requires going beyond region boundaries.
@@ -792,7 +791,7 @@ class SequenceContainer:
                                 expanded_cigar.append('M')
                             try:
                                 expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
-                            except ValueError as e:
+                            except IndexError:
                                 print(f'pi = {pi}')
                                 print(f'expanded_cigar = {expanded_cigar}')
                                 print("Debug")
