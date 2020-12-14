@@ -35,7 +35,8 @@ DESC = """%prog: vcf comparison script."""
 VERS = 0.1
 
 PARSER = optparse.OptionParser('source %prog [options] -r <ref.fa> -g <golden.vcf> -w <workflow.vcf>', description=DESC,
-                               version="%prog v" + str(VERS))
+                               version="%prog v" + str(VERS),
+                               formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
 
 PARSER.add_option('-r', help='* Reference Fasta', dest='REFF', action='store', metavar='<ref.fa>')
 PARSER.add_option('-g', help='* Golden VCF', dest='GVCF', action='store', metavar='<golden.vcf>')

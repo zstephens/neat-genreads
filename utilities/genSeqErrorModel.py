@@ -31,7 +31,7 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
     init_smooth = 0.
     prob_smooth = 0.
 
-    #Takes a gzip or sam file and returns the simulation's average error rate,
+    # Takes a gzip or sam file and returns the simulation's average error rate,
     print('reading ' + input_file + '...')
     is_aligned = False
     lines_to_read = 0
@@ -229,7 +229,7 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='genSeqErrorModel.source')
+    parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
     parser.add_argument('-i', type=str, required=True, metavar='<str>', help="* input_read1.fq (.gz) / input_read1.sam")
     parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output.p")
     parser.add_argument('-i2', type=str, required=False, metavar='<str>', default=None,

@@ -149,7 +149,8 @@ def main():
 
     :return: None
     """
-    parser = argparse.ArgumentParser(description="compute_fraglen.source")
+    parser = argparse.ArgumentParser(description="compute_fraglen.source",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
     parser.add_argument('-i', type=str, metavar="input", required=True, default=None,
                         help="Sam file input (samtools view name.bam > name.sam)")
     parser.add_argument('-o', type=str, metavar="output", required=True, default=None, help="Prefix for output")
