@@ -1,2 +1,4 @@
 # Ignore filetypes
 *.pyc
+/python2env/
+/.ipynb_checkpoints/

@@ -1,6 +1,8 @@
 import random
 import bisect
 import copy
+import sys
+
 import numpy as np
 
 LOW_PROB_THRESH = 1e-12
@@ -27,7 +29,7 @@ class DiscreteDistribution:
         # some sanity checking
         if not len(weights) or not len(values):
             print('\nError: weight or value vector given to DiscreteDistribution() are 0-length.\n')
-            exit(1)
+            sys.exit(1)
 
         self.method = method
         sum_weight = float(sum(weights))
