@@ -132,7 +132,7 @@ def cull(population: list, percentage: float = 0.5) -> list:
     """
     cull_amount = round(len(population) * percentage)
     print("Culling {} members from population".format(cull_amount))
-    for i in range(cull_amount):
+    for _ in range(cull_amount):
         selection = random.choice(population)
         population.remove(selection)
         selection.remove()
