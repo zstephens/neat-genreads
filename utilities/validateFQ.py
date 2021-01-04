@@ -3,7 +3,7 @@
 #
 #	A quickie tool for validating the correctness of a FASTQ file
 #
-#	source validateFQ.source read1.fq [read2.fq]
+#	python validateFQ.py read1.fq [read2.fq]
 #
 # Python 3 ready
 

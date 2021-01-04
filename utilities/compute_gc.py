@@ -122,7 +122,8 @@ def main():
         -w is the sliding window length. The default is 50, but you can declare any reasonable integer
     :return: None
     """
-    parser = argparse.ArgumentParser(description='compute_gc.source')
+    parser = argparse.ArgumentParser(description='compute_gc.source',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter,)
     parser.add_argument('-i', type=str, required=True, metavar='input', help="input.genomecov")
     parser.add_argument('-r', type=str, required=True, metavar='reference', help="reference.fasta")
     parser.add_argument('-o', type=str, required=True, metavar='output prefix',
