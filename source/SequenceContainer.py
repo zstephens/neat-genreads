@@ -835,7 +835,7 @@ class SequenceContainer:
             if any_indel_err:
                 if len(expanded_cigar):
                     relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
-                    my_cigar2 = CigarStringNew.list_to_string(relevant_cigar)
+                    my_cigar = CigarStringNew.list_to_string(relevant_cigar)
                     # TODO delete this line once new cigar is 100% working
                     # my_cigar = CigarString(list_in=relevant_cigar).get_string()
 
