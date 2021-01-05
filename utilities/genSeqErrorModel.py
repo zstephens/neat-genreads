@@ -17,20 +17,21 @@ import argparse
 import sys
 import pickle
 import matplotlib.pyplot as mpl
+import pathlib
 import pysam
 from functools import reduce
 
 # enables import from neighboring package
-# sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 from source.probability import DiscreteDistribution
 
 
-def parse_fq(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
+def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
     init_smooth = 0.
     prob_smooth = 0.
 
-    #Takes a gzip or sam file and returns the simulation's average error rate,
+    # Takes a gzip or sam file and returns the simulation's average error rate,
     print('reading ' + input_file + '...')
     is_aligned = False
     lines_to_read = 0
@@ -205,10 +206,11 @@ def parse_fq(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
     count_dict = {}
     for q in q_scores:
         count_dict[q] = 0
-    samp_quarters = len(range(1, n_samp + 1)) // 4
+    lines_to_sample = len(range(1, n_samp + 1))
+    samp_quarters = lines_to_sample // 4
     for samp in range(1, n_samp + 1):
         if samp % samp_quarters == 0:
-            print(f'{(samp/samp_quarters)*100:.0f}%')
+            print(f'{(samp/lines_to_sample)*100:.0f}%')
         my_q = init_dist_by_pos[0].sample()
         count_dict[my_q] += 1
         for i in range(1, len(init_q)):
@@ -227,7 +229,7 @@ def parse_fq(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='genSeqErrorModel.source')
+    parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
     parser.add_argument('-i', type=str, required=True, metavar='<str>', help="* input_read1.fq (.gz) / input_read1.sam")
     parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output.p")
     parser.add_argument('-i2', type=str, required=False, metavar='<str>', default=None,
@@ -243,19 +245,19 @@ def main():
                         help='perform some optional plotting')
     args = parser.parse_args()
 
-    (inf, ouf, off_q, max_q, max_reads, n_samp) = (args.i, args.o, args.q, args.Q, args.n, args.s)
-    (inf2, pile_up) = (args.i2, args.p)
+    (infile, outfile, off_q, max_q, max_reads, n_samp) = (args.i, args.o, args.q, args.Q, args.n, args.s)
+    (infile2, pile_up) = (args.i2, args.p)
 
     real_q = max_q + 1
 
     plot_stuff = args.plot
 
     q_scores = range(real_q)
-    if inf2 == None:
-        (init_q, prob_q, avg_err) = parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff)
+    if infile2 is None:
+        (init_q, prob_q, avg_err) = parse_file(infile, real_q, off_q, max_reads, n_samp, plot_stuff)
     else:
-        (init_q, prob_q, avg_err1) = parse_fq(inf, real_q, off_q, max_reads, n_samp, plot_stuff)
-        (init_q2, prob_q2, avg_err2) = parse_fq(inf2, real_q, off_q, max_reads, n_samp, plot_stuff)
+        (init_q, prob_q, avg_err1) = parse_file(infile, real_q, off_q, max_reads, n_samp, plot_stuff)
+        (init_q2, prob_q2, avg_err2) = parse_file(infile2, real_q, off_q, max_reads, n_samp, plot_stuff)
         avg_err = (avg_err1 + avg_err2) / 2.
 
     #
@@ -292,11 +294,12 @@ def main():
     #
     #	finally, let's save our output model
     #
+    outfile = pathlib.Path(outfile).with_suffix(".p")
     print('saving model...')
-    if inf2 == None:
-        pickle.dump([init_q, prob_q, q_scores, off_q, avg_err, err_params], open(ouf, 'wb'))
+    if infile2 is None:
+        pickle.dump([init_q, prob_q, q_scores, off_q, avg_err, err_params], open(outfile, 'wb'))
     else:
-        pickle.dump([init_q, prob_q, init_q2, prob_q2, q_scores, off_q, avg_err, err_params], open(ouf, 'wb'))
+        pickle.dump([init_q, prob_q, init_q2, prob_q2, q_scores, off_q, avg_err, err_params], open(outfile, 'wb'))
 
 
 if __name__ == '__main__':

@@ -132,7 +132,7 @@ def cull(population: list, percentage: float = 0.5) -> list:
     """
     cull_amount = round(len(population) * percentage)
     print("Culling {} members from population".format(cull_amount))
-    for i in range(cull_amount):
+    for _ in range(cull_amount):
         selection = random.choice(population)
         population.remove(selection)
         selection.remove()
@@ -214,7 +214,9 @@ def extract_names(reference: str) -> list:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='bacterial_genreads_wrapper.source')
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                                     description="Wrapper for gen_reads.py that simulates multiple generations"
+                                                 "of bacteria.")
     parser.add_argument('-r', type=str, required=True, metavar='reference.fasta',
                         help="Reference file for organism in fasta format")
     parser.add_argument('-g', type=int, required=True, metavar='generations', help="Number of generations to run")
@@ -226,7 +228,7 @@ def main():
     parser.add_argument('-c', type=int, required=False, default=10, metavar='coverage value',
                         help='Target coverage value for final set of sampled fastqs')
     parser.add_argument('--pe', nargs=2, type=int, required=False, metavar=('<int>', '<int>'), default=(500, 50),
-                        help='Paired-end fragment length mean and std')
+                        help='Paired-end fragment length mean and std.')
     args = parser.parse_args()
 
     (ref_fasta, init_population_size, generations) = (args.r, args.i, args.g)
