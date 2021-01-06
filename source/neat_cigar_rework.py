@@ -3,6 +3,7 @@ from itertools import groupby
 from operator import itemgetter
 
 
+
 class Cigar(object):
     """
     This code borrowed in whole from https://github.com/brentp/cigar
@@ -115,8 +116,8 @@ class Cigar(object):
         return Cigar(Cigar.string_from_elements(new_cigs)).merge_like_ops()
 
     @classmethod
-    def string_from_elements(self, elements):
-        return "".join("%i%s" % (l, op) for l, op in elements if l !=0)
+    def string_from_elements(cls, elements):
+        return "".join("%i%s" % (l, op) for l, op in elements if l != 0)
 
     def mask_right(self, n_seq_bases, mask="S"):
         """
@@ -163,28 +164,29 @@ class CigarString(Cigar):
         :param insertion_cigar: A cigar to insert into current cigar string
         :param pos: integer position where to insert the input cigar string
         :return: None
-        str1 = CigarString('50M10D7I23M')
-        >>>str2 = CigarString('10I25M')
-        >>>iPos = 55
-        >>>str1.insert_cigar_element(iPos, str2)
-        >>>assert(str1.cigar == "50M5D10I25M5D7I23M")
 
-        >>>str1 = CigarString('50M10D7I23M')
-        >>>iPos = 20
-        >>>str1.insert_cigar_element(iPos, str2)
-        >>>assert(str1.cigar == "20M10I55M10D7I23M")
+        >>> str1 = CigarString('50M10D7I23M')
+        >>> str2 = CigarString('10I25M')
+        >>> iPos = 55
+        >>> str1.insert_cigar_element(iPos, str2)
+        >>> assert(str1.cigar == "50M5D10I25M5D7I23M")
 
-        >>>str1 = CigarString('11100M')
-        >>>str2 = CigarString('2I')
-        >>>iPos = 5785 + 1
-        >>>str1.insert_cigar_element(iPos, str2, 1)
-        >>>assert (str1.cigar == "5786M2I5313M")
+        >>> str1 = CigarString('50M10D7I23M')
+        >>> iPos = 20
+        >>> str1.insert_cigar_element(iPos, str2)
+        >>> assert(str1.cigar == "20M10I55M10D7I23M")
 
-        >>>str1 = CigarString('11100M')
-        >>>str2 = CigarString('1D1M')
-        >>>iPos = 6610 + 1
-        >>>str1.insert_cigar_element(iPos, str2, -1)
-        >>>assert (str1.cigar == "6611M1D4489M")
+        >>> str1 = CigarString('11100M')
+        >>> str2 = CigarString('2I')
+        >>> iPos = 5785 + 1
+        >>> str1.insert_cigar_element(iPos, str2, 1)
+        >>> assert (str1.cigar == "5786M2I5313M")
+
+        >>> str1 = CigarString('11100M')
+        >>> str2 = CigarString('1D1M')
+        >>> iPos = 6610 + 1
+        >>> str1.insert_cigar_element(iPos, str2, -1)
+        >>> assert (str1.cigar == "6611M1D4489M")
         """
 
         if insertion_cigar is None:
@@ -231,33 +233,33 @@ class CigarString(Cigar):
         :param start: start point of sequence to retrieve
         :param end: end point of sequence to retrieve
         :return: The sequence that spans start to end
-        >>>str1 = CigarString('10M5D10M')
-        >>>start = 0
-        >>>end = 14
-        >>>frag = str1.get_cigar_fragment(start, end)
-        >>>assert(frag == "10M4D")
+        >>> str1 = CigarString('10M5D10M')
+        >>> start = 0
+        >>> end = 14
+        >>> frag = str1.get_cigar_fragment(start, end)
+        >>> assert(frag.cigar == "10M4D")
 
-        >>>str1 = CigarString('10M2D10M')
-        >>>start = 10
-        >>>end = 12
-        >>>frag = str1.get_cigar_fragment(start, end)
-        >>>assert(frag == "2D")
+        >>> str1 = CigarString('10M2D10M')
+        >>> start = 10
+        >>> end = 12
+        >>> frag = str1.get_cigar_fragment(start, end)
+        >>> assert(frag.cigar == "2D")
 
-        >>>str1 = CigarString('10M1D10M')
-        >>>start = 10
-        >>>end = 12
-        >>>frag = str1.get_cigar_fragment(start, end)
-        >>>assert(frag == "1D1M")
+        >>> str1 = CigarString('10M1D10M')
+        >>> start = 10
+        >>> end = 12
+        >>> frag = str1.get_cigar_fragment(start, end)
+        >>> assert(frag.cigar == "1D1M")
 
-        >>>str1 = CigarString('102M2I10000M')
-        >>>start1 = 1
-        >>>end1 = 102
-        >>>frag1 = str1.get_cigar_fragment(start1, end1)
-        >>>start2 = 102
-        >>>end2 = 203
-        >>>frag2 = str1.get_cigar_fragment(start2, end2)
-        >>>assert(frag1 == "101M")
-        >>>assert(frag2 == "2I99M")
+        >>> str1 = CigarString('102M2I10000M')
+        >>> start1 = 1
+        >>> end1 = 102
+        >>> frag1 = str1.get_cigar_fragment(start1, end1)
+        >>> start2 = 102
+        >>> end2 = 203
+        >>> frag2 = str1.get_cigar_fragment(start2, end2)
+        >>> assert(frag1.cigar == "101M")
+        >>> assert(frag2.cigar == "2I99M")
         """
         # Minus 1 because python slices don't include the end coordinate
         window_size = end - start
@@ -321,7 +323,7 @@ class CigarString(Cigar):
         except ValueError:
             print('\nBug: Problem retrieving fragment.\n')
             sys.exit(1)
-        return Cigar.string_from_elements(ret)
+        return CigarString(Cigar.string_from_elements(ret))
 
     # TODO use this method or delete it.
     def count_elements(self, element: str) -> int:
