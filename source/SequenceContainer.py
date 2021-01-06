@@ -5,7 +5,6 @@ import bisect
 import pickle
 import sys
 from time import time
-import pdb
 
 import numpy as np
 from Bio.Seq import Seq
@@ -792,7 +791,6 @@ class SequenceContainer:
                             try:
                                 expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
                             except IndexError:
-                                pdb.set_trace()
                                 sys.exit(1)
 
                         else:
