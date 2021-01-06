@@ -827,10 +827,12 @@ class SequenceContainer:
             if any_indel_err:
                 if len(expanded_cigar):
                     relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
-                    my_cigar = CigarString.list_to_string(relevant_cigar)
+                    my_cigar = CigarString(CigarString.list_to_string(relevant_cigar))
                     # TODO delete this line once new cigar is 100% working
                     # my_cigar = CigarString(list_in=relevant_cigar).get_string()
-
+                    if len(my_cigar) < self.read_len:
+                        pdb.set_trace()
+                        sys.exit(1)
                 read[3] = read[3][:self.read_len]
 
             read_out.append([self.fm_pos[my_ploid][read[0]], my_cigar, str(read[3]), str(read[1])])
