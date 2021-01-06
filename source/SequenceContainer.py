@@ -619,6 +619,7 @@ class SequenceContainer:
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
+                print(type(temp_symbol_string.get_cigar_fragment(j, j + self.read_len)))
                 self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
                 # self.all_cigar[i].append(CigarString(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
@@ -757,7 +758,7 @@ class SequenceContainer:
                     if total_d > avail_b:  # if not enough bases to fill-in deletions, skip all indel erors
                         continue
                     if not expanded_cigar:
-                        expanded_cigar = CigarString(my_cigar).string_to_list()
+                        expanded_cigar = my_cigar.string_to_list()
                         # TODO delete these lines using old CigarString once it is working 100%
                         # expanded_cigar = CigarString(string_in=my_cigar).get_list()
                         fill_to_go = total_d - total_i + 1
@@ -766,8 +767,8 @@ class SequenceContainer:
                                 # TODO delete these lines using old CigarString once it is working 100%
                                 # extra_cigar_val = CigarString(string_in=self.all_cigar[my_ploid][read[0]
                                 #                                + fill_to_go]).get_list()[-fill_to_go:]
-                                extra_cigar_val = CigarString(self.all_cigar[my_ploid][read[0]
-                                                                 + fill_to_go]).string_to_list()[-fill_to_go:]
+                                extra_cigar_val = CigarString(
+                                    self.all_cigar[my_ploid][read[0] + fill_to_go]).string_to_list()[-fill_to_go:]
 
                             except IndexError:
                                 # Applying the deletions we want requires going beyond region boundaries.

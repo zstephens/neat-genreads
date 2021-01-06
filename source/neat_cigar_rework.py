@@ -3,7 +3,6 @@ from itertools import groupby
 from operator import itemgetter
 
 
-
 class Cigar(object):
     """
     This code borrowed in whole from https://github.com/brentp/cigar
@@ -150,7 +149,7 @@ class Cigar(object):
 
 class CigarString(Cigar):
     """
-    This adds odditional functionality to the cigar module above, to make it compatible with
+    This adds additional functionality to the cigar module above, to make it compatible with
     the rest of the NEAT codebase
     """
 
@@ -224,7 +223,7 @@ class CigarString(Cigar):
             print('\nBug: Problem with insertion.\n')
             sys.exit(1)
 
-    def get_cigar_fragment(self, start: int, end: int) -> str:
+    def get_cigar_fragment(self, start: int, end: int) -> 'CigarString':
         """
         Take a slice of a cigar string. E.g., if we have a cigar string that is "1000M" and we want a slice of the
         first 101 characters, then the return should be '101M'. If we had "20M100I20M" and want the
@@ -341,16 +340,19 @@ class CigarString(Cigar):
         """
         cigar_dat = []
         d_reserve = 0
-        for item in self.items():
-            if item[1] == 'D':
-                d_reserve = item[0]
-            if item[1] in ['M', 'I']:
-                if d_reserve:
-                    cigar_dat += ['D' * d_reserve + item[1]] + [item[1]] * (item[0] - 1)
-                else:
-                    cigar_dat += [item[1]] * item[0]
-                d_reserve = 0
-        return cigar_dat
+        try:
+            for item in self.items():
+                if item[1] == 'D':
+                    d_reserve = item[0]
+                if item[1] in ['M', 'I']:
+                    if d_reserve:
+                        cigar_dat += ['D' * d_reserve + item[1]] + [item[1]] * (item[0] - 1)
+                    else:
+                        cigar_dat += [item[1]] * item[0]
+                    d_reserve = 0
+            return cigar_dat
+        except:
+            sys.exit(1)
 
     @staticmethod
     def list_to_string(input_list: list) -> str:
