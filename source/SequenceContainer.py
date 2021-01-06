@@ -793,15 +793,7 @@ class SequenceContainer:
                             try:
                                 expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
                             except IndexError:
-                                print(f'error = {error}')
-                                print(f'e_pos = {e_pos}')
-                                print(f'pi = {pi}')
-                                print(f'my_adj = {my_adj}')
-                                print(f'total_d = {total_d}')
-                                print(f'total_i = {total_i}')
-                                print(f'expanded_cigar = {CigarString.list_to_string(expanded_cigar)}')
-                                print(f'sorted_errors = {sorted_errors}')
-                                print("Debug")
+                                pdb.set_trace()
                                 sys.exit(1)
 
                         else:
