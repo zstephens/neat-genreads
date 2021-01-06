@@ -619,7 +619,6 @@ class SequenceContainer:
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
-                print(type(temp_symbol_string.get_cigar_fragment(j, j + self.read_len)))
                 self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
                 # self.all_cigar[i].append(CigarString(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
