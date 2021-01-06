@@ -722,7 +722,6 @@ class SequenceContainer:
             # add buffer sequence to fill in positions that get deleted
             read[3] += self.sequences[my_ploid][read[0] + self.read_len:read[0] + self.read_len + total_d]
             expanded_cigar = []
-            extra_cigar = []
             adj = 0
             sse_adj = [0 for _ in range(self.read_len + max(sequencing_model.err_p[3]))]
             any_indel_err = False
