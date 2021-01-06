@@ -340,19 +340,16 @@ class CigarString(Cigar):
         """
         cigar_dat = []
         d_reserve = 0
-        try:
-            for item in self.items():
-                if item[1] == 'D':
-                    d_reserve = item[0]
-                if item[1] in ['M', 'I']:
-                    if d_reserve:
-                        cigar_dat += ['D' * d_reserve + item[1]] + [item[1]] * (item[0] - 1)
-                    else:
-                        cigar_dat += [item[1]] * item[0]
-                    d_reserve = 0
-            return cigar_dat
-        except:
-            sys.exit(1)
+        for item in self.items():
+            if item[1] == 'D':
+                d_reserve = item[0]
+            if item[1] in ['M', 'I']:
+                if d_reserve:
+                    cigar_dat += ['D' * d_reserve + item[1]] + [item[1]] * (item[0] - 1)
+                else:
+                    cigar_dat += [item[1]] * item[0]
+                d_reserve = 0
+        return cigar_dat
 
     @staticmethod
     def list_to_string(input_list: list) -> str:
