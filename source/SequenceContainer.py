@@ -5,13 +5,14 @@ import bisect
 import pickle
 import sys
 from time import time
+import pdb
 
 import numpy as np
 from Bio.Seq import Seq
 
-from source.neat_cigar_rework import CigarString as CigarStringNew
+from source.neat_cigar_rework import CigarString
 from source.probability import DiscreteDistribution, poisson_list
-from source.neat_cigar import CigarString
+# from source.neat_cigar import CigarString
 
 """
 Constants needed for analysis
@@ -585,7 +586,7 @@ class SequenceContainer:
         # MODIFY REFERENCE STRING: INDELS
         for i in range(len(all_indels_ins)):
             rolling_adj = 0
-            temp_symbol_string = CigarStringNew(str(len(self.sequences[i])) + "M")
+            temp_symbol_string = CigarString(str(len(self.sequences[i])) + "M")
             # TODO Delete commented out lines once CigarString works 100%
             # temp_symbol_string2 = ['M' for _ in self.sequences[i]]
 
@@ -605,14 +606,14 @@ class SequenceContainer:
                                         self.sequences[i][v_pos2:]
                     # notate indel positions for cigar computation
                     if indel_length > 0:
-                        cigar_to_insert = CigarStringNew(str(indel_length) + 'I')
+                        cigar_to_insert = CigarString(str(indel_length) + 'I')
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert,
                                                                 len(all_indels_ins[i][j][1]))
                         # TODO Delete commented out lines once CigarString works 100%
                         # temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
                         #                       ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
                     elif indel_length < 0:
-                        cigar_to_insert = CigarStringNew(str(abs(indel_length)) + 'D1M')
+                        cigar_to_insert = CigarString(str(abs(indel_length)) + 'D1M')
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert, indel_length)
                         # TODO Delete commented out lines once CigarString works 100%
                         # temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
@@ -723,7 +724,7 @@ class SequenceContainer:
             expanded_cigar = []
             extra_cigar = []
             adj = 0
-            sse_adj = [0 for n in range(self.read_len + max(sequencing_model.err_p[3]))]
+            sse_adj = [0 for _ in range(self.read_len + max(sequencing_model.err_p[3]))]
             any_indel_err = False
 
             # sort by letter (D > I > S) such that we introduce all indel errors before substitution errors
@@ -758,7 +759,7 @@ class SequenceContainer:
                     if total_d > avail_b:  # if not enough bases to fill-in deletions, skip all indel erors
                         continue
                     if not expanded_cigar:
-                        expanded_cigar = CigarStringNew(my_cigar).string_to_list()
+                        expanded_cigar = CigarString(my_cigar).string_to_list()
                         # TODO delete these lines using old CigarString once it is working 100%
                         # expanded_cigar = CigarString(string_in=my_cigar).get_list()
                         fill_to_go = total_d - total_i + 1
@@ -767,7 +768,7 @@ class SequenceContainer:
                                 # TODO delete these lines using old CigarString once it is working 100%
                                 # extra_cigar_val = CigarString(string_in=self.all_cigar[my_ploid][read[0]
                                 #                                + fill_to_go]).get_list()[-fill_to_go:]
-                                extra_cigar_val = CigarStringNew(self.all_cigar[my_ploid][read[0]
+                                extra_cigar_val = CigarString(self.all_cigar[my_ploid][read[0]
                                                                  + fill_to_go]).string_to_list()[-fill_to_go:]
 
                             except IndexError:
@@ -798,7 +799,7 @@ class SequenceContainer:
                                 print(f'my_adj = {my_adj}')
                                 print(f'total_d = {total_d}')
                                 print(f'total_i = {total_i}')
-                                print(f'expanded_cigar = {CigarStringNew.list_to_string(expanded_cigar)}')
+                                print(f'expanded_cigar = {CigarString.list_to_string(expanded_cigar)}')
                                 print(f'sorted_errors = {sorted_errors}')
                                 print("Debug")
                                 sys.exit(1)
@@ -835,7 +836,7 @@ class SequenceContainer:
             if any_indel_err:
                 if len(expanded_cigar):
                     relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
-                    my_cigar = CigarStringNew.list_to_string(relevant_cigar)
+                    my_cigar = CigarString.list_to_string(relevant_cigar)
                     # TODO delete this line once new cigar is 100% working
                     # my_cigar = CigarString(list_in=relevant_cigar).get_string()
 
