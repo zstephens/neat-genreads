@@ -1,3 +1,4 @@
+import pdb
 import random
 import copy
 import pathlib
@@ -792,6 +793,7 @@ class SequenceContainer:
                                 expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
                             except IndexError:
                                 print("Bug!! Index error on expanded cigar")
+                                pdb.set_trace()
                                 sys.exit(1)
 
                         else:
