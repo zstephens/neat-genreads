@@ -782,7 +782,8 @@ def main(raw_args=None):
                                     else:
                                         flag1 = sam_flag(['paired', 'proper', 'second', 'mate_reverse'])
                                         flag2 = sam_flag(['paired', 'proper', 'first', 'reverse'])
-                                    pdb.set_trace()
+                                    if not isinstance(my_read_data[0][1], str):
+                                        pdb.set_trace()
                                     output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
                                                                         my_read_data[0][1], my_read_data[0][2],
                                                                         my_read_data[0][3],
