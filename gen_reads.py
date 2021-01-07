@@ -661,7 +661,8 @@ def main(raw_args=None):
 
                         is_unmapped = []
                         if paired_end:
-                            if [cigar for cigar in sequences.all_cigar if len(cigar) != 100]:
+                            if [cigar for cigar in sequences.all_cigar[0] if len(cigar) != 100] or \
+                                    [cig for cig in sequences.all_cigar[1] if len(cig) != 100]:
                                 print("There's a cigar that's off.")
                                 pdb.set_trace()
                             my_fraglen = fraglen_distribution.sample()
