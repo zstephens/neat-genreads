@@ -709,7 +709,7 @@ class SequenceContainer:
         for read in reads_to_sample:
             try:
                 my_cigar = self.all_cigar[my_ploid][read[0]]
-                if my_cigar.cigar != "100M":
+                if my_cigar.cigar != "100M" and read[2][0][0] == 'D':
                     print(my_cigar)
                     pdb.set_trace()
             except IndexError:
