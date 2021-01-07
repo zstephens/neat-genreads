@@ -188,21 +188,21 @@ class OutputFileWriter:
     # TODO add write_fasta_record
 
     def write_fastq_record(self, read_name, read1, qual1, read2=None, qual2=None, orientation=None):
-        (r1, q1) = (read1, qual1)
+        (read1, quality1) = (str(read1), qual1)
         if read2 is not None and orientation is True:
-            (r2, q2) = (reverse_complement(read2), qual2[::-1])
+            (read2, quality2) = (str(reverse_complement(read2)), qual2[::-1])
         elif read2 is not None and orientation is False:
-            (r1, q1) = (reverse_complement(read2), qual2[::-1])
-            (r2, q2) = (read1, qual1)
+            (read1, quality1) = (str(reverse_complement(read2)), qual2[::-1])
+            (read2, quality2) = (str(read1), qual1)
 
         if self.fasta_instead:
-            self.fq1_buffer.append('>' + read_name + '/1\n' + r1 + '\n')
+            self.fq1_buffer.append('>' + read_name + '/1\n' + read1 + '\n')
             if read2 is not None:
-                self.fq2_buffer.append('>' + read_name + '/2\n' + r2 + '\n')
+                self.fq2_buffer.append('>' + read_name + '/2\n' + read2 + '\n')
         else:
-            self.fq1_buffer.append('@' + read_name + '/1\n' + r1 + '\n+\n' + q1 + '\n')
+            self.fq1_buffer.append('@' + read_name + '/1\n' + read1 + '\n+\n' + quality1 + '\n')
             if read2 is not None:
-                self.fq2_buffer.append('@' + read_name + '/2\n' + r2 + '\n+\n' + q2 + '\n')
+                self.fq2_buffer.append('@' + read_name + '/2\n' + read2 + '\n+\n' + quality2 + '\n')
 
     def write_vcf_record(self, chrom, pos, id_str, ref, alt, qual, filt, info):
         self.vcf_file.write(
