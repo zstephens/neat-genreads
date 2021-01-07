@@ -716,7 +716,7 @@ class SequenceContainer:
                     print((r_pos1, r_pos2))
                     print(frag_len, self.fraglen_ind_map[frag_len])
                 sys.exit(1)
-            if my_cigar.cigar != "100M" and read[2][0][0] == 'D':
+            if my_cigar.cigar != "100M" and 'D' in my_cigar.cigar:
                 print(my_cigar)
                 pdb.set_trace()
             total_d = sum([error[1] for error in read[2] if error[0] == 'D'])
