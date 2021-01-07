@@ -709,6 +709,7 @@ class SequenceContainer:
         for read in reads_to_sample:
             try:
                 my_cigar = self.all_cigar[my_ploid][read[0]]
+                pdb.set_trace()
             except IndexError:
                 print('Index error when attempting to find cigar string.')
                 print(my_ploid, len(self.all_cigar[my_ploid]), read[0])
