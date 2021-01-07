@@ -716,13 +716,13 @@ class SequenceContainer:
                     print((r_pos1, r_pos2))
                     print(frag_len, self.fraglen_ind_map[frag_len])
                 sys.exit(1)
-            if my_cigar.cigar != "100M" and 'D' in my_cigar.cigar:
-                print(my_cigar)
-                pdb.set_trace()
             total_d = sum([error[1] for error in read[2] if error[0] == 'D'])
             total_i = sum([error[1] for error in read[2] if error[0] == 'I'])
             avail_b = len(self.sequences[my_ploid]) - read[0] - self.read_len - 1
             # add buffer sequence to fill in positions that get deleted
+            if my_cigar.cigar != "100M" and read[2][0][0] == 'D':
+                print(my_cigar)
+                pdb.set_trace()
             read[3] += self.sequences[my_ploid][read[0] + self.read_len:read[0] + self.read_len + total_d]
             expanded_cigar = []
             adj = 0
