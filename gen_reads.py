@@ -24,6 +24,7 @@ import pickle
 import numpy as np
 import argparse
 import pathlib
+import pdb
 
 from source.input_checking import check_file_open, is_in_range
 from source.ref_func import index_ref, read_ref
@@ -662,7 +663,7 @@ def main(raw_args=None):
                         if paired_end:
                             if [cigar for cigar in sequences.all_cigar if len(cigar) != 100]:
                                 print("There's a cigar that's off.")
-                                breakpoint()
+                                pdb.set_trace()
                             my_fraglen = fraglen_distribution.sample()
                             my_read_data = sequences.sample_read(se_class, my_fraglen)
                             # skip if we failed to find a valid position to sample read
