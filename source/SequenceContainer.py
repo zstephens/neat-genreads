@@ -836,7 +836,7 @@ class SequenceContainer:
                     # my_cigar = CigarString(list_in=relevant_cigar).get_string()
                 read[3] = read[3][:self.read_len]
 
-            read_out.append([self.fm_pos[my_ploid][read[0]], my_cigar, str(read[3]), str(read[1])])
+            read_out.append([self.fm_pos[my_ploid][read[0]], my_cigar, read[3], str(read[1])])
 
         # read_out[i] = (pos, cigar, read_string, qual_string)
         return read_out
