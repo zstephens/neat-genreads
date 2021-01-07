@@ -600,9 +600,17 @@ def main(raw_args=None):
                 if sequences is None:
                     sequences = SequenceContainer(start, ref_sequence[start:end], ploids, overlap, read_len,
                                                   [mut_model] * ploids, mut_rate, only_vcf=only_vcf)
+                    if [cigar for cigar in sequences.all_cigar[0] if len(cigar) != 100] or \
+                            [cig for cig in sequences.all_cigar[1] if len(cig) != 100]:
+                        print("There's a cigar that's off.")
+                        pdb.set_trace()
                 else:
                     sequences.update(start, ref_sequence[start:end], ploids, overlap, read_len, [mut_model] * ploids,
                                      mut_rate)
+                    if [cigar for cigar in sequences.all_cigar[0] if len(cigar) != 100] or \
+                            [cig for cig in sequences.all_cigar[1] if len(cig) != 100]:
+                        print("There's a cigar that's off.")
+                        pdb.set_trace()
 
                 # insert variants
                 sequences.insert_mutations(vars_from_prev_overlap + vars_in_window)
@@ -661,10 +669,6 @@ def main(raw_args=None):
 
                         is_unmapped = []
                         if paired_end:
-                            if [cigar for cigar in sequences.all_cigar[0] if len(cigar) != 100] or \
-                                    [cig for cig in sequences.all_cigar[1] if len(cig) != 100]:
-                                print("There's a cigar that's off.")
-                                pdb.set_trace()
                             my_fraglen = fraglen_distribution.sample()
                             my_read_data = sequences.sample_read(se_class, my_fraglen)
                             # skip if we failed to find a valid position to sample read
