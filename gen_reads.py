@@ -660,6 +660,9 @@ def main(raw_args=None):
 
                         is_unmapped = []
                         if paired_end:
+                            if len(any(sequences.all_cigar)) != 100:
+                                print("There's a cigar that's off.")
+                                breakpoint()
                             my_fraglen = fraglen_distribution.sample()
                             my_read_data = sequences.sample_read(se_class, my_fraglen)
                             # skip if we failed to find a valid position to sample read

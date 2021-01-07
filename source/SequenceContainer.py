@@ -721,7 +721,7 @@ class SequenceContainer:
             avail_b = len(self.sequences[my_ploid]) - read[0] - self.read_len - 1
 
             # debugging
-            if my_cigar.cigar != "100M" and [error[1] for error in read[2] if error[0] == 'D']:
+            if len(my_cigar) != 100:
                 print(my_cigar)
                 pdb.set_trace()
 
@@ -835,6 +835,12 @@ class SequenceContainer:
                 if len(expanded_cigar):
                     relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
                     my_cigar = CigarString(CigarString.list_to_string(relevant_cigar))
+
+                    # debugging
+                    if len(my_cigar) != 100:
+                        print(my_cigar)
+                        pdb.set_trace()
+
                     # TODO delete this line once new cigar is 100% working
                     # my_cigar = CigarString(list_in=relevant_cigar).get_string()
                 read[3] = read[3][:self.read_len]
