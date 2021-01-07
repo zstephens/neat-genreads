@@ -721,9 +721,9 @@ class SequenceContainer:
             avail_b = len(self.sequences[my_ploid]) - read[0] - self.read_len - 1
 
             # debugging
-            # if my_cigar.cigar != "100M" and [error[1] for error in read[2] if error[0] == 'D']:
-            #     print(my_cigar)
-            #     pdb.set_trace()
+            if my_cigar.cigar != "100M" and [error[1] for error in read[2] if error[0] == 'D']:
+                print(my_cigar)
+                pdb.set_trace()
 
             # add buffer sequence to fill in positions that get deleted
             read[3] += self.sequences[my_ploid][read[0] + self.read_len:read[0] + self.read_len + total_d]
