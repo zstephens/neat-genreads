@@ -238,19 +238,26 @@ class CigarString(Cigar):
         >>> start = 0
         >>> end = 14
         >>> frag = str1.get_cigar_fragment(start, end)
-        >>> assert(frag.cigar == "10M4D")
+        >>> assert(len(frag) == 14)
+        >>> assert(frag.cigar == "10M5D4M")
+
+        >>> str1 = CigarString('90M1D10M')
+        >>> start = 0
+        >>> end = 100
+        >>> frag = str1.get_cigar_fragment(start, end)
+        >>> assert(frag.cigar == "90M1D10M")
 
         >>> str1 = CigarString('10M2D10M')
         >>> start = 10
         >>> end = 12
         >>> frag = str1.get_cigar_fragment(start, end)
-        >>> assert(frag.cigar == "2D")
+        >>> assert(frag.cigar == "2M")
 
         >>> str1 = CigarString('10M1D10M')
         >>> start = 10
         >>> end = 12
         >>> frag = str1.get_cigar_fragment(start, end)
-        >>> assert(frag.cigar == "1D1M")
+        >>> assert(frag.cigar == "2M")
 
         >>> str1 = CigarString('102M2I10000M')
         >>> start1 = 1
@@ -261,6 +268,12 @@ class CigarString(Cigar):
         >>> frag2 = str1.get_cigar_fragment(start2, end2)
         >>> assert(frag1.cigar == "101M")
         >>> assert(frag2.cigar == "2I99M")
+
+        >>> temp_symbol_string = CigarString('25179M1D8304M')
+        >>> start = 25080
+        >>> end = 25180
+        >>> frag = temp_symbol_string.get_cigar_fragment(start, end)
+        >>> assert(frag.cigar == '99M1D1M')
         """
         # Minus 1 because python slices don't include the end coordinate
         window_size = end - start
@@ -286,9 +299,18 @@ class CigarString(Cigar):
             start_found = False
             ret = []
             for item in self.items():
-                current_pos += item[0]
                 current_block_size = item[0]
                 current_symbol = item[1]
+                if current_symbol == 'D' and not start_found:
+                    continue
+                elif current_symbol == 'D' and start_found:
+                    ret.append(item)
+                    continue
+                elif current_symbol in Cigar.read_consuming_ops:
+                    current_pos += current_block_size
+                else:
+                    print("Bug: Unknown symbol!")
+                    sys.exit(1)
                 if current_pos >= start and not start_found:
                     start_found = True
                     current_index = previous_pos + 1
@@ -381,3 +403,58 @@ class CigarString(Cigar):
                 current_count = 1
         symbols += str(current_count) + current_sym
         return symbols
+
+
+if __name__ == "__main__":
+    str1 = CigarString('10M5D10M')
+    start = 0
+    end = 14
+    frag = str1.get_cigar_fragment(start, end)
+    assert (len(frag) == 14)
+    assert (frag.cigar == "10M5D4M")
+    print(frag.cigar + " == 10M5D4M")
+
+    str1 = CigarString('90M1D10M')
+    start = 0
+    end = 100
+    frag = str1.get_cigar_fragment(start, end)
+    assert (frag.cigar == "90M1D10M")
+    print(frag.cigar + " == 90M1D10M")
+
+    str1 = CigarString('10M2D10M')
+    start = 10
+    end = 12
+    frag = str1.get_cigar_fragment(start, end)
+    assert (frag.cigar == "2M")
+    print(frag.cigar + " == 2M")
+
+    str1 = CigarString('10M1D10M')
+    start = 10
+    end = 12
+    frag = str1.get_cigar_fragment(start, end)
+    assert (frag.cigar == "2M")
+    print(frag.cigar + " == 2M")
+
+    str1 = CigarString('102M2I10000M')
+    start1 = 1
+    end1 = 102
+    frag1 = str1.get_cigar_fragment(start1, end1)
+    start2 = 102
+    end2 = 203
+    frag2 = str1.get_cigar_fragment(start2, end2)
+    assert (frag1.cigar == "101M")
+
+    print(frag1.cigar + " == 101M")
+    assert (frag2.cigar == "2I99M")
+    print(frag2.cigar + " == 2I99M")
+
+    temp_symbol_string = CigarString('25179M1D8304M')
+    print(temp_symbol_string.get_cigar_fragment(25080, 25180))
+
+    str1 = CigarString('2I101M')
+    start = 0
+    end = 100
+    frag = str1.get_cigar_fragment(start, end)
+    assert(len(frag) == 100)
+    assert(frag.cigar == "2I98M")
+    print(frag.cigar + " == 2I98M")
