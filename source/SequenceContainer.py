@@ -831,6 +831,9 @@ class SequenceContainer:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
                         sys.exit(1)
 
+            if len(my_cigar) != 100:
+                print(str(my_cigar) + "is not equal to 100.")
+                pdb.set_trace()
             if any_indel_err:
                 if len(expanded_cigar):
                     relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
