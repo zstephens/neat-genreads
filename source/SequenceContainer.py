@@ -521,6 +521,9 @@ class SequenceContainer:
                         self.black_list[p][k] = 1
                     all_indels[p].append(my_indel)
 
+        if my_indel:
+            print("Tracing indels")
+            pdb.set_trace()
         # add random snps
         all_snps = [[] for _ in self.sequences]
         for i in range(self.ploidy):
@@ -618,9 +621,6 @@ class SequenceContainer:
                         # TODO Delete commented out lines once CigarString works 100%
                         # temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
 
-            if len(temp_symbol_string) != 100:
-                print("Something wrong with temp symbol string")
-                pdb.set_trace()
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
                 self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))

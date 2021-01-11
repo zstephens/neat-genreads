@@ -1,4 +1,5 @@
 import sys
+import pdb
 from itertools import groupby
 from operator import itemgetter
 
@@ -322,6 +323,8 @@ class CigarString(Cigar):
         except ValueError:
             print('\nBug: Problem retrieving fragment.\n')
             sys.exit(1)
+        print("checking cigar string creation")
+        pdb.set_trace()
         return CigarString(Cigar.string_from_elements(ret))
 
     # TODO use this method or delete it.
