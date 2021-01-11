@@ -618,7 +618,7 @@ class SequenceContainer:
                         assert(temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
                     elif indel_length < 0:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D1M')
-                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert, indel_length)
+                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert)
                         # TODO Delete commented out lines once CigarString works 100%
                         temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
                         assert(temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
