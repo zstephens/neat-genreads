@@ -628,7 +628,7 @@ class SequenceContainer:
                 self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
                 self.all_cigar2[i].append(CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
-                if temp_symbol_string.get_cigar_fragment(j, j + self.read_len) != CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string():
+                if temp_symbol_string.get_cigar_fragment(j, j + self.read_len).cigar != CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string():
                     print("new " + str(temp_symbol_string.get_cigar_fragment(j, j + self.read_len)))
                     print("old " + CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
                     pdb.set_trace()
