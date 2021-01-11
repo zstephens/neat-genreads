@@ -720,11 +720,9 @@ class SequenceContainer:
             total_i = sum([error[1] for error in read[2] if error[0] == 'I'])
             avail_b = len(self.sequences[my_ploid]) - read[0] - self.read_len - 1
 
-            # debugging
-            if len(my_cigar) != 100:
-                print(my_cigar)
+            if total_d:
+                print("there is a deletion error")
                 pdb.set_trace()
-
             # add buffer sequence to fill in positions that get deleted
             read[3] += self.sequences[my_ploid][read[0] + self.read_len:read[0] + self.read_len + total_d]
             expanded_cigar = []
@@ -832,7 +830,7 @@ class SequenceContainer:
                         sys.exit(1)
 
             if len(my_cigar) != 100:
-                print(str(my_cigar) + "is not equal to 100.")
+                print(str(my_cigar) + " is not equal to 100.")
                 pdb.set_trace()
             if any_indel_err:
                 if len(expanded_cigar):
