@@ -628,7 +628,11 @@ class SequenceContainer:
                 self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
                 self.all_cigar2[i].append(CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
-            assert(self.all_cigar[i] == self.all_cigar2[i])
+
+            for j in range(len(self.all_cigar[i])):
+                if self.all_cigar[i][j] != self.all_cigar2[i][j]:
+                    print("mismatch in the cigars")
+                    pdb.set_trace()
 
             # create some data structures we will need later:
             # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
