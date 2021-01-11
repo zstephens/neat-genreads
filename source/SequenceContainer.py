@@ -108,6 +108,7 @@ class SequenceContainer:
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
+        self.all_cigar2 = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
 
@@ -200,6 +201,7 @@ class SequenceContainer:
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
+        self.all_cigar2 = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
         self.black_list = [np.zeros(self.seq_len, dtype='<i4') for _ in range(self.ploidy)]
