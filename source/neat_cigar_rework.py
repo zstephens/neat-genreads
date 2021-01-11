@@ -188,6 +188,8 @@ class CigarString(Cigar):
         >>> str1.insert_cigar_element(iPos, str2, -1)
         >>> assert(len(str1) == 11100)
         >>> assert (str1.cigar == "6611M1D4489M")
+
+        >>> str1 = CigarString('')
         """
 
         if insertion_cigar is None:
