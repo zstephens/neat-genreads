@@ -630,7 +630,7 @@ class SequenceContainer:
                 self.all_cigar2[i].append(CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
 
             for j in range(len(self.all_cigar[i])):
-                if self.all_cigar[i][j] != self.all_cigar2[i][j]:
+                if self.all_cigar[i][j].cigar != self.all_cigar2[i][j]:
                     print("mismatch in the cigars")
                     pdb.set_trace()
 
