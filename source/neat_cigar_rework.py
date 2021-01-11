@@ -186,6 +186,7 @@ class CigarString(Cigar):
         >>> str2 = CigarString('1D1M')
         >>> iPos = 6610 + 1
         >>> str1.insert_cigar_element(iPos, str2, -1)
+        >>> assert(len(str1) == 11100)
         >>> assert (str1.cigar == "6611M1D4489M")
         """
 
@@ -323,8 +324,6 @@ class CigarString(Cigar):
         except ValueError:
             print('\nBug: Problem retrieving fragment.\n')
             sys.exit(1)
-        print("checking cigar string creation")
-        pdb.set_trace()
         return CigarString(Cigar.string_from_elements(ret))
 
     # TODO use this method or delete it.

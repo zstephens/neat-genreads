@@ -12,7 +12,7 @@ from Bio.Seq import Seq
 
 from source.neat_cigar_rework import CigarString
 from source.probability import DiscreteDistribution, poisson_list
-# from source.neat_cigar import CigarString
+from source.neat_cigar import CigarString as CigarStringOld
 
 """
 Constants needed for analysis
@@ -591,7 +591,8 @@ class SequenceContainer:
             rolling_adj = 0
             temp_symbol_string = CigarString(str(len(self.sequences[i])) + "M")
             # TODO Delete commented out lines once CigarString works 100%
-            # temp_symbol_string2 = ['M' for _ in self.sequences[i]]
+            temp_symbol_string2 = ['M' for _ in self.sequences[i]]
+            assert(temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
 
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
@@ -613,19 +614,22 @@ class SequenceContainer:
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert,
                                                                 len(all_indels_ins[i][j][1]))
                         # TODO Delete commented out lines once CigarString works 100%
-                        # temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
-                        #                       ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
+                        temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
+                                              ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
+                        assert(temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
                     elif indel_length < 0:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D1M')
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert, indel_length)
                         # TODO Delete commented out lines once CigarString works 100%
-                        # temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
+                        temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
+                        assert(temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
                 self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
                 # TODO Delete commented out lines once CigarString works 100%
-                # self.all_cigar[i].append(CigarString(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
+                self.all_cigar2[i].append(CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
+            assert(self.all_cigar[i] == self.all_cigar2[i])
 
             # create some data structures we will need later:
             # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
@@ -767,13 +771,14 @@ class SequenceContainer:
                     if not expanded_cigar:
                         expanded_cigar = my_cigar.string_to_list()
                         # TODO delete these lines using old CigarString once it is working 100%
-                        # expanded_cigar = CigarString(string_in=my_cigar).get_list()
+                        expanded_cigar2 = CigarStringOld(string_in=my_cigar).get_list()
+                        assert(expanded_cigar == expanded_cigar2)
                         fill_to_go = total_d - total_i + 1
                         if fill_to_go > 0:
                             try:
                                 # TODO delete these lines using old CigarString once it is working 100%
-                                # extra_cigar_val = CigarString(string_in=self.all_cigar[my_ploid][read[0]
-                                #                                + fill_to_go]).get_list()[-fill_to_go:]
+                                extra_cigar_val2 = CigarStringOld(string_in=self.all_cigar2[my_ploid][read[0]
+                                                               + fill_to_go]).get_list()[-fill_to_go:]
                                 extra_cigar_val = self.all_cigar[my_ploid][read[0]
                                                                            + fill_to_go].string_to_list()[-fill_to_go:]
 
@@ -781,6 +786,8 @@ class SequenceContainer:
                                 # Applying the deletions we want requires going beyond region boundaries.
                                 # Skip all indel errors
                                 skip_indels = True
+
+                            assert(extra_cigar_val == extra_cigar_val2)
 
                     if skip_indels:
                         continue
@@ -846,7 +853,9 @@ class SequenceContainer:
                         pdb.set_trace()
 
                     # TODO delete this line once new cigar is 100% working
-                    # my_cigar = CigarString(list_in=relevant_cigar).get_string()
+                    my_cigar2 = CigarStringOld(list_in=relevant_cigar).get_string()
+
+                assert(my_cigar == my_cigar2)
                 read[3] = read[3][:self.read_len]
 
             read_out.append([self.fm_pos[my_ploid][read[0]], my_cigar, read[3], str(read[1])])
