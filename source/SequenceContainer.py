@@ -625,9 +625,7 @@ class SequenceContainer:
                         original_list = copy.deepcopy(temp_symbol_string2)
                         temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
                         assert (temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
-                        if temp_symbol_string.cigar == '28662M4D4821M':
-                            print("check this one")
-                            pdb.set_trace()
+                        pdb.set_trace()
 
 
             # pre-compute cigar strings
