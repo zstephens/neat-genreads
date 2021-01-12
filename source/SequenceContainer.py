@@ -734,9 +734,6 @@ class SequenceContainer:
             total_i = sum([error[1] for error in read[2] if error[0] == 'I'])
             avail_b = len(self.sequences[my_ploid]) - read[0] - self.read_len - 1
 
-            if total_d:
-                print("there is a deletion error")
-                pdb.set_trace()
             # add buffer sequence to fill in positions that get deleted
             read[3] += self.sequences[my_ploid][read[0] + self.read_len:read[0] + self.read_len + total_d]
             expanded_cigar = []
@@ -846,19 +843,10 @@ class SequenceContainer:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
                         sys.exit(1)
 
-            if len(my_cigar) != 100:
-                print(str(my_cigar) + " is not equal to 100.")
-                pdb.set_trace()
             if any_indel_err:
                 if len(expanded_cigar):
                     relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
                     my_cigar = CigarString(CigarString.list_to_string(relevant_cigar))
-
-                    # debugging
-                    if len(my_cigar) != 100:
-                        print(my_cigar)
-                        pdb.set_trace()
-
                     # TODO delete this line once new cigar is 100% working
                     my_cigar2 = CigarStringOld(list_in=relevant_cigar).get_string()
 
