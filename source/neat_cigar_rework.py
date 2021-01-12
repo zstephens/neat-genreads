@@ -2,6 +2,7 @@ import sys
 import pdb
 from itertools import groupby
 from operator import itemgetter
+from source.neat_cigar import CigarString as CigarStringOld
 
 
 class Cigar(object):
@@ -154,13 +155,44 @@ class CigarString(Cigar):
     the rest of the NEAT codebase
     """
 
-    def insert_cigar_element(self, pos: int,
-                             insertion_cigar: 'CigarString',
-                             length: int = 0) -> None:
+    def __str__(self):
+        return self.cigar
+
+    def __repr__(self):
+        return "CigarString('%s')" % self
+
+    def find_position(self, position: int) -> int:
+        """
+        This finds the index of the element of list(self.items()) that contains the starting position given.
+
+        :param position: The position to find of the CigarString
+        :return: the index of that in terms of the elements of list(self.items())
+        >>> cigar = CigarString('2064M1I12979M3D18439M')
+        >>> position = 15414
+        >>> index, bases = cigar.find_position(position)
+        >>> assert(index == 4)
+        >>> assert(bases == 370)
+        """
+        consumed_bases = 0
+        bases_left = position
+        index = 0
+        for item in self.items():
+            if item[1] == 'D':
+                index += 1
+                continue
+            consumed_bases += item[0]
+            if consumed_bases > position:
+                return index, bases_left
+            else:
+                bases_left -= item[0]
+                index += 1
+        return index, bases_left
+
+    def insert_cigar_element(self, pos: int, insertion_cigar: 'CigarString', length: int = 0) -> None:
         """
         Inserts a cigar string in either string or list format to the existing cigar string at position pos.
 
-        :param length: If consuming spaces, length of cigar to be added
+        :param length: Length of the items to be consumed by the insertion
         :param insertion_cigar: A cigar to insert into current cigar string
         :param pos: integer position where to insert the input cigar string
         :return: None
@@ -169,7 +201,7 @@ class CigarString(Cigar):
         >>> str2 = CigarString('10I25M')
         >>> iPos = 55
         >>> str1.insert_cigar_element(iPos, str2)
-        >>> assert(str1.cigar == "50M5D10I25M5D7I23M")
+        >>> assert(str1.cigar == "50M10D15I25M2I23M")
 
         >>> str1 = CigarString('50M10D7I23M')
         >>> iPos = 20
@@ -179,13 +211,13 @@ class CigarString(Cigar):
         >>> str1 = CigarString('11100M')
         >>> str2 = CigarString('2I')
         >>> iPos = 5785 + 1
-        >>> str1.insert_cigar_element(iPos, str2, 1)
-        >>> assert (str1.cigar == "5786M2I5313M")
+        >>> str1.insert_cigar_element(iPos, str2)
+        >>> assert (str1.cigar == "5786M2I5314M")
 
         >>> str1 = CigarString('11100M')
-        >>> str2 = CigarString('1D1M')
+        >>> str2 = CigarString('1D')
         >>> iPos = 6610 + 1
-        >>> str1.insert_cigar_element(iPos, str2, -1)
+        >>> str1.insert_cigar_element(iPos, str2)
         >>> assert(len(str1) == 11100)
         >>> assert (str1.cigar == "6611M1D4489M")
 
@@ -200,27 +232,37 @@ class CigarString(Cigar):
             print('\nError: Invalid insertion position in CigarString\n')
             sys.exit(1)
 
+        if length < 0:
+            print('\nError: Did not understand the indel length to be inserted\n')
+            sys.exit(1)
+
         try:
-            current_pos = 0
-            previous_pos = 0
-            new_element = []
             found = False
-            for item in self.items():
-                current_pos += item[0]
-                if current_pos > pos and not found:
-                    current_block = item[0]
-                    current_index = pos - previous_pos
-                    new_element.append((current_index, item[1]))
-                    for insert in insertion_cigar.items():
-                        new_element.append(insert)
-                    if length != 0:
-                        new_element.append((current_block-current_index-abs(length), item[1]))
-                    else:
-                        new_element.append((current_block-current_index, item[1]))
-                    found = True
-                else:
-                    new_element.append(item)
-                previous_pos = current_pos
+            index, bases_remain = self.find_position(pos)
+            new_element = list(self.items())[:index]
+            list_of_items = list(self.items())[index:]
+            if len(list_of_items) == 1:
+                new_element.append((bases_remain, list_of_items[0][1]))
+                new_element += list(insertion_cigar.items())
+                new_element.append((list_of_items[0][0] - bases_remain - length, list_of_items[0][1]))
+            else:
+                for item in list_of_items:
+                    if item[1] == 'D':
+                        new_element.append(item)
+                    elif found:
+                        new_element.append(item)
+                    elif bases_remain > item[0]:
+                        new_element.append(item)
+                        bases_remain -= item[0]
+                    elif bases_remain == item[0]:
+                        new_element.append(item)
+                        new_element += list(insertion_cigar.items())
+                        found = True
+                    elif bases_remain < item[0]:
+                        new_element.append((bases_remain, item[1]))
+                        new_element += list(insertion_cigar.items())
+                        new_element.append((item[0]-bases_remain-length, item[1]))
+                        found = True
             new_string = self.string_from_elements(new_element)
             self.cigar = CigarString(new_string).merge_like_ops().cigar
         except ValueError:
@@ -295,60 +337,38 @@ class CigarString(Cigar):
             sys.exit(1)
 
         try:
-            # Minus 1 because of indexing
-            current_pos = -1
-            previous_pos = -1
-            start_found = False
-            ret = []
-            for item in self.items():
-                current_block_size = item[0]
-                current_symbol = item[1]
-                if current_symbol == 'D' and not start_found:
-                    continue
-                elif current_symbol == 'D' and start_found:
-                    ret.append(item)
-                    continue
-                elif current_symbol in Cigar.read_consuming_ops:
-                    current_pos += current_block_size
-                else:
-                    print("Bug: Unknown symbol!")
-                    sys.exit(1)
-                if current_pos >= start and not start_found:
-                    start_found = True
-                    current_index = previous_pos + 1
-                    # start - current index = The index where we start relative to the start of the block
-                    # if there are not enough items in the current block, we will consume what is left
-                    # and move to the next block
-                    if current_block_size - (start - current_index) >= window_size:
-                        # If from where we start to the end of the current block is sufficient for our window,
-                        # then the return is just everything of that symbol
-                        ret.append((window_size, current_symbol))
+            start_index, bases_remain = self.find_position(start)
+            end_index = self.find_position(end)[0]
+            new_element = []
+            # +1 here to make it inclusive
+            list_of_items = list(self.items())[start_index:end_index+1]
+            if len(list_of_items) == 1:
+                new_element.append((window_size, list_of_items[0][1]))
+            else:
+                for item in list_of_items:
+                    if item[1] == 'D':
+                        new_element.append(item)
+                    elif bases_remain > 0:
+                        bases = item[0] - bases_remain
+                        if bases <= 0:
+                            print("Something went wrong retrieving fragment")
+                            sys.exit(1)
+                        bases_remain = 0
+                        window_size -= bases
+                        new_element.append((bases, item[1]))
+                    elif window_size > item[0]:
+                        new_element.append(item)
+                        window_size -= item[0]
+                    elif window_size <= item[0]:
+                        new_element.append((window_size, item[1]))
                         break
-                    else:
-                        # if there are not enough items in the current block, we will consume what is left
-                        # and move to the next block
-                        ret.append((current_block_size - (start - current_index), current_symbol))
-                        # shrink the window to account for the items we've found
-                        window_size -= current_block_size - (start - current_index)
-                elif start_found:
-                    if current_block_size >= window_size:
-                        # If this block can cover the remaining slice, then append the end and break
-                        ret.append((window_size, current_symbol))
-                        break
-                    else:
-                        # If we still need more, then consume this entire block
-                        ret.append((current_block_size, current_symbol))
-                        # shrink the window to account for the items we've found
-                        window_size -= current_block_size
-                else:
-                    pass
 
-                previous_pos = current_pos
+            new_string = self.string_from_elements(new_element)
+            return CigarString(new_string).merge_like_ops()
 
         except ValueError:
             print('\nBug: Problem retrieving fragment.\n')
             sys.exit(1)
-        return CigarString(Cigar.string_from_elements(ret))
 
     # TODO use this method or delete it.
     def count_elements(self, element: str) -> int:
@@ -405,3 +425,41 @@ class CigarString(Cigar):
                 current_count = 1
         symbols += str(current_count) + current_sym
         return symbols
+
+
+if __name__ == "__main__":
+    original_string = '2064M1I12979M3D18439M'
+    original_cigar = CigarString(original_string)
+    v_pos = 15414
+    cigar_to_insert = CigarString('6I')
+    original_cigar.insert_cigar_element(v_pos, cigar_to_insert, 1)
+    if original_cigar.cigar == '2064M1I12979M3D370M6I18068M':
+        print("OKAY")
+    else:
+        print("NOT OKKKAAAAAY")
+
+    str1 = CigarString('50M10D7I23M')
+    str2 = CigarString('10I25M')
+    iPos = 55
+    str1.insert_cigar_element(iPos, str2)
+    assert (str1.cigar == "50M10D15I25M2I23M")
+
+    str1 = CigarString('50M10D7I23M')
+    iPos = 20
+    str1.insert_cigar_element(iPos, str2)
+    assert (str1.cigar == "20M10I55M10D7I23M")
+
+    str1 = CigarString('11100M')
+    str2 = CigarString('2I')
+    iPos = 5785 + 1
+    str1.insert_cigar_element(iPos, str2)
+    assert (str1.cigar == "5786M2I5314M")
+
+    str1 = CigarString('11100M')
+    str2 = CigarString('1D')
+    iPos = 6610 + 1
+    str1.insert_cigar_element(iPos, str2)
+    assert (len(str1) == 11100)
+    assert (str1.cigar == "6611M1D4489M")
+
+    str1 = CigarString('')
