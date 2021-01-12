@@ -778,7 +778,7 @@ class SequenceContainer:
                     if not expanded_cigar:
                         expanded_cigar = my_cigar.string_to_list()
                         # TODO delete these lines using old CigarString once it is working 100%
-                        expanded_cigar2 = CigarStringOld(string_in=my_cigar).get_list()
+                        expanded_cigar2 = CigarStringOld(string_in=my_cigar.cigar).get_list()
                         assert(expanded_cigar == expanded_cigar2)
                         fill_to_go = total_d - total_i + 1
                         if fill_to_go > 0:
