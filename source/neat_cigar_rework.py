@@ -220,8 +220,6 @@ class CigarString(Cigar):
         >>> str1.insert_cigar_element(iPos, str2)
         >>> assert(len(str1) == 11100)
         >>> assert (str1.cigar == "6611M1D4489M")
-
-        >>> str1 = CigarString('')
         """
 
         if insertion_cigar is None:
@@ -244,7 +242,10 @@ class CigarString(Cigar):
             if len(list_of_items) == 1:
                 new_element.append((bases_remain, list_of_items[0][1]))
                 new_element += list(insertion_cigar.items())
-                new_element.append((list_of_items[0][0] - bases_remain - length, list_of_items[0][1]))
+                if list_of_items[0][0] - bases_remain >= length:
+                    new_element.append((list_of_items[0][0] - bases_remain - length, list_of_items[0][1]))
+                else:
+                    new_element.append((list_of_items[0][0] - bases_remain, list_of_items[0][1]))
             else:
                 for item in list_of_items:
                     if item[1] == 'D':
@@ -261,7 +262,10 @@ class CigarString(Cigar):
                     elif bases_remain < item[0]:
                         new_element.append((bases_remain, item[1]))
                         new_element += list(insertion_cigar.items())
-                        new_element.append((item[0]-bases_remain-length, item[1]))
+                        if item[0] - bases_remain >= length:
+                            new_element.append((item[0] - bases_remain - length, item[1]))
+                        else:
+                            new_element.append((list_of_items[0][0] - bases_remain, item[1]))
                         found = True
             new_string = self.string_from_elements(new_element)
             self.cigar = CigarString(new_string).merge_like_ops().cigar
