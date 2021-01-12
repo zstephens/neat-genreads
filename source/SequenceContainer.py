@@ -591,7 +591,9 @@ class SequenceContainer:
             temp_symbol_string = CigarString(str(len(self.sequences[i])) + "M")
             # TODO Delete commented out lines once CigarString works 100%
             temp_symbol_string2 = ['M' for _ in self.sequences[i]]
-            assert(temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
+            if not temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
+                print('something wrong with temp symbol creation')
+                pdb.set_trace()
 
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
@@ -617,7 +619,7 @@ class SequenceContainer:
                         original_list = copy.deepcopy(temp_symbol_string2)
                         temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
                                               ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
-                        if temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
+                        if not temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
                             print('something wrong with inserting')
                             pdb.set_trace()
                     elif indel_length < 0:
@@ -627,7 +629,7 @@ class SequenceContainer:
                         # TODO Delete commented out lines once CigarString works 100%
                         original_list = copy.deepcopy(temp_symbol_string2)
                         temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
-                        if temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
+                        if not temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
                             print('something wrong with deletion')
                             pdb.set_trace()
 
