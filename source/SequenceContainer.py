@@ -610,13 +610,16 @@ class SequenceContainer:
                     # notate indel positions for cigar computation
                     if indel_length > 0:
                         cigar_to_insert = CigarString(str(indel_length) + 'I')
+                        original_string = copy.deepcopy(temp_symbol_string)
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert,
                                                                 len(all_indels_ins[i][j][1]))
                         # TODO Delete commented out lines once CigarString works 100%
-                        check = temp_symbol_string2[:v_pos + 1]
+                        original_list = copy.deepcopy(temp_symbol_string2)
                         temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
                                               ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
-                        assert(temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
+                        if temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
+                            print('something wrong with inserting')
+                            pdb.set_trace()
                     elif indel_length < 0:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D1M')
                         original_string = copy.deepcopy(temp_symbol_string)
@@ -624,9 +627,9 @@ class SequenceContainer:
                         # TODO Delete commented out lines once CigarString works 100%
                         original_list = copy.deepcopy(temp_symbol_string2)
                         temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
-                        assert (temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
-                        pdb.set_trace()
-
+                        if temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
+                            print('something wrong with deletion')
+                            pdb.set_trace()
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
