@@ -862,7 +862,7 @@ class SequenceContainer:
                     # TODO delete this line once new cigar is 100% working
                     my_cigar2 = CigarStringOld(list_in=relevant_cigar).get_string()
 
-                assert(my_cigar == my_cigar2)
+                assert(my_cigar.cigar == my_cigar2)
                 read[3] = read[3][:self.read_len]
 
             read_out.append([self.fm_pos[my_ploid][read[0]], my_cigar, read[3], str(read[1])])
