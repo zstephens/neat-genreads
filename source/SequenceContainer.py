@@ -620,8 +620,10 @@ class SequenceContainer:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D1M')
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert, abs(indel_length))
                         # TODO Delete commented out lines once CigarString works 100%
-                        assert (temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
+                        check = temp_symbol_string2[v_pos + 1]
                         temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
+                        assert (temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string())
+
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
