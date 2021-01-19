@@ -188,13 +188,13 @@ class CigarString(Cigar):
                 index += 1
         return index, bases_left
 
-    def insert_cigar_element(self, pos: int, insertion_cigar: 'CigarString', length: int = 0) -> None:
+    def insert_cigar_element(self, pos1: int, insertion_cigar: 'CigarString', pos2: int = None) -> None:
         """
         Inserts a cigar string in either string or list format to the existing cigar string at position pos.
 
-        :param length: Length of the items to be consumed by the insertion
         :param insertion_cigar: A cigar to insert into current cigar string
-        :param pos: integer position where to insert the input cigar string
+        :param pos1: integer position where to insert the input cigar string
+        :param pos2: integer position where to pick up the remainder
         :return: None
 
         >>> str1 = CigarString('50M10D7I23M')
@@ -220,54 +220,71 @@ class CigarString(Cigar):
         >>> str1.insert_cigar_element(iPos, str2)
         >>> assert(len(str1) == 11100)
         >>> assert (str1.cigar == "6611M1D4489M")
+
+        >>> str1 = CigarString('10M1I2D10M')
+        >>> str2 = CigarString('1D')
+        >>> pos1 = 10
+        >>> pos2 = pos1 + 2
+        >>> str1.insert_cigar_element(pos1, str2, pos2)
+        >>> cigar_to_insert = '1D1M'
+        >>> str1_list[pos1] = cigar_to_insert
+        >>> test_string = CigarStringOld.list_to_string(str1_list)
+        >>> assert(str1.cigar == test_string)
+
+        >>> original_string = '100M1I10M'
+        >>> original_cigar = CigarString(original_string)
+        >>> v_pos = 9
+        >>> v_pos2 = 9 + 6
+        >>> cigar_to_insert = CigarString('6I')
+        >>> original_cigar.insert_cigar_element(v_pos, cigar_to_insert, v_pos2)
+        >>> cigar_list = CigarStringOld.string_to_list('100M1I10M')
+        >>> indel_length = 6
+        >>> test_string = cigar_list[:v_pos] + ['I'] * indel_length + cigar_list[v_pos2:]
+        >>> test_string = CigarStringOld.list_to_string(test_string)
+        >>> assert (original_cigar.cigar == test_string)
         """
 
         if insertion_cigar is None:
             print('\nError: Invalid insertion operation in CigarString\n')
             sys.exit(1)
 
-        if pos < 0 or pos >= len(self):
+        if pos1 < 0 or pos1 >= len(self):
             print('\nError: Invalid insertion position in CigarString\n')
             sys.exit(1)
 
-        if length < 0:
-            print('\nError: Did not understand the indel length to be inserted\n')
+        if pos2 and (pos2 < pos1 or pos2 >= len(self)):
+            print('\nError: Invalid second position\n')
             sys.exit(1)
 
         try:
             found = False
-            index, bases_remain = self.find_position(pos)
-            new_element = list(self.items())[:index]
-            list_of_items = list(self.items())[index:]
-            if len(list_of_items) == 1:
-                new_element.append((bases_remain, list_of_items[0][1]))
-                new_element += list(insertion_cigar.items())
-                if list_of_items[0][0] - bases_remain >= length:
-                    new_element.append((list_of_items[0][0] - bases_remain - length, list_of_items[0][1]))
-                else:
-                    new_element.append((list_of_items[0][0] - bases_remain, list_of_items[0][1]))
-            else:
-                for item in list_of_items:
-                    if item[1] == 'D':
-                        new_element.append(item)
-                    elif found:
-                        new_element.append(item)
-                    elif bases_remain > item[0]:
-                        new_element.append(item)
-                        bases_remain -= item[0]
-                    elif bases_remain == item[0]:
-                        new_element.append(item)
-                        new_element += list(insertion_cigar.items())
-                        found = True
-                    elif bases_remain < item[0]:
-                        new_element.append((bases_remain, item[1]))
-                        new_element += list(insertion_cigar.items())
-                        if item[0] - bases_remain >= length:
-                            new_element.append((item[0] - bases_remain - length, item[1]))
-                        else:
-                            new_element.append((list_of_items[0][0] - bases_remain, item[1]))
-                        found = True
-            new_string = self.string_from_elements(new_element)
+            start_index, bases_remain = self.find_position(pos1)
+            extra_bases_to_discard = 0
+            if pos2:
+                extra_bases_to_discard = pos2 - pos1
+            # TODO search for all instances of insert and get fragment and make sure they all work
+            ret = list(self.items())[:start_index]
+            items_to_iterate = list(self.items())[start_index:]
+            new_item = ((bases_remain, items_to_iterate[0][1]), (items_to_iterate[0][0]
+                                                                 - bases_remain, items_to_iterate[0][1]))
+            ret.append(new_item[0])
+            items_to_iterate[0:1] = new_item[1:]
+            ret += [item for item in insertion_cigar.items()]
+            for item in items_to_iterate:
+                if item[1] == 'D':
+                    ret.append(item)
+                elif found:
+                    ret.append(item)
+                elif extra_bases_to_discard > item[0]:
+                    extra_bases_to_discard -= item[0]
+                elif extra_bases_to_discard == item[0]:
+                    extra_bases_to_discard = 0
+                    found = True
+                elif extra_bases_to_discard < item[0]:
+                    ret.append((item[0] - extra_bases_to_discard, item[1]))
+                    extra_bases_to_discard = 0
+                    found = True
+            new_string = self.string_from_elements(ret)
             self.cigar = CigarString(new_string).merge_like_ops().cigar
         except ValueError:
             print('\nBug: Problem with insertion.\n')
@@ -432,16 +449,6 @@ class CigarString(Cigar):
 
 
 if __name__ == "__main__":
-    original_string = '2064M1I12979M3D18439M'
-    original_cigar = CigarString(original_string)
-    v_pos = 15414
-    cigar_to_insert = CigarString('6I')
-    original_cigar.insert_cigar_element(v_pos, cigar_to_insert, 1)
-    if original_cigar.cigar == '2064M1I12979M3D370M6I18068M':
-        print("OKAY")
-    else:
-        print("NOT OKKKAAAAAY")
-
     str1 = CigarString('50M10D7I23M')
     str2 = CigarString('10I25M')
     iPos = 55
@@ -466,4 +473,27 @@ if __name__ == "__main__":
     assert (len(str1) == 11100)
     assert (str1.cigar == "6611M1D4489M")
 
-    str1 = CigarString('')
+    str1 = CigarString('10M1I2D10M')
+    str2 = CigarString('1D1M')
+    pos1 = 10
+    pos2 = pos1 + 2
+    str1_list = str1.string_to_list()
+    cigar_to_insert = '1D1M'
+    str1_list[pos1] = cigar_to_insert
+    test_string = CigarStringOld.list_to_string(str1_list)
+    str1.insert_cigar_element(pos1, str2, pos1+1)
+    assert (str1.cigar == test_string)
+
+    original_string = '100M1I10M'
+    cig2 = CigarStringOld(string_in=original_string).get_list()
+    original_cigar = CigarString(original_string)
+    v_pos = 9
+    v_pos2 = 9 + 6
+    cigar_to_insert = CigarString('6I')
+    original_cigar.insert_cigar_element(v_pos, cigar_to_insert, v_pos2)
+    cigar_list = CigarStringOld.string_to_list('100M1I10M')
+    indel_length = 6
+    test_string = cigar_list[:v_pos] + ['I'] * indel_length + cigar_list[v_pos2:]
+    test_string = CigarStringOld.list_to_string(test_string)
+    assert (original_cigar.cigar == test_string)
+

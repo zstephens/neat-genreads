@@ -614,7 +614,7 @@ class SequenceContainer:
                         cigar_to_insert = CigarString(str(indel_length) + 'I')
                         original_string = copy.deepcopy(temp_symbol_string)
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert,
-                                                                len(all_indels_ins[i][j][1]))
+                                                                v_pos2 + 1)
                         # TODO Delete commented out lines once CigarString works 100%
                         original_list = copy.deepcopy(temp_symbol_string2)
                         temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
@@ -625,7 +625,7 @@ class SequenceContainer:
                     elif indel_length < 0:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D1M')
                         original_string = copy.deepcopy(temp_symbol_string)
-                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert, 1)
+                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert)
                         # TODO Delete commented out lines once CigarString works 100%
                         original_list = copy.deepcopy(temp_symbol_string2)
                         temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
