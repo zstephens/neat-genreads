@@ -623,7 +623,7 @@ class SequenceContainer:
                             print('something wrong with inserting')
                             pdb.set_trace()
                     elif indel_length < 0:
-                        cigar_to_insert = CigarString(str(abs(indel_length)) + 'D1M')
+                        cigar_to_insert = CigarString(str(abs(indel_length)) + 'D')
                         original_string = copy.deepcopy(temp_symbol_string)
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert)
                         # TODO Delete commented out lines once CigarString works 100%
