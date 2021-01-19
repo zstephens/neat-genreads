@@ -181,7 +181,7 @@ class CigarString(Cigar):
                 index += 1
                 continue
             consumed_bases += item[0]
-            if consumed_bases > position:
+            if consumed_bases >= position:
                 return index, bases_left
             else:
                 bases_left -= item[0]
@@ -339,6 +339,12 @@ class CigarString(Cigar):
         >>> end = 25180
         >>> frag = temp_symbol_string.get_cigar_fragment(start, end)
         >>> assert(frag.cigar == '99M1D1M')
+
+        >>> temp_symbol_string = CigarString('25179M1D8304M')
+        >>> start = 25079
+        >>> end = start + 100
+        >>> frag = temp_symbol_string.get_cigar_fragment(start, end)
+        >>> assert(frag.cigar = "100M")
         """
         # Minus 1 because python slices don't include the end coordinate
         window_size = end - start
@@ -449,51 +455,9 @@ class CigarString(Cigar):
 
 
 if __name__ == "__main__":
-    str1 = CigarString('50M10D7I23M')
-    str2 = CigarString('10I25M')
-    iPos = 55
-    str1.insert_cigar_element(iPos, str2)
-    assert (str1.cigar == "50M10D15I25M2I23M")
-
-    str1 = CigarString('50M10D7I23M')
-    iPos = 20
-    str1.insert_cigar_element(iPos, str2)
-    assert (str1.cigar == "20M10I55M10D7I23M")
-
-    str1 = CigarString('11100M')
-    str2 = CigarString('2I')
-    iPos = 5785 + 1
-    str1.insert_cigar_element(iPos, str2)
-    assert (str1.cigar == "5786M2I5314M")
-
-    str1 = CigarString('11100M')
-    str2 = CigarString('1D')
-    iPos = 6610 + 1
-    str1.insert_cigar_element(iPos, str2)
-    assert (len(str1) == 11100)
-    assert (str1.cigar == "6611M1D4489M")
-
-    str1 = CigarString('10M1I2D10M')
-    str2 = CigarString('1D1M')
-    pos1 = 10
-    pos2 = pos1 + 2
-    str1_list = str1.string_to_list()
-    cigar_to_insert = '1D1M'
-    str1_list[pos1] = cigar_to_insert
-    test_string = CigarStringOld.list_to_string(str1_list)
-    str1.insert_cigar_element(pos1, str2, pos1+1)
-    assert (str1.cigar == test_string)
-
-    original_string = '100M1I10M'
-    cig2 = CigarStringOld(string_in=original_string).get_list()
-    original_cigar = CigarString(original_string)
-    v_pos = 9
-    v_pos2 = 9 + 6
-    cigar_to_insert = CigarString('6I')
-    original_cigar.insert_cigar_element(v_pos, cigar_to_insert, v_pos2)
-    cigar_list = CigarStringOld.string_to_list('100M1I10M')
-    indel_length = 6
-    test_string = cigar_list[:v_pos] + ['I'] * indel_length + cigar_list[v_pos2:]
-    test_string = CigarStringOld.list_to_string(test_string)
-    assert (original_cigar.cigar == test_string)
+    temp_symbol_string = CigarString('25179M1D8304M')
+    start = 25079
+    end = start + 100
+    frag = temp_symbol_string.get_cigar_fragment(start, end)
+    assert (frag.cigar == "100M")
 
