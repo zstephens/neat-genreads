@@ -379,6 +379,7 @@ class CigarString(Cigar):
                         bases = item[0] - bases_remain
                         if bases <= 0:
                             print("Something went wrong retrieving fragment")
+                            pdb.set_trace()
                             sys.exit(1)
                         bases_remain = 0
                         window_size -= bases
@@ -395,6 +396,7 @@ class CigarString(Cigar):
 
         except ValueError:
             print('\nBug: Problem retrieving fragment.\n')
+            pdb.set_trace()
             sys.exit(1)
 
     # TODO use this method or delete it.
@@ -459,5 +461,6 @@ if __name__ == "__main__":
     start = 25079
     end = start + 100
     frag = temp_symbol_string.get_cigar_fragment(start, end)
+    print(frag)
     assert (frag.cigar == "100M")
 
