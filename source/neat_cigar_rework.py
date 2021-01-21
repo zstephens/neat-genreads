@@ -161,7 +161,7 @@ class CigarString(Cigar):
     def __repr__(self):
         return "CigarString('%s')" % self
 
-    def find_position(self, position: int) -> int:
+    def find_position(self, position: int) -> (int,int):
         """
         This finds the index of the element of list(self.items()) that contains the starting position given.
 
@@ -227,6 +227,7 @@ class CigarString(Cigar):
         >>> pos2 = pos1 + 2
         >>> str1.insert_cigar_element(pos1, str2, pos2)
         >>> cigar_to_insert = '1D1M'
+        >>> str1_list = str1.string_to_list()
         >>> str1_list[pos1] = cigar_to_insert
         >>> test_string = CigarStringOld.list_to_string(str1_list)
         >>> assert(str1.cigar == test_string)
@@ -263,27 +264,40 @@ class CigarString(Cigar):
             if pos2:
                 extra_bases_to_discard = pos2 - pos1
             # TODO search for all instances of insert and get fragment and make sure they all work
-            ret = list(self.items())[:start_index]
+            new_element = list(self.items())[:start_index]
             items_to_iterate = list(self.items())[start_index:]
             new_item = ((bases_remain, items_to_iterate[0][1]), (items_to_iterate[0][0]
                                                                  - bases_remain, items_to_iterate[0][1]))
-            ret.append(new_item[0])
+            new_element.append(new_item[0])
             items_to_iterate[0:1] = new_item[1:]
-            ret += [item for item in insertion_cigar.items()]
+            new_element += [item for item in insertion_cigar.items()]
             for item in items_to_iterate:
-                if item[1] == 'D':
-                    ret.append(item)
+                if item[0] == 0:
+                    continue
+                if extra_bases_to_discard <= 0 and item[1] == 'D':
+                    new_element.append(item)
+                elif extra_bases_to_discard > 0 and item[1] == 'D':
+                    continue
                 elif found:
-                    ret.append(item)
+                    new_element.append(item)
                 elif extra_bases_to_discard > item[0]:
                     extra_bases_to_discard -= item[0]
                 elif extra_bases_to_discard == item[0]:
                     extra_bases_to_discard = 0
                     found = True
                 elif extra_bases_to_discard < item[0]:
-                    ret.append((item[0] - extra_bases_to_discard, item[1]))
+                    new_element.append((item[0] - extra_bases_to_discard, item[1]))
                     extra_bases_to_discard = 0
                     found = True
+
+            # The point of this block of code is just to trim off any starting or ending "D"s, so we don't have
+            # something like "100M1D" as the return.
+            ret = new_element
+            for i in range(len(new_element)):
+                if new_element[0][1] == 'D':
+                    ret = new_element[1:]
+                if new_element[-1][1] == 'D':
+                    ret = new_element[:-1]
             new_string = self.string_from_elements(ret)
             self.cigar = CigarString(new_string).merge_like_ops().cigar
         except ValueError:
@@ -344,10 +358,11 @@ class CigarString(Cigar):
         >>> start = 25079
         >>> end = start + 100
         >>> frag = temp_symbol_string.get_cigar_fragment(start, end)
-        >>> assert(frag.cigar = "100M")
+        >>> assert(frag.cigar == "100M")
         """
         # Minus 1 because python slices don't include the end coordinate
         window_size = end - start
+        remaining_window = window_size
         if window_size < 0:
             print(f'\nError: start and end coordinates for get_cigar_fragment '
                   f'are wrong: start: {start}, end: {end}')
@@ -373,25 +388,37 @@ class CigarString(Cigar):
                 new_element.append((window_size, list_of_items[0][1]))
             else:
                 for item in list_of_items:
+                    if sum([item[0] for item in new_element if item[1] != 'D']) == window_size:
+                        break
                     if item[1] == 'D':
                         new_element.append(item)
                     elif bases_remain > 0:
-                        bases = item[0] - bases_remain
-                        if bases <= 0:
+                        bases_remain = item[0] - bases_remain
+                        if bases_remain < 0:
                             print("Something went wrong retrieving fragment")
                             pdb.set_trace()
                             sys.exit(1)
+                        elif bases_remain == 0:
+                            continue
+                        new_element.append((bases_remain, item[1]))
+                        remaining_window -= bases_remain
                         bases_remain = 0
-                        window_size -= bases
-                        new_element.append((bases, item[1]))
-                    elif window_size > item[0]:
+                    elif remaining_window > item[0]:
                         new_element.append(item)
-                        window_size -= item[0]
-                    elif window_size <= item[0]:
-                        new_element.append((window_size, item[1]))
+                        remaining_window -= item[0]
+                    elif remaining_window <= item[0]:
+                        new_element.append((remaining_window, item[1]))
                         break
 
-            new_string = self.string_from_elements(new_element)
+            # The point of this block of code is just to trim off any starting or ending "D"s, so we don't have
+            # something like "100M1D" as the return.
+            ret = new_element
+            for i in range(len(new_element)):
+                if new_element[0][1] == 'D':
+                    ret = new_element[1:]
+                if new_element[-1][1] == 'D':
+                    ret = new_element[:-1]
+            new_string = self.string_from_elements(ret)
             return CigarString(new_string).merge_like_ops()
 
         except ValueError:
@@ -457,10 +484,16 @@ class CigarString(Cigar):
 
 
 if __name__ == "__main__":
-    temp_symbol_string = CigarString('25179M1D8304M')
-    start = 25079
-    end = start + 100
-    frag = temp_symbol_string.get_cigar_fragment(start, end)
-    print(frag)
-    assert (frag.cigar == "100M")
+    str1 = CigarString('10M1I2D10M')
+    str2 = CigarString('1D')
+    pos1 = 10
+    pos2 = pos1 + 2
+    str1.insert_cigar_element(pos1, str2, pos2)
+    cigar_to_insert = '1D1M'
+    str1_list = str1.string_to_list()
+    str1_list[pos1] = cigar_to_insert
+    test_string = CigarStringOld.list_to_string(str1_list)
+    assert (str1.cigar == test_string)
+
+
 
