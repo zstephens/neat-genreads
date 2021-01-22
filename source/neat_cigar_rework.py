@@ -5,7 +5,7 @@ from operator import itemgetter
 from source.neat_cigar import CigarString as CigarStringOld
 
 
-class CigarString():
+class CigarString:
     """
     This code borrowed in whole from https://github.com/brentp/cigar
 
