@@ -303,7 +303,7 @@ class CigarString:
                         bases_remain = item[0] - bases_remain
                         if bases_remain < 0:
                             print("Something went wrong retrieving fragment")
-                            pdb.set_trace()
+                            # pdb.set_trace()
                             sys.exit(1)
                         elif bases_remain == 0:
                             continue
@@ -330,7 +330,7 @@ class CigarString:
 
         except ValueError:
             print('\nBug: Problem retrieving fragment.\n')
-            pdb.set_trace()
+            # pdb.set_trace()
             sys.exit(1)
 
     # TODO use this method or delete it.

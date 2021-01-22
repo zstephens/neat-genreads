@@ -603,14 +603,16 @@ def main(raw_args=None):
                     if [cigar for cigar in sequences.all_cigar[0] if len(cigar) != 100] or \
                             [cig for cig in sequences.all_cigar[1] if len(cig) != 100]:
                         print("There's a cigar that's off.")
-                        pdb.set_trace()
+                        # pdb.set_trace()
+                        sys.exit(1)
                 else:
                     sequences.update(start, ref_sequence[start:end], ploids, overlap, read_len, [mut_model] * ploids,
                                      mut_rate)
                     if [cigar for cigar in sequences.all_cigar[0] if len(cigar) != 100] or \
                             [cig for cig in sequences.all_cigar[1] if len(cig) != 100]:
                         print("There's a cigar that's off.")
-                        pdb.set_trace()
+                        # pdb.set_trace()
+                        sys.exit(1)
 
                 # insert variants
                 sequences.insert_mutations(vars_from_prev_overlap + vars_in_window)

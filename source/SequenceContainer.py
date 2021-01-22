@@ -593,7 +593,8 @@ class SequenceContainer:
             temp_symbol_string2 = ['M' for _ in self.sequences[i]]
             if not temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
                 print('something wrong with temp symbol creation')
-                pdb.set_trace()
+                # pdb.set_trace()
+                sys.exit(1)
 
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
@@ -621,7 +622,8 @@ class SequenceContainer:
                                               ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
                         if not temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
                             print('something wrong with inserting')
-                            pdb.set_trace()
+                            # pdb.set_trace()
+                            sys.exit(1)
                     elif indel_length < 0:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D')
                         original_string = copy.deepcopy(temp_symbol_string)
@@ -631,7 +633,8 @@ class SequenceContainer:
                         temp_symbol_string2[v_pos + 1] = 'D' * abs(indel_length) + 'M'
                         if not temp_symbol_string.cigar == CigarStringOld(list_in=temp_symbol_string2).get_string():
                             print('something wrong with deletion')
-                            pdb.set_trace()
+                            # pdb.set_trace()
+                            sys.exit(1)
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
@@ -641,7 +644,8 @@ class SequenceContainer:
                 if temp_symbol_string.get_cigar_fragment(j, j + self.read_len).cigar != CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string():
                     print("new " + str(temp_symbol_string.get_cigar_fragment(j, j + self.read_len)))
                     print("old " + CigarStringOld(list_in=temp_symbol_string2[j:j + self.read_len]).get_string())
-                    pdb.set_trace()
+                    # pdb.set_trace()
+                    sys.exit(1)
 
             # create some data structures we will need later:
             # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
@@ -816,7 +820,7 @@ class SequenceContainer:
                                 expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
                             except IndexError:
                                 print("Bug!! Index error on expanded cigar")
-                                pdb.set_trace()
+                                # pdb.set_trace()
                                 sys.exit(1)
 
                         else:
