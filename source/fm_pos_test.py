@@ -1,5 +1,5 @@
-from source.neat_cigar_rework import CigarString as CigarStringNew
-from source.neat_cigar import CigarString
+from source.neat_cigar import CigarString as CigarStringNew
+from source.neat_cigar_old import CigarString
 from time import time
 
 ploidy = 2

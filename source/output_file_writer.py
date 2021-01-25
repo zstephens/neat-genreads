@@ -1,14 +1,8 @@
-import sys
-import os
-import re
-import gzip
 from struct import pack
-from Bio.Seq import Seq
-from Bio import SeqIO
 import gzip
 from Bio.bgzf import *
 import pathlib
-from source.neat_cigar_rework import CigarString
+from source.neat_cigar import CigarString
 
 # from source.biopython_modified_bgzf import BgzfWriter
 
@@ -220,9 +214,6 @@ class OutputFileWriter:
         for item in cigar.items():
             cig_numbers.append(item[0])
             cig_letters.append(item[1])
-        # TODO delete the following two lines once the new cigar rework is 100% working
-        # cig_letters = re.split(r"\d+", cigar)[1:]
-        # cig_numbers = [int(n) for n in re.findall(r"\d+", cigar)]
         cig_ops = len(cig_letters)
         next_ref_id = ref_id
         if mate_pos is None:

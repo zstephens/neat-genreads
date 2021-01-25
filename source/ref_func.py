@@ -96,7 +96,6 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
     else:
         ref_file = open(absolute_reference_path, 'r')
 
-
     # TODO convert to SeqIO containers
     ref_file.seek(ref_inds_i[1])
     my_dat = ''.join(ref_file.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
