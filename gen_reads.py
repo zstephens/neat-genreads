@@ -93,7 +93,7 @@ def main(raw_args=None):
                              'things like read locations, variant positions, error positions, etc, '
                              'should all be the same.')
     # TODO check if this argument does anything at all. Near as I can tell the results are ALWAYS gzipped.
-    # parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
+    parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
     parser.add_argument('--no-fastq', required=False, action='store_true', default=False,
                         help='bypass fastq generation')
     parser.add_argument('--discard-offtarget', required=False, action='store_true', default=False,
