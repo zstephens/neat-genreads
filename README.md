@@ -200,7 +200,7 @@ To simulate human WGS 50X, try 50 chunks or less.
 # Utilities	
 Several scripts are distributed with genReads that are used to generate the models used for simulation.
 
-## computeGC.py
+## compute_gc.py
 
 Computes GC% coverage bias distribution from sample (bedrolls genomecov) data.
 Takes .genomecov files produced by BEDtools genomeCov (with -d option).
@@ -220,7 +220,7 @@ python computeGC.py                 \
         -o /path/to/model.p
 ```
 
-## computeFraglen.py
+## compute_fraglen.py
 
 Computes empirical fragment length distribution from sample data.
 Takes SAM file via stdin:
@@ -229,7 +229,7 @@ Takes SAM file via stdin:
 
 and creates fraglen.p model in working directory.
 
-## genMutModel.py
+## gen_mut_model.py
 
 Takes references genome and TSV file to generate mutation models:
 
@@ -241,6 +241,17 @@ python genMutModel.py               \
 ```
 
 Trinucleotides are identified in the reference genome and the variant file. Frequencies of each trinucleotide transition are calculated and output as a pickle (.p) file.
+
+Option           |  Description
+------           |:----------
+-r <str>         |  Reference file for organism in FASTA format. Required
+-m <str>         |  Mutation file for organism in VCF format. Required
+-o <str>         |  Path to output file and prefix. Required. 
+-b <str>         |  BED file of regions to include
+--save-trinuc    |  Save trinucleotide counts for reference
+--human-sample   |  Use to skip unnumbered scaffolds in human references
+--skip-common    |  Do not save common snps or high mutation areas
+	
 
 ## genSeqErrorModel.py
 
@@ -259,6 +270,7 @@ python genSeqErrorModel.py                            \
         -s number of simulation iterations [1000000]  \
         --plot perform some optional plotting
 ```
+
 ## plotMutModel.py
 
 Performs plotting and comparison of mutation models generated from genMutModel.py.
@@ -276,8 +288,6 @@ Tool for comparing VCF files.
 
 ```
 python vcf_compare_OLD.py
-        --version          show program's version number and exit      \
-        -h, --help         show this help message and exit             \
         -r <ref.fa>        * Reference Fasta                           \
         -g <golden.vcf>    * Golden VCF                                \
         -w <workflow.vcf>  * Workflow VCF                              \
