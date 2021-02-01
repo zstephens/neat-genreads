@@ -62,12 +62,14 @@ Option           |  Description
 -c <float>       |  Average coverage across the entire dataset. Default: 10
 -e <str>         |  Sequencing error model pickle file
 -E <float>       |  Average sequencing error rate. The sequencing error rate model is rescaled to make this the average value. 
--p <int>         |  ploidy [2]
--t <str>         |  bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
+-p <int>         |  Sample Ploidy, default 2
+-t <str>         |  Bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
+-d <str>	 |  Bed file with sample regions to discard.
 -to <float>      |  off-target coverage scalar [0.02]
 -m <str>         |  mutation model pickle file
 -M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3. These random mutations are inserted in addition to the once specified in the -v option.
--s <str>         |  input sample model
+-Mb <str>	 |  Bed file containing positional mutation rates
+-N <int>	 |  Below this quality score, base-call's will be replaced with N's
 -v <str>         |  Input VCF file. Variants from this VCF will be inserted into the simulated sequence with 100% certainty.
 --pe <int> <int> |  Paired-end fragment length mean and standard deviation. To produce paired end data, one of --pe or --pe-model must be specified.
 --pe-model <str> |  Empirical fragment length distribution. Can be generated using [computeFraglen.py](#computefraglenpy). To produce paired end data, one of --pe or --pe-model must be specified.
@@ -76,9 +78,12 @@ Option           |  Description
 --nnr            |  save non-N ref regions (for parallel jobs)
 --bam            |  Output golden BAM file
 --vcf            |  Output golden VCF file
+--fa		 |  Output FASTA instead of FASTQ
 --rng <int>      |  rng seed value; identical RNG value should produce identical runs of the program, so things like read locations, variant positions, error positions, etc, should all be the same.
 --gz             |  Gzip output FQ and VCF
 --no-fastq       |  Bypass generation of FASTQ read files
+--discard-offtarget |  Discard reads outside of targeted regions
+--rescale-qual   |  Rescale Quality scores to match -E input
 
 
 ## Functionality
