@@ -5,6 +5,7 @@ import gzip
 import pathlib
 import random
 from Bio.Seq import Seq
+from Bio import SeqIO
 
 OK_CHR_ORD = {'A': True, 'C': True, 'G': True, 'T': True, 'U': True}
 ALLOWED_NUCL = ['A', 'C', 'G', 'T']
@@ -97,10 +98,15 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
         ref_file = open(absolute_reference_path, 'r')
 
     # TODO convert to SeqIO containers
+    # for seq_record in SeqIO.parse(ref_file, "fasta"):
+    #     pass
+
+
     ref_file.seek(ref_inds_i[1])
     my_dat = ''.join(ref_file.read(ref_inds_i[2] - ref_inds_i[1]).split('\n'))
     my_dat = Seq(my_dat.upper())
-    my_dat = my_dat.tomutable()
+    # Mutable seqs have a number of disadvantages. I'm going to try making them immutable and see if that helps
+    # my_dat = my_dat.tomutable()
 
     # find N regions
     # data explanation: my_dat[n_atlas[0][0]:n_atlas[0][1]] = solid block of Ns
@@ -120,13 +126,16 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
             n_count = 0
 
     # handle N base-calls as desired
+    # TODO this seems to randomly replace an N with a base. Is this necessary? How to do this in an immutable seq?
     n_info = {'all': [], 'big': [], 'non_N': []}
     if n_handling[0] == 'random':
         for region in n_atlas:
             n_info['all'].extend(region)
             if region[1] - region[0] <= n_handling[1]:
                 for i in range(region[0], region[1]):
-                    my_dat[i] = random.choice(ALLOWED_NUCL)
+                    temp = my_dat.tomutable()
+                    temp[i] = random.choice(ALLOWED_NUCL)
+                    my_dat = temp.toseq()
             else:
                 n_info['big'].extend(region)
     elif n_handling[0] == 'allChr' and n_handling[2] in OK_CHR_ORD:
@@ -134,7 +143,9 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
             n_info['all'].extend(region)
             if region[1] - region[0] <= n_handling[1]:
                 for i in range(region[0], region[1]):
-                    my_dat[i] = n_handling[2]
+                    temp = my_dat.tomutable()
+                    temp[i] = n_handling[2]
+                    my_dat = temp.toseq()
             else:
                 n_info['big'].extend(region)
     elif n_handling[0] == 'ignore':

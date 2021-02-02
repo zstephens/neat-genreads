@@ -2,6 +2,7 @@ import sys
 from itertools import groupby
 from operator import itemgetter
 from source.neat_cigar_old import CigarString as CigarStringOld
+import timeit
 
 
 class CigarString:
@@ -23,6 +24,8 @@ class CigarString:
 
     def __init__(self, cigar_string):
         self.cigar = cigar_string
+        # storing length as an attribute to see if that speeds anything up.
+        self.length = sum(l for l, op in self.items() if op in CigarString.read_consuming_ops)
 
     def items(self):
         if self.cigar == "*":
@@ -42,7 +45,7 @@ class CigarString:
         """
         sum of MIS=X ops shall equal the sequence length.
         """
-        return sum(l for l, op in self.items() if op in CigarString.read_consuming_ops)
+        return self.length
 
     @classmethod
     def string_from_elements(cls, elements):
@@ -387,16 +390,27 @@ class CigarString:
 
 
 if __name__ == "__main__":
-    str1 = CigarString('10M1I2D10M')
-    str2 = CigarString('1D')
-    pos1 = 10
-    pos2 = pos1 + 2
-    str1.insert_cigar_element(pos1, str2, pos2)
-    cigar_to_insert = '1D1M'
-    str1_list = str1.string_to_list()
-    str1_list[pos1] = cigar_to_insert
-    test_string = CigarStringOld.list_to_string(str1_list)
-    assert (str1.cigar == test_string)
+    string = '25179M1D8304M'
+    start = 25079
+    end = start + 100
+
+    temp_symbol_string = CigarString('25179M1D8304M')
+    eval_list = temp_symbol_string.string_to_list()
+    frag = temp_symbol_string.get_cigar_fragment(start, end)
+
+    def eval1():
+        temp_symbol_string = CigarString('25179M1D8304M')
+        temp_symbol_string.get_cigar_fragment(start, end)
+
+    def eval2():
+        temp_symbol_string2 = CigarStringOld(string_in='25179M1D8304M').get_list()
+        temp_symbol_string2[start:end]
+
+    print("new method: " + str(timeit.timeit('eval1()', number=10000, globals=globals())))
+    print("original method: " + str(timeit.timeit('eval2()', number=10000, globals=globals())))
+    print(timeit.timeit('eval_list[start:end]', number=10000, globals=globals()))
+
+
 
 
 

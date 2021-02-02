@@ -24,6 +24,7 @@ import pickle
 import numpy as np
 import argparse
 import pathlib
+# from Bio import SeqIO
 
 from source.input_checking import check_file_open, is_in_range
 from source.ref_func import index_ref, read_ref
@@ -272,13 +273,17 @@ def main(raw_args=None):
     # index reference: [(0: chromosome name, 1: byte index where the contig seq begins,
     #                    2: byte index where the next contig begins, 3: contig seq length),
     #                    (repeat for every chrom)]
-    # TODO check to see if this might work better as a dataframe
+    # TODO check to see if this might work better as a dataframe or biopython object
     ref_index = index_ref(reference)
+
+    # TODO check if this index can work, maybe it's faster
+    # ref_index2 = SeqIO.index(reference, 'fasta')
 
     if paired_end:
         n_handling = ('random', fragment_size)
     else:
         n_handling = ('ignore', read_len)
+
 
     indices_by_ref_name = {ref_index[n][0]: n for n in range(len(ref_index))}
     ref_list = [n[0] for n in ref_index]
@@ -375,6 +380,7 @@ def main(raw_args=None):
     # initialize output files (part I)
     bam_header = None
     if save_bam:
+        # TODO wondering if this is actually needed in the bam_header
         bam_header = [copy.deepcopy(ref_index)]
     vcf_header = None
     if save_vcf:

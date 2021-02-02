@@ -9,6 +9,7 @@ import numpy as np
 from Bio.Seq import Seq
 
 from source.neat_cigar import CigarString
+from source.neat_cigar_new import CigarString as CigarStringNew
 from source.probability import DiscreteDistribution, poisson_list
 
 """
@@ -100,13 +101,14 @@ class SequenceContainer:
         self.x = x_offset
         self.ploidy = ploidy
         self.read_len = read_len
-        self.sequences = [Seq(str(sequence)).tomutable() for _ in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence)) for _ in range(self.ploidy)]
         self.seq_len = len(sequence)
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
         self.all_cigar2 = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
+        self.fm_pos2 = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
 
         # Blacklist explanation:
@@ -193,14 +195,16 @@ class SequenceContainer:
         self.x = x_offset
         self.ploidy = ploidy
         self.read_len = read_len
-        self.sequences = [Seq(str(sequence)).tomutable() for _ in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence)) for _ in range(self.ploidy)]
         self.seq_len = len(sequence)
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
         self.all_cigar2 = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
+        self.fm_pos2 = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
+        self.fm_span2 = [[] for _ in range(self.ploidy)]
         self.black_list = [np.zeros(self.seq_len, dtype='<i4') for _ in range(self.ploidy)]
 
         # disallow mutations to occur on window overlap points
@@ -566,16 +570,18 @@ class SequenceContainer:
 
         # MODIFY REFERENCE STRING: SNPS
         for i in range(len(all_snps)):
+            temp = self.sequences[i].tomutable()
             for j in range(len(all_snps[i])):
                 v_pos = all_snps[i][j][0]
 
-                if all_snps[i][j][1] != self.sequences[i][v_pos]:
-                    print('\nError: Something went wrong!\n', all_snps[i][j], self.sequences[i][v_pos], '\n')
+                if all_snps[i][j][1] != temp[v_pos]:
+                    print('\nError: Something went wrong!\n', all_snps[i][j], temp[v_pos], '\n')
                     print(all_snps[i][j])
                     print(self.sequences[i][v_pos])
                     sys.exit(1)
                 else:
-                    self.sequences[i][v_pos] = all_snps[i][j][2]
+                    temp[v_pos] = all_snps[i][j][2]
+            self.sequences[i] = temp.toseq()
 
         # organize the indels we want to insert
         for i in range(len(all_indels)):
@@ -585,7 +591,11 @@ class SequenceContainer:
         # MODIFY REFERENCE STRING: INDELS
         for i in range(len(all_indels_ins)):
             rolling_adj = 0
+            # TODO CigarString might be too slow. Convert these to lists
             temp_symbol_string = CigarString(str(len(self.sequences[i])) + "M")
+            temp_symbol_string2 = CigarStringNew(str(len(self.sequences[i])) + "M")
+
+            assert (temp_symbol_string.string_to_list() == temp_symbol_string2.cigar)
 
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
@@ -599,38 +609,57 @@ class SequenceContainer:
                     sys.exit(1)
                 else:
                     # alter reference sequence
-                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2]).tomutable() + \
+                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2]) + \
                                         self.sequences[i][v_pos2:]
                     # notate indel positions for cigar computation
                     if indel_length > 0:
                         cigar_to_insert = CigarString(str(indel_length) + 'I')
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert,
                                                                 v_pos2 + 1)
+                        temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
+                                              ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
                     elif indel_length < 0:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D')
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert)
+                        temp_symbol_string2[v_pos + 1] = "D" * abs(indel_length) + "M"
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
+                # TODO see if there is a way to do this more efficiently
                 self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
+                self.all_cigar2[i].append(temp_symbol_string2[j:j + self.read_len])
 
             # create some data structures we will need later:
-            # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
+            # --- self.fm_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
             #       corresponding to the unmodified reference genome)
-            # --- self.FM_span[ploid][pos]: number of reference positions spanned by a read originating from
+            # --- self.fm_span[ploid][pos]: number of reference positions spanned by a read originating from
             #       this coordinate
             md_so_far = 0
+            # TODO the following will replace the block below if everything goes well
+            for j in range(len(temp_symbol_string2)):
+                self.fm_pos2[i].append(md_so_far)
+                # fix an edge case with deletions
+                if 'D' in temp_symbol_string2[j]:
+                    self.fm_pos2[i][-1] += temp_symbol_string2[j].count('D')
+                # compute number of ref matches for each read
+                span_dif = len([n for n in temp_symbol_string2[j: j+self.read_len] if 'M' in n])
+                self.fm_span2[i].append(self.fm_pos2[i][-1] + span_dif)
+                md_so_far += temp_symbol_string2[j].count('M') + temp_symbol_string2[j].count('D')
+            # TODO can this be done with new cigar string method?
             temp_symbol_string_list = temp_symbol_string.string_to_list()
+            md_so_far = 0
             for j in range(len(temp_symbol_string_list)):
                 self.fm_pos[i].append(md_so_far)
                 # fix an edge case with deletions
                 if temp_symbol_string_list[j] == 'D':
                     self.fm_pos[i][-1] += temp_symbol_string_list[j].count('D')
                 # compute number of ref matches for each read
+                # TODO convert to cigar string
                 span_dif = len([n for n in temp_symbol_string_list[j:j + self.read_len] if 'M' in n])
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
                 md_so_far += temp_symbol_string_list[j].count('M') + temp_symbol_string_list[j].count('D')
 
+        # TODO compare the above two methods
         # tally up all the variants we handled...
         count_dict = {}
         all_variants = [sorted(all_snps[i] + all_indels[i]) for i in range(self.ploidy)]

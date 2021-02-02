@@ -2,22 +2,40 @@ from struct import pack
 import gzip
 from Bio.bgzf import *
 import pathlib
-from source.neat_cigar import CigarString
+import timeit
+from utilities.generate_random_dna import generate_random_dna
+from Bio.Seq import Seq
 
 # from source.biopython_modified_bgzf import BgzfWriter
 
 BAM_COMPRESSION_LEVEL = 6
 
 
-# TODO figure out why these functions are in this file in the first place
+# def reverse_complement(dna_string: str) -> str:
+#     """
+#     Return the reverse complement of a string from a DNA strand
+#     :param dna_string: string of DNA
+#     :return: the reverse compliment of the above string
+#     """
+#     rc_dict = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+#     return ''.join(rc_dict[n] for n in dna_string[::-1])
+
+
 def reverse_complement(dna_string: str) -> str:
     """
-    Return the reverse complement of a string from a DNA strand
-    :param dna_string: string of DNA
-    :return: the reverse compliment of the above string
+    Return the reverse complement of a string from a DNA strand. Found this method that is slightly faster than
+    biopython. Thanks to this stack exchange post:
+    https://bioinformatics.stackexchange.com/questions/3583/what-is-the-fastest-way-to-get-the-reverse-complement-of-a-dna-sequence-in-pytho #noqa
+    :param dna_string: string of DNA, either in string or MutableSeq format
+    :return: the reverse complement of the above string in either string or MutableSeq format
     """
-    rc_dict = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
-    return ''.join(rc_dict[n] for n in dna_string[::-1])
+    if type(dna_string) != str:
+        dna_string.reverse_complement()
+        return dna_string
+    else:
+        tab = str.maketrans("ACTGN", "TGACN")
+
+        return dna_string.translate(tab)[::-1]
 
 
 # SAMtools reg2bin function
@@ -182,21 +200,21 @@ class OutputFileWriter:
     # TODO add write_fasta_record
 
     def write_fastq_record(self, read_name, read1, qual1, read2=None, qual2=None, orientation=None):
-        (read1, quality1) = (str(read1), qual1)
+        (read1, quality1) = (read1, qual1)
         if read2 is not None and orientation is True:
-            (read2, quality2) = (str(reverse_complement(read2)), qual2[::-1])
+            (read2, quality2) = (read2.reverse_complement(), qual2[::-1])
         elif read2 is not None and orientation is False:
-            (read1, quality1) = (str(reverse_complement(read2)), qual2[::-1])
-            (read2, quality2) = (str(read1), qual1)
+            (read1, quality1) = (read2.reverse_complement(), qual2[::-1])
+            (read2, quality2) = (read1, qual1)
 
         if self.fasta_instead:
-            self.fq1_buffer.append('>' + read_name + '/1\n' + read1 + '\n')
+            self.fq1_buffer.append('>' + read_name + '/1\n' + read1.seq + '\n')
             if read2 is not None:
-                self.fq2_buffer.append('>' + read_name + '/2\n' + read2 + '\n')
+                self.fq2_buffer.append('>' + read_name + '/2\n' + read2.seq + '\n')
         else:
-            self.fq1_buffer.append('@' + read_name + '/1\n' + read1 + '\n+\n' + quality1 + '\n')
+            self.fq1_buffer.append('@' + read_name + '/1\n' + read1.seq + '\n+\n' + quality1 + '\n')
             if read2 is not None:
-                self.fq2_buffer.append('@' + read_name + '/2\n' + read2 + '\n+\n' + quality2 + '\n')
+                self.fq2_buffer.append('@' + read_name + '/2\n' + read2.sq + '\n+\n' + quality2 + '\n')
 
     def write_vcf_record(self, chrom, pos, id_str, ref, alt, qual, filt, info):
         self.vcf_file.write(
