@@ -62,12 +62,14 @@ Option           |  Description
 -c <float>       |  Average coverage across the entire dataset. Default: 10
 -e <str>         |  Sequencing error model pickle file
 -E <float>       |  Average sequencing error rate. The sequencing error rate model is rescaled to make this the average value. 
--p <int>         |  ploidy [2]
--t <str>         |  bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
+-p <int>         |  Sample Ploidy, default 2
+-t <str>         |  Bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
+-d <str>	 |  Bed file with sample regions to discard.
 -to <float>      |  off-target coverage scalar [0.02]
 -m <str>         |  mutation model pickle file
 -M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3. These random mutations are inserted in addition to the once specified in the -v option.
--s <str>         |  input sample model
+-Mb <str>	 |  Bed file containing positional mutation rates
+-N <int>	 |  Below this quality score, base-call's will be replaced with N's
 -v <str>         |  Input VCF file. Variants from this VCF will be inserted into the simulated sequence with 100% certainty.
 --pe <int> <int> |  Paired-end fragment length mean and standard deviation. To produce paired end data, one of --pe or --pe-model must be specified.
 --pe-model <str> |  Empirical fragment length distribution. Can be generated using [computeFraglen.py](#computefraglenpy). To produce paired end data, one of --pe or --pe-model must be specified.
@@ -76,9 +78,12 @@ Option           |  Description
 --nnr            |  save non-N ref regions (for parallel jobs)
 --bam            |  Output golden BAM file
 --vcf            |  Output golden VCF file
+--fa		 |  Output FASTA instead of FASTQ
 --rng <int>      |  rng seed value; identical RNG value should produce identical runs of the program, so things like read locations, variant positions, error positions, etc, should all be the same.
 --gz             |  Gzip output FQ and VCF
 --no-fastq       |  Bypass generation of FASTQ read files
+--discard-offtarget |  Discard reads outside of targeted regions
+--rescale-qual   |  Rescale Quality scores to match -E input
 
 
 ## Functionality
@@ -195,7 +200,7 @@ To simulate human WGS 50X, try 50 chunks or less.
 # Utilities	
 Several scripts are distributed with genReads that are used to generate the models used for simulation.
 
-## computeGC.py
+## compute_gc.py
 
 Computes GC% coverage bias distribution from sample (bedrolls genomecov) data.
 Takes .genomecov files produced by BEDtools genomeCov (with -d option).
@@ -215,7 +220,7 @@ python computeGC.py                 \
         -o /path/to/model.p
 ```
 
-## computeFraglen.py
+## compute_fraglen.py
 
 Computes empirical fragment length distribution from sample data.
 Takes SAM file via stdin:
@@ -224,7 +229,7 @@ Takes SAM file via stdin:
 
 and creates fraglen.p model in working directory.
 
-## genMutModel.py
+## gen_mut_model.py
 
 Takes references genome and TSV file to generate mutation models:
 
@@ -236,6 +241,17 @@ python genMutModel.py               \
 ```
 
 Trinucleotides are identified in the reference genome and the variant file. Frequencies of each trinucleotide transition are calculated and output as a pickle (.p) file.
+
+Option           |  Description
+------           |:----------
+-r <str>         |  Reference file for organism in FASTA format. Required
+-m <str>         |  Mutation file for organism in VCF format. Required
+-o <str>         |  Path to output file and prefix. Required. 
+-b <str>         |  BED file of regions to include
+--save-trinuc    |  Save trinucleotide counts for reference
+--human-sample   |  Use to skip unnumbered scaffolds in human references
+--skip-common    |  Do not save common snps or high mutation areas
+	
 
 ## genSeqErrorModel.py
 
@@ -254,6 +270,7 @@ python genSeqErrorModel.py                            \
         -s number of simulation iterations [1000000]  \
         --plot perform some optional plotting
 ```
+
 ## plotMutModel.py
 
 Performs plotting and comparison of mutation models generated from genMutModel.py.
@@ -271,8 +288,6 @@ Tool for comparing VCF files.
 
 ```
 python vcf_compare_OLD.py
-        --version          show program's version number and exit      \
-        -h, --help         show this help message and exit             \
         -r <ref.fa>        * Reference Fasta                           \
         -g <golden.vcf>    * Golden VCF                                \
         -w <workflow.vcf>  * Workflow VCF                              \

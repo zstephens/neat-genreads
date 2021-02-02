@@ -307,6 +307,7 @@ class SequenceContainer:
                 coverage_vector = np.cumsum([tr_cov_vals[i][nnn] *
                                              gc_cov_vals[i][nnn] for nnn in range(len(tr_cov_vals[i]))])
                 coverage_vals = []
+                # TODO if max_coord is <=0, this is a problem
                 for j in range(0, max_coord):
                     coverage_vals.append(coverage_vector[j + self.read_len] - coverage_vector[j])
                 avg_out.append(np.mean(coverage_vals) / float(self.read_len))
