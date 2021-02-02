@@ -655,7 +655,6 @@ class SequenceContainer:
                 if temp_symbol_string_list[j] == 'D':
                     self.fm_pos[i][-1] += temp_symbol_string_list[j].count('D')
                 # compute number of ref matches for each read
-                # TODO convert to cigar string
                 span_dif = len([n for n in temp_symbol_string_list[j:j + self.read_len] if 'M' in n])
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
                 md_so_far += temp_symbol_string_list[j].count('M') + temp_symbol_string_list[j].count('D')
