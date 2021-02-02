@@ -110,6 +110,7 @@ class SequenceContainer:
         self.fm_pos = [[] for _ in range(self.ploidy)]
         self.fm_pos2 = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
+        self.fm_span2 = [[] for _ in range(self.ploidy)]
 
         # Blacklist explanation:
         # black_list[ploid][pos] = 0		safe to insert variant here
@@ -592,7 +593,7 @@ class SequenceContainer:
         # MODIFY REFERENCE STRING: INDELS
         for i in range(len(all_indels_ins)):
             rolling_adj = 0
-            # TODO CigarString might be too slow. Convert these to lists
+            # TODO Check that converting to list-based cigar string solves the problems, then remove
             temp_symbol_string = CigarString(str(len(self.sequences[i])) + "M")
             temp_symbol_string2 = CigarStringNew(str(len(self.sequences[i])) + "M")
 
@@ -619,10 +620,13 @@ class SequenceContainer:
                                                                 v_pos2 + 1)
                         temp_symbol_string2 = temp_symbol_string2[:v_pos + 1] + \
                                               ['I'] * indel_length + temp_symbol_string2[v_pos2 + 1:]
+                        assert(temp_symbol_string.string_to_list() == temp_symbol_string2.cigar)
                     elif indel_length < 0:
                         cigar_to_insert = CigarString(str(abs(indel_length)) + 'D')
                         temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert)
                         temp_symbol_string2[v_pos + 1] = "D" * abs(indel_length) + "M"
+                        assert(temp_symbol_string.string_to_list() == temp_symbol_string2.cigar)
+
 
             # pre-compute cigar strings
             for j in range(len(temp_symbol_string) - self.read_len):
@@ -635,17 +639,17 @@ class SequenceContainer:
             #       corresponding to the unmodified reference genome)
             # --- self.fm_span[ploid][pos]: number of reference positions spanned by a read originating from
             #       this coordinate
-            md_so_far = 0
+            md_so_far2 = 0
             # TODO the following will replace the block below if everything goes well
             for j in range(len(temp_symbol_string2)):
-                self.fm_pos2[i].append(md_so_far)
+                self.fm_pos2[i].append(md_so_far2)
                 # fix an edge case with deletions
                 if 'D' in temp_symbol_string2[j]:
                     self.fm_pos2[i][-1] += temp_symbol_string2[j].count('D')
                 # compute number of ref matches for each read
                 span_dif = len([n for n in temp_symbol_string2[j: j+self.read_len] if 'M' in n])
                 self.fm_span2[i].append(self.fm_pos2[i][-1] + span_dif)
-                md_so_far += temp_symbol_string2[j].count('M') + temp_symbol_string2[j].count('D')
+                md_so_far2 += temp_symbol_string2[j].count('M') + temp_symbol_string2[j].count('D')
             # TODO can this be done with new cigar string method?
             temp_symbol_string_list = temp_symbol_string.string_to_list()
             md_so_far = 0
@@ -659,6 +663,7 @@ class SequenceContainer:
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
                 md_so_far += temp_symbol_string_list[j].count('M') + temp_symbol_string_list[j].count('D')
 
+            assert(md_so_far2 == md_so_far)
         # TODO compare the above two methods
         # tally up all the variants we handled...
         count_dict = {}
