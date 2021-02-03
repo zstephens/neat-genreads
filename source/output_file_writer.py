@@ -2,6 +2,7 @@ from struct import pack
 import gzip
 from Bio.bgzf import *
 import pathlib
+import re
 import timeit
 from utilities.generate_random_dna import generate_random_dna
 from Bio.Seq import Seq
@@ -208,13 +209,13 @@ class OutputFileWriter:
             (read2, quality2) = (read1, qual1)
 
         if self.fasta_instead:
-            self.fq1_buffer.append('>' + read_name + '/1\n' + read1.seq + '\n')
+            self.fq1_buffer.append('>' + read_name + '/1\n' + str(read1) + '\n')
             if read2 is not None:
-                self.fq2_buffer.append('>' + read_name + '/2\n' + read2.seq + '\n')
+                self.fq2_buffer.append('>' + read_name + '/2\n' + str(read2) + '\n')
         else:
-            self.fq1_buffer.append('@' + read_name + '/1\n' + read1.seq + '\n+\n' + quality1 + '\n')
+            self.fq1_buffer.append('@' + read_name + '/1\n' + str(read1) + '\n+\n' + quality1 + '\n')
             if read2 is not None:
-                self.fq2_buffer.append('@' + read_name + '/2\n' + read2.sq + '\n+\n' + quality2 + '\n')
+                self.fq2_buffer.append('@' + read_name + '/2\n' + str(read2) + '\n+\n' + quality2 + '\n')
 
     def write_vcf_record(self, chrom, pos, id_str, ref, alt, qual, filt, info):
         self.vcf_file.write(
@@ -227,11 +228,10 @@ class OutputFileWriter:
         # my_bin     = 0	# or just use a dummy value, does this actually matter?
 
         my_map_quality = aln_map_quality
-        cig_letters = []
-        cig_numbers = []
-        for item in cigar.items():
-            cig_numbers.append(item[0])
-            cig_letters.append(item[1])
+        cigar.update_cig_string()
+        cigar_string = str(cigar)
+        cig_letters = re.split(r"\d+", cigar_string)[1:]
+        cig_numbers = [int(n) for n in re.findall(r"\d+", cigar_string)]
         cig_ops = len(cig_letters)
         next_ref_id = ref_id
         if mate_pos is None:
