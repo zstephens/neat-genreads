@@ -3,31 +3,18 @@ import gzip
 from Bio.bgzf import *
 import pathlib
 import re
-import timeit
-from utilities.generate_random_dna import generate_random_dna
-from Bio.Seq import Seq
 
-# from source.biopython_modified_bgzf import BgzfWriter
+from source.neat_cigar import CigarString
 
 BAM_COMPRESSION_LEVEL = 6
 
 
-# def reverse_complement(dna_string: str) -> str:
-#     """
-#     Return the reverse complement of a string from a DNA strand
-#     :param dna_string: string of DNA
-#     :return: the reverse compliment of the above string
-#     """
-#     rc_dict = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
-#     return ''.join(rc_dict[n] for n in dna_string[::-1])
-
-
-def reverse_complement(dna_string: str) -> str:
+def reverse_complement(dna_string) -> str:
     """
     Return the reverse complement of a string from a DNA strand. Found this method that is slightly faster than
     biopython. Thanks to this stack exchange post:
-    https://bioinformatics.stackexchange.com/questions/3583/what-is-the-fastest-way-to-get-the-reverse-complement-of-a-dna-sequence-in-pytho #noqa
-    :param dna_string: string of DNA, either in string or MutableSeq format
+    https://bioinformatics.stackexchange.com/questions/3583/what-is-the-fastest-way-to-get-the-reverse-complement-of-a-dna-sequence-in-pytho
+    :param dna_string: string of DNA, either in string or Seq format
     :return: the reverse complement of the above string in either string or MutableSeq format
     """
     if type(dna_string) != str:
@@ -228,8 +215,7 @@ class OutputFileWriter:
         # my_bin     = 0	# or just use a dummy value, does this actually matter?
 
         my_map_quality = aln_map_quality
-        cigar.update_cig_string()
-        cigar_string = str(cigar)
+        cigar_string = CigarString.list_to_string(cigar)
         cig_letters = re.split(r"\d+", cigar_string)[1:]
         cig_numbers = [int(n) for n in re.findall(r"\d+", cigar_string)]
         cig_ops = len(cig_letters)

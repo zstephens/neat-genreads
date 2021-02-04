@@ -123,8 +123,9 @@ def main(raw_args=None):
     # cancer params (disabled currently)
     # (cancer, cancer_model, cancer_purity) = (args.cancer, args.cm, args.cp)
     (cancer, cancer_model, cancer_purity) = (False, None, 0.8)
-    (off_target_scalar, off_target_discard, force_coverage, rescale_qual) = (args.to, args.discard_offtarget,
-                          args.force_coverage, args.rescale_qual)
+    (off_target_scalar, off_target_discard, force_coverage, rescale_qual) = (args.to,
+                                                                             args.discard_offtarget,
+                                                                             args.force_coverage, args.rescale_qual)
     # important flags
     (save_bam, save_vcf, fasta_instead, gzipped_out, no_fastq) = \
         (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
@@ -283,7 +284,6 @@ def main(raw_args=None):
         n_handling = ('random', fragment_size)
     else:
         n_handling = ('ignore', read_len)
-
 
     indices_by_ref_name = {ref_index[n][0]: n for n in range(len(ref_index))}
     ref_list = [n[0] for n in ref_index]
@@ -449,7 +449,8 @@ def main(raw_args=None):
                 # If it passes the above tests, append to valid variants list
                 valid_variants_from_vcf.append(n)
 
-            print('found', len(valid_variants_from_vcf), 'valid variants for ' + ref_index[chrom][0] + ' in input VCF...')
+            print('found', len(valid_variants_from_vcf), 'valid variants for ' +
+                  ref_index[chrom][0] + ' in input VCF...')
             if any(n_skipped):
                 print(sum(n_skipped), 'variants skipped...')
                 print(' - [' + str(n_skipped[0]) + '] ref allele does not match reference')
@@ -460,8 +461,8 @@ def main(raw_args=None):
 
         # determine sampling windows based on read length, large N regions, and structural mutations.
         # in order to obtain uniform coverage, windows should overlap by:
-        #		- read_len, if single-end reads
-        #		- fragment_size (mean), if paired-end reads
+        # - read_len, if single-end reads
+        # - fragment_size (mean), if paired-end reads
         # ploidy is fixed per large sampling window,
         # coverage distributions due to GC% and targeted regions are specified within these windows
         all_variants_out = {}
