@@ -2,6 +2,7 @@ import random
 import bisect
 import copy
 import sys
+from typing import Union
 
 import numpy as np
 
@@ -39,6 +40,8 @@ class DiscreteDistribution:
             self.degenerate = values[0]
         else:
             self.weights = [n / sum_weight for n in weights]
+            # TODO This line is slowing things down and seems unnecessary. Are these "values
+            # possibly some thing from another class?
             self.values = copy.deepcopy(values)
             if len(self.values) != len(self.weights):
                 print('\nError: length and weights and values vectors must be the same.\n')
@@ -81,7 +84,14 @@ class DiscreteDistribution:
     def __str__(self):
         return str(self.weights) + ' ' + str(self.values) + ' ' + self.method
 
-    def sample(self):
+    def sample(self) -> Union[int, float]:
+        """
+        This is one of the slowest parts of the code. Or it just gets hit the most times. Will need
+        to investigate at some point.
+        :return: Since this function is selecting an item from a list, and the list could theoretically be anything,
+        then in a broad sense this function returns a list item or a generic object. But I'm fairly confident that most
+        of these uses will be lists of ints or floats, but will investigate further
+        """
 
         if self.degenerate is not None:
             return self.degenerate

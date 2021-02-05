@@ -256,6 +256,7 @@ class SequenceContainer:
         :return: Mean coverage value
         """
 
+        # TODO this section is also quite slow and will need further investigation
         # If we're only creating a vcf, skip some expensive initialization related to coverage depth
         if not self.only_vcf:
             (self.window_size, gc_scalars, target_cov_vals) = coverage_data
@@ -374,6 +375,7 @@ class SequenceContainer:
                       range(len(self.models))]
         k_range = range(int(self.seq_len * MAX_MUTFRAC))
         # return (indel_poisson, snp_poisson)
+        # TODO These next two lines are really slow. Maybe there's a better way
         return [poisson_list(k_range, ind_l_list[n]) for n in range(len(self.models))], \
                [poisson_list(k_range, snp_l_list[n]) for n in range(len(self.models))]
 
@@ -935,6 +937,7 @@ class SequencingError:
         :return: modified sequence and associate quality scores
         """
 
+        # TODO this is one of the slowest methods in the code. Need to investigate how to speed this up.
         q_out = [0] * self.read_len
         s_err = []
 
@@ -951,6 +954,8 @@ class SequencingError:
                 my_q = self.init_dist_by_pos_1[0].sample()
             q_out[0] = my_q
 
+            # Every time this is hit, we loop the entire read length twice. I feel like these two loops
+            # Could be combined into one fairly easily. The culprit seems to bee too many hits to the sample() method.
             for i in range(1, self.read_len):
                 if self.pe_models and is_reverse_strand:
                     my_q = self.prob_dist_by_pos_by_prev_q2[self.q_ind_remap[i]][my_q].sample()
@@ -977,6 +982,8 @@ class SequencingError:
         # don't allow other sequencing errors to occur on bases removed by deletion errors
         del_blacklist = []
 
+        # Need to check into this loop, to make sure it isn't slowing us down.
+        # The culprit seems to bee too many hits to the sample() method. This has a few of those calls.
         for ind in s_err[::-1]:  # for each error that we're going to insert...
 
             # determine error type
