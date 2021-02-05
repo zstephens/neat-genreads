@@ -72,7 +72,7 @@ def main(raw_args=None):
     parser.add_argument('-m', type=str, required=False, metavar='model.p', default=None,
                         help="Mutation model pickle file")
     parser.add_argument('-M', type=float, required=False, metavar='avg mut rate', default=-1,
-                        help="Rescale avg mutation rate to this, must be between 0 and 0.3")
+                        help="Rescale avg mutation rate to this (1/bp), must be between 0 and 0.3")
     parser.add_argument('-Mb', type=str, required=False, metavar='mut_rates.bed', default=None,
                         help="Bed file containing positional mut rates")
     parser.add_argument('-N', type=int, required=False, metavar='min qual score', default=-1,
