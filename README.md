@@ -3,7 +3,7 @@ Welcome to the NEAT project, the NExt-generation sequencing Analysis Toolkit, ve
 
 Stay tuned over the coming weeks for exciting updates to NEAT, and learn how to [contribute](CONTRIBUTING.md) yourself. If you'd like to use some of our code, no problem! Just review the [license](LICENSE.md), first.
 
-NEAT's gen_reads.py is a fine-grained read simulator. It simulates real-looking data using models learned from specific datasets. There are several supporting utilities for generating models used for simulation and for comparing the outputs of alignment and variant callers to the golden bam and golden vcf produced by NEAT.
+NEAT's gen_reads.py is the main program, and it is a fine-grained read simulator. It simulates real-looking data using models learned from specific datasets. There are several supporting utilities for generating models used for simulation and for comparing the outputs of alignment and variant callers to the golden BAM and golden VCF produced by NEAT.
 
 This is an in-progress v3.0 of the software. Version 2.1 was coded in Python 2, and is available under releases. For an older stable release please see: [genReads1](https://github.com/zstephens/genReads1)
 
@@ -15,7 +15,6 @@ To cite this work, please use:
 Table of Contents
 =================
 
-  * [neat-genreads](#neat-genreads)
   * [Table of Contents](#table-of-contents)
     * [Requirements](#requirements)
     * [Usage](#usage)
@@ -26,11 +25,10 @@ Table of Contents
       * [Insert specific variants](#insert-specific-variants)
       * [Single end reads](#single-end-reads)
       * [Large single end reads](#large-single-end-reads)
-      * [Parallelizing simulation](#parallelizing-simulation)
   * [Utilities](#utilities)
-    * [computeGC.py](#computegcpy)
-    * [computeFraglen.py](#computefraglenpy)
-    * [genMutModel.py](#genmutmodelpy)
+    * [compute_gc.py](#computegcpy)
+    * [compute_fraglen.py](#computefraglenpy)
+    * [gen_mut_model.py](#genmutmodelpy)
     * [genSeqErrorModel.py](#genseqerrormodelpy)
     * [plotMutModel.py](#plotmutmodelpy)
     * [vcf_compare_OLD.py](#vcf_compare_oldpy)
@@ -96,7 +94,7 @@ Option           |  Description
 
 ![Diagram describing the way that genReads simulates datasets](docs/flow_new.png "Diagram describing the way that genReads simulates datasets")
 
-NEAT gen_reads produces simulated sequencing datasets. It creates FASTQ files with reads sampled from a provided reference genome, using sequencing error rates and mutation rates learned from real sequencing data. The strength of genReads lies in the ability for the user to customize many sequencing parameters, produce 'golden', true positive datasets, and produce types of data that other simulators cannot (e.g. tumour/normal data).
+NEAT produces simulated sequencing datasets. It creates FASTQ files with reads sampled from a provided reference genome, using sequencing error rates and mutation rates learned from real sequencing data. The strength of NEAT lies in the ability for the user to customize many sequencing parameters, produce 'golden,' true positive datasets. We are working on expanding the functionality even further to model more species, generate larger variants, model tumor/normal data and more!
 
 Features:
 
@@ -114,7 +112,6 @@ Features:
 - Output a VCF file with the 'golden' set of true positive variants. These can be compared to bioinformatics workflow output (includes coverage and allele balance information)
 - Output a BAM file with the 'golden' set of aligned reads. These indicate where each read originated and how it should be aligned with the reference
 - Create paired tumour/normal datasets using characteristics learned from real tumour data
-- Parallelized. Can run multiple "partial" simulations in parallel and merge results
 - Low memory footprint. Constant (proportional to the size of the reference sequence)
 
 ## Examples
@@ -274,7 +271,7 @@ python plotMutModel.py                                        \
 
 ## vcf_compare_OLD.py
 
-Tool for comparing VCF files.
+Tool for comparing VCF files. This program needs updates, as it is slow and somewhat touchy to use at the moment.
 
 ```
 python vcf_compare_OLD.py
