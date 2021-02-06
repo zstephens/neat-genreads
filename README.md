@@ -5,7 +5,7 @@ Stay tuned over the coming weeks for exciting updates to NEAT, and learn how to 
 
 NEAT-genReads is a fine-grained read simulator. GenReads simulates real-looking data using models learned from specific datasets. There are several supporting utilities for generating models used for simulation.
 
-This is an in-progress v2.0 of the software. For a previous stable release please see: [genReads1](https://github.com/zstephens/genReads1)
+This is an in-progress v3.0 of the software. Version 2.1 was coded in Python 2, and is available under releases. For an older stable release please see: [genReads1](https://github.com/zstephens/genReads1)
 
 To cite this work, please use:
 
@@ -135,7 +135,7 @@ python gen_reads.py                  \
 ```
 
 ### Targeted region simulation
-Simulate a targeted region of a genome, e.g. exome, with -t.
+Simulate a targeted region of a genome, e.g. exome, with -tr.
 
 ```
 python gen_reads.py                  \
@@ -145,7 +145,7 @@ python gen_reads.py                  \
         --bam                       \
         --vcf                       \
         --pe 300 30                 \
-        -t hg19_exome.bed
+        -tr hg19_exome.bed
 ```
 
 ### Insert specific variants
@@ -187,22 +187,6 @@ python gen_reads.py                         \
 	-o /home/me/simulated_reads        
 ```
 
-### Parallelizing simulation
-When possible, simulation can be done in parallel via multiple executions with different --job options. The resultant files will then need to be merged using utilities/mergeJobs.py. The following example shows splitting a simulation into 4 separate jobs (which can be run independently):
-
-```
-python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 1 4
-python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 2 4
-python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 3 4
-python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 4 4
-
-python mergeJobs.py -i /home/me/simulated_reads -o /home/me/simulated_reads_merged -s /path/to/samtools
-```
-
-In future revisions the dependence on SAMtools will be removed.
-
-To simulate human WGS 50X, try 50 chunks or less.
-
 # Utilities	
 Several scripts are distributed with gen_reads that are used to generate the models used for simulation.
 
@@ -219,7 +203,7 @@ bedtools genomecov
 ```
 
 ```
-python computeGC.py                 \
+python compute_gc.py                 \
         -r reference.fa             \
         -i genomecovfile            \
         -w [sliding window length]  \
@@ -231,7 +215,7 @@ python computeGC.py                 \
 Computes empirical fragment length distribution from sample data.
 Takes SAM file via stdin:
 
-    ./samtools view toy.bam | python computeFraglen.py
+    ./samtools view toy.bam | python compute_fraglen.py
 
 and creates fraglen.p model in working directory.
 
@@ -240,7 +224,7 @@ and creates fraglen.p model in working directory.
 Takes references genome and TSV file to generate mutation models:
 
 ```
-python genMutModel.py               \
+python gen_mut_model.py               \
         -r hg19.fa                  \
         -m inputVariants.tsv        \
         -o /home/me/models.p
