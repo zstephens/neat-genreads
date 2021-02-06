@@ -31,7 +31,7 @@ from source.ref_func import index_ref, read_ref
 from source.vcf_func import parse_vcf
 from source.output_file_writer import OutputFileWriter, reverse_complement, sam_flag
 from source.probability import DiscreteDistribution, mean_ind_of_weighted_list
-from source.SequenceContainer import SequenceContainer, SequencingError, parse_input_mutation_model
+from source.SequenceContainer import SequenceContainer, ReadContainer, parse_input_mutation_model
 
 """
 Some constants needed for analysis
@@ -63,9 +63,9 @@ def main(raw_args=None):
                         help="Rescale avg sequencing error rate to this, must be between 0.0 and 0.3")
     parser.add_argument('-p', type=int, required=False, metavar='ploidy', default=2,
                         help="Desired ploidy, default = 2")
-    parser.add_argument('-t', type=str, required=False, metavar='target.bed', default=None,
+    parser.add_argument('-tr', type=str, required=False, metavar='target.bed', default=None,
                         help="Bed file containing targeted regions")
-    parser.add_argument('-d', type=str, required=False, metavar='discard_regions.bed', default=None,
+    parser.add_argument('-dr', type=str, required=False, metavar='discard_regions.bed', default=None,
                         help="Bed file with regions to discard")
     parser.add_argument('-to', type=float, required=False, metavar='off-target coverage scalar', default=0.00,
                         help="off-target coverage scalar")
@@ -93,8 +93,6 @@ def main(raw_args=None):
                         help='rng seed value; identical RNG value should produce identical runs of the program, so '
                              'things like read locations, variant positions, error positions, etc, '
                              'should all be the same.')
-    # TODO check if this argument does anything at all. Near as I can tell the results are ALWAYS gzipped.
-    parser.add_argument('--gz', required=False, action='store_true', default=False, help='gzip output FQ and VCF')
     parser.add_argument('--no-fastq', required=False, action='store_true', default=False,
                         help='bypass fastq generation')
     parser.add_argument('--discard-offtarget', required=False, action='store_true', default=False,
@@ -102,7 +100,9 @@ def main(raw_args=None):
     parser.add_argument('--force-coverage', required=False, action='store_true', default=False,
                         help='[debug] ignore fancy models, force coverage to be constant')
     parser.add_argument('--rescale-qual', required=False, action='store_true', default=False,
-                        help='rescale quality scores to match -E input')
+                        help='Rescale quality scores to match -E input')
+    # TODO implement a broader debugging scheme for subclasses.
+    parser.add_argument('-d', required=False, action='store_true', default=False, help='Activate Debug Mode')
     args = parser.parse_args(raw_args)
 
     """
@@ -119,7 +119,7 @@ def main(raw_args=None):
     (reference, read_len, out_prefix) = (args.r, args.R, args.o)
     # various dataset parameters
     (coverage, ploids, input_bed, discard_bed, se_model, se_rate, mut_model, mut_rate, mut_bed, input_vcf) = \
-        (args.c, args.p, args.t, args.d, args.e, args.E, args.m, args.M, args.Mb, args.v)
+        (args.c, args.p, args.tr, args.dr, args.e, args.E, args.m, args.M, args.Mb, args.v)
     # cancer params (disabled currently)
     # (cancer, cancer_model, cancer_purity) = (args.cancer, args.cm, args.cp)
     (cancer, cancer_model, cancer_purity) = (False, None, 0.8)
@@ -127,8 +127,8 @@ def main(raw_args=None):
                                                                              args.discard_offtarget,
                                                                              args.force_coverage, args.rescale_qual)
     # important flags
-    (save_bam, save_vcf, fasta_instead, gzipped_out, no_fastq) = \
-        (args.bam, args.vcf, args.fa, args.gz, args.no_fastq)
+    (save_bam, save_vcf, fasta_instead, no_fastq) = \
+        (args.bam, args.vcf, args.fa, args.no_fastq)
 
     # sequencing model parameters
     (fragment_size, fragment_std) = args.pe
@@ -136,6 +136,8 @@ def main(raw_args=None):
     n_max_qual = args.N
 
     rng_seed = args.rng
+
+    debug = args.d
 
     """
     INPUT ERROR CHECKING
@@ -204,10 +206,10 @@ def main(raw_args=None):
     if se_model is None:
         print('Using default sequencing error model.')
         se_model = sim_path / 'models/errorModel_toy.p'
-        se_class = SequencingError(read_len, se_model, se_rate)
+        se_class = ReadContainer(read_len, se_model, se_rate, rescale_qual)
     else:
         # probably need to do some sanity checking
-        se_class = SequencingError(read_len, se_model, se_rate)
+        se_class = ReadContainer(read_len, se_model, se_rate, rescale_qual)
 
     # GC-bias model
     if gc_bias_model is None:
@@ -316,8 +318,6 @@ def main(raw_args=None):
         except IOError:
             print("\nProblem reading input target BED file.\n")
             sys.exit(1)
-        finally:
-            f.close()
 
         # some validation
         n_in_bed_only = 0
@@ -340,16 +340,15 @@ def main(raw_args=None):
     discard_regions = {}
     if discard_bed is not None:
         try:
-            f = open(discard_bed, 'r')
-            for line in f:
-                [my_chr, pos1, pos2] = line.strip().split('\t')[:3]
-                if my_chr not in discard_regions:
-                    discard_regions[my_chr] = [-1]
-                discard_regions[my_chr].extend([int(pos1), int(pos2)])
+            with open(discard_bed, 'r') as f:
+                for line in f:
+                    [my_chr, pos1, pos2] = line.strip().split('\t')[:3]
+                    if my_chr not in discard_regions:
+                        discard_regions[my_chr] = [-1]
+                    discard_regions[my_chr].extend([int(pos1), int(pos2)])
         except IOError:
             print("\nProblem reading discard BED file.\n")
-        finally:
-            f.close()
+            sys.exit(1)
 
     # parse input mutation rate rescaling regions, if present
     # TODO convert to pandas dataframe
@@ -374,8 +373,6 @@ def main(raw_args=None):
         except IOError:
             print("\nProblem reading mutational BED file.\n")
             sys.exit(1)
-        finally:
-            f.close()
 
     # initialize output files (part I)
     bam_header = None
@@ -391,14 +388,14 @@ def main(raw_args=None):
     if cancer:
         output_file_writer = OutputFileWriter(out_prefix + '_normal', paired=paired_end, bam_header=bam_header,
                                               vcf_header=vcf_header,
-                                              gzipped=gzipped_out, no_fastq=no_fastq, fasta_instead=fasta_instead)
+                                              no_fastq=no_fastq, fasta_instead=fasta_instead)
         output_file_writer_cancer = OutputFileWriter(out_prefix + '_tumor', paired=paired_end, bam_header=bam_header,
-                                                     vcf_header=vcf_header, gzipped=gzipped_out,
+                                                     vcf_header=vcf_header,
                                                      no_fastq=no_fastq, fasta_instead=fasta_instead)
     else:
         output_file_writer = OutputFileWriter(out_prefix, paired=paired_end, bam_header=bam_header,
                                               vcf_header=vcf_header,
-                                              gzipped=gzipped_out, no_fastq=no_fastq,
+                                              no_fastq=no_fastq,
                                               fasta_instead=fasta_instead)
     # Using pathlib to make this more machine agnostic
     out_prefix_name = pathlib.Path(out_prefix).name
@@ -548,6 +545,9 @@ def main(raw_args=None):
                     is_last_time = True
 
                 # print progress indicator
+                if debug:
+                    print(f'PROCESSING WINDOW: {(start, end), [buffer_added]}, '
+                          f'next: {(next_start, next_end)}, isLastTime: {is_last_time}')
                 current_progress += end - start
                 new_percent = int((current_progress * 100) / float(total_bp_span))
                 if new_percent > current_percent:
@@ -774,14 +774,14 @@ def main(raw_args=None):
                                                                             my_read_data[0][0],
                                                                             my_read_data[0][1], my_read_data[0][2],
                                                                             my_read_data[0][3],
-                                                                            sam_flag=flag1)
+                                                                            output_sam_flag=flag1)
                                     else:
                                         flag1 = sam_flag(['reverse'])
                                         output_file_writer.write_bam_record(my_ref_index, my_read_name,
                                                                             my_read_data[0][0],
                                                                             my_read_data[0][1], my_read_data[0][2],
                                                                             my_read_data[0][3],
-                                                                            sam_flag=flag1)
+                                                                            output_sam_flag=flag1)
                         # write PE output
                         elif len(my_read_data) == 2:
                             if no_fastq is not True:
@@ -801,12 +801,12 @@ def main(raw_args=None):
                                     output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
                                                                         my_read_data[0][1], my_read_data[0][2],
                                                                         my_read_data[0][3],
-                                                                        sam_flag=flag1,
+                                                                        output_sam_flag=flag1,
                                                                         mate_pos=my_read_data[1][0])
                                     output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
                                                                         my_read_data[1][1], my_read_data[1][2],
                                                                         my_read_data[1][3],
-                                                                        sam_flag=flag2, mate_pos=my_read_data[0][0])
+                                                                        output_sam_flag=flag2, mate_pos=my_read_data[0][0])
                                 elif is_unmapped[0] is False and is_unmapped[1] is True:
                                     if is_forward:
                                         flag1 = sam_flag(['paired', 'first', 'mate_unmapped', 'mate_reverse'])
@@ -817,11 +817,11 @@ def main(raw_args=None):
                                     output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
                                                                         my_read_data[0][1], my_read_data[0][2],
                                                                         my_read_data[0][3],
-                                                                        sam_flag=flag1, mate_pos=my_read_data[0][0])
+                                                                        output_sam_flag=flag1, mate_pos=my_read_data[0][0])
                                     output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[0][0],
                                                                         my_read_data[1][1], my_read_data[1][2],
                                                                         my_read_data[1][3],
-                                                                        sam_flag=flag2, mate_pos=my_read_data[0][0],
+                                                                        output_sam_flag=flag2, mate_pos=my_read_data[0][0],
                                                                         aln_map_quality=0)
                                 elif is_unmapped[0] is True and is_unmapped[1] is False:
                                     if is_forward:
@@ -833,12 +833,12 @@ def main(raw_args=None):
                                     output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
                                                                         my_read_data[0][1], my_read_data[0][2],
                                                                         my_read_data[0][3],
-                                                                        sam_flag=flag1, mate_pos=my_read_data[1][0],
+                                                                        output_sam_flag=flag1, mate_pos=my_read_data[1][0],
                                                                         aln_map_quality=0)
                                     output_file_writer.write_bam_record(my_ref_index, my_read_name, my_read_data[1][0],
                                                                         my_read_data[1][1], my_read_data[1][2],
                                                                         my_read_data[1][3],
-                                                                        sam_flag=flag2, mate_pos=my_read_data[1][0])
+                                                                        output_sam_flag=flag2, mate_pos=my_read_data[1][0])
                         else:
                             print('\nError: Unexpected number of reads generated...\n')
                             sys.exit(1)
@@ -885,11 +885,11 @@ def main(raw_args=None):
         print('writing unmapped reads to bam file...')
         for umr in unmapped_records:
             if paired_end:
-                output_file_writer.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2],
+                output_file_writer.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], output_sam_flag=umr[2],
                                                     mate_pos=0,
                                                     aln_map_quality=0)
             else:
-                output_file_writer.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], sam_flag=umr[2],
+                output_file_writer.write_bam_record(-1, umr[0], 0, umr[1][1], umr[1][2], umr[1][3], output_sam_flag=umr[2],
                                                     aln_map_quality=0)
 
     # close output files

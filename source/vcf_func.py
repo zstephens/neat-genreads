@@ -4,19 +4,21 @@ import os
 import re
 import random
 
-
 def parse_line(vcf_line, col_dict, col_samp):
-    #	check if we want to proceed..
+    # these were in the original. Not sure the point other than debugging.
+    include_homs = False
+    include_fail = False
+
+    # check if we want to proceed...
     reference_allele = vcf_line[col_dict['REF']]
     alternate_allele = vcf_line[col_dict['ALT']]
     # enough columns?
     if len(vcf_line) != len(col_dict):
         return None
     # exclude homs / filtered?
-    # There was an attempt I think to make these optional that was never implemented.
-    if alternate_allele == '.' or alternate_allele == '' or alternate_allele == reference_allele:
+    if not include_homs and alternate_allele == '.' or alternate_allele == '' or alternate_allele == reference_allele:
         return None
-    if vcf_line[col_dict['FILTER']] != 'PASS' and vcf_line[col_dict['FILTER']] != '.':
+    if not include_fail and vcf_line[col_dict['FILTER']] != 'PASS' and vcf_line[col_dict['FILTER']] != '.':
         return None
 
     #	default vals
@@ -68,6 +70,10 @@ def parse_line(vcf_line, col_dict, col_samp):
 
 
 def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
+    # this var was in the orig. May have just been a debugging thing.
+    # I think this is trying to implement a check on GT
+    choose_random_ploid_if_no_gt_found = True
+
     tt = time.time()
     print('--------------------------------')
     print('reading input VCF...\n', flush=True)
@@ -87,7 +93,7 @@ def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
                 print('\n\nERROR: VCF has no header?\n' + vcf_path + '\n\n')
                 f.close()
                 exit(1)
-            splt = line[:-1].split('\t')
+            splt = line.strip().split('\t')
             pl_out = parse_line(splt, col_dict, col_samp)
             if pl_out is None:
                 n_skipped += 1
@@ -102,13 +108,18 @@ def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
                 # For some reason this had an additional "if True" inserted. I guess it was supposed to be an option
                 # the user could set but was never implemented.
                 if None in gt_eval:
-                    if not printed_warning:
-                        print('Warning: Found variants without a GT field, assuming heterozygous...')
-                        printed_warning = True
-                    for i in range(len(gt_eval)):
-                        tmp = ['0'] * ploidy
-                        tmp[random.randint(0, ploidy - 1)] = '1'
-                        gt_eval[i] = '/'.join(tmp)
+                    if choose_random_ploid_if_no_gt_found:
+                        if not printed_warning:
+                            print('Warning: Found variants without a GT field, assuming heterozygous...')
+                            printed_warning = True
+                        for i in range(len(gt_eval)):
+                            tmp = ['0'] * ploidy
+                            tmp[random.randint(0, ploidy - 1)] = '1'
+                            gt_eval[i] = '/'.join(tmp)
+                    else:
+                        # skip because no GT field was found
+                        n_skipped += 1
+                        continue
                 non_reference = False
                 for gtVal in gt_eval:
                     if gtVal is not None:
@@ -166,7 +177,8 @@ def parse_vcf(vcf_path, tumor_normal=False, ploidy=2):
         vars_out[r] = [list(all_vars[r][k]) for k in sorted(all_vars[r].keys())]
         # prune unnecessary sequence from ref/alt alleles
         for i in range(len(vars_out[r])):
-            while len(vars_out[r][i][1]) > 1 and all([n[-1] == vars_out[r][i][1][-1] for n in vars_out[r][i][2]]):
+            while len(vars_out[r][i][1]) > 1 and all([n[-1] == vars_out[r][i][1][-1] for n in vars_out[r][i][2]]) \
+                    and all([len(n) > 1 for n in vars_out[r][i][2]]):
                 vars_out[r][i][1] = vars_out[r][i][1][:-1]
                 vars_out[r][i][2] = [n[:-1] for n in vars_out[r][i][2]]
             vars_out[r][i] = tuple(vars_out[r][i])

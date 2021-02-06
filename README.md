@@ -1,4 +1,8 @@
-# neat-genreads
+# The NEAT Project v3.0
+Welcome to the NEAT project, the NExt-generation sequencing Analysis Toolkit, version 3.0. Neat has now been updated with Python 3, and is moving toward PEP8 standards. There is still lots of work to be done. See the [ChangeLog](ChangeLog.md) for notes.
+
+Stay tuned over the coming weeks for exciting updates to NEAT, and learn how to [contribute](CONTRIBUTING.md) yourself. If you'd like to use some of our code, no problem! Just review the [license](LICENSE.md), first.
+
 NEAT-genReads is a fine-grained read simulator. GenReads simulates real-looking data using models learned from specific datasets. There are several supporting utilities for generating models used for simulation.
 
 This is an in-progress v2.0 of the software. For a previous stable release please see: [genReads1](https://github.com/zstephens/genReads1)
@@ -37,17 +41,20 @@ Table of Contents
 
 ## Requirements
 
-* Python 3.6+
-* Biopython 1.77+
-* Matplotlib 3.2.2+
-* Numpy 1.19.0+
+* Python >= 3.6
+* biopython >= 1.78
+* matplotlib >= 3.3.4 (optional, for plotting utilities)
+* matplotlib_venn >= 0.11.6 (optional, for plotting utilities)
+* pandas >= 1.2.1
+* numpy >= 1.19.5
+* pysam >= 0.16.0.1
 
 
 ## Usage
 Here's the simplest invocation of genReads using default parameters. This command produces a single ended fastq file with reads of length 101, ploidy 2, coverage 10X, using the default sequencing substitution, GC% bias, and mutation rate models.
 
 ```
-python genReads.py -r ref.fa -R 101 -o simulated_data
+python gen_reads.py -r ref.fa -R 101 -o simulated_data
 ``` 
 
 The most commonly added options are --pe, --bam, --vcf, and -c. 
@@ -63,8 +70,8 @@ Option           |  Description
 -e <str>         |  Sequencing error model pickle file
 -E <float>       |  Average sequencing error rate. The sequencing error rate model is rescaled to make this the average value. 
 -p <int>         |  Sample Ploidy, default 2
--t <str>         |  Bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
--d <str>	 |  Bed file with sample regions to discard.
+-tr <str>        |  Bed file containing targeted regions; default coverage for targeted regions is 98% of -c option; default coverage outside targeted regions is 2% of -c option
+-dr <str>	     |  Bed file with sample regions to discard.
 -to <float>      |  off-target coverage scalar [0.02]
 -m <str>         |  mutation model pickle file
 -M <float>       |  Average mutation rate. The mutation rate model is rescaled to make this the average value. Must be between 0 and 0.3. These random mutations are inserted in addition to the once specified in the -v option.
@@ -74,8 +81,6 @@ Option           |  Description
 --pe <int> <int> |  Paired-end fragment length mean and standard deviation. To produce paired end data, one of --pe or --pe-model must be specified.
 --pe-model <str> |  Empirical fragment length distribution. Can be generated using [computeFraglen.py](#computefraglenpy). To produce paired end data, one of --pe or --pe-model must be specified.
 --gc-model <str> |  Empirical GC coverage bias distribution.  Can be generated using [computeGC.py](#computegcpy)
---job <int> <int>|  Jobs IDs for generating reads in parallel
---nnr            |  save non-N ref regions (for parallel jobs)
 --bam            |  Output golden BAM file
 --vcf            |  Output golden VCF file
 --fa		 |  Output FASTA instead of FASTQ
@@ -84,13 +89,14 @@ Option           |  Description
 --no-fastq       |  Bypass generation of FASTQ read files
 --discard-offtarget |  Discard reads outside of targeted regions
 --rescale-qual   |  Rescale Quality scores to match -E input
+-d  |   Turn on debugging mode (useful for development)
 
 
 ## Functionality
 
 ![Diagram describing the way that genReads simulates datasets](docs/flow_new.png "Diagram describing the way that genReads simulates datasets")
 
-NEAT genReads produces simulated sequencing datasets. It creates FASTQ files with reads sampled from a provided reference genome, using sequencing error rates and mutation rates learned from real sequencing data. The strength of genReads lies in the ability for the user to customize many sequencing parameters, produce 'golden', true positive datasets, and produce types of data that other simulators cannot (e.g. tumour/normal data).
+NEAT gen_reads produces simulated sequencing datasets. It creates FASTQ files with reads sampled from a provided reference genome, using sequencing error rates and mutation rates learned from real sequencing data. The strength of genReads lies in the ability for the user to customize many sequencing parameters, produce 'golden', true positive datasets, and produce types of data that other simulators cannot (e.g. tumour/normal data).
 
 Features:
 
@@ -119,7 +125,7 @@ The following commands are examples for common types of data to be generated. Th
 Simulate whole genome dataset with random variants inserted according to the default model. 
 
 ```
-python genReads.py                  \
+python gen_reads.py                  \
         -r hg19.fa                  \
         -R 126                      \
         -o /home/me/simulated_reads \
@@ -132,7 +138,7 @@ python genReads.py                  \
 Simulate a targeted region of a genome, e.g. exome, with -t.
 
 ```
-python genReads.py                  \
+python gen_reads.py                  \
         -r hg19.fa                  \
         -R 126                      \
         -o /home/me/simulated_reads \
@@ -146,7 +152,7 @@ python genReads.py                  \
 Simulate a whole genome dataset with only the variants in the provided VCF file using -v and -M.
 
 ```
-python genReads.py                  \
+python gen_reads.py                  \
         -r hg19.fa                  \
         -R 126                      \
         -o /home/me/simulated_reads \
@@ -161,7 +167,7 @@ python genReads.py                  \
 Simulate single-end reads by omitting the --pe option.
 
 ```
-python genReads.py                  \
+python gen_reads.py                  \
         -r hg19.fa                  \
         -R 126                      \
         -o /home/me/simulated_reads \
@@ -173,7 +179,7 @@ python genReads.py                  \
 Simulate PacBio-like reads by providing an error model.
 
 ```
-python genReads.py                         \
+python gen_reads.py                         \
 	-r hg19.fa                         \
 	-R 5000                            \
 	-e models/errorModel_pacbio_toy.p  \
@@ -185,10 +191,10 @@ python genReads.py                         \
 When possible, simulation can be done in parallel via multiple executions with different --job options. The resultant files will then need to be merged using utilities/mergeJobs.py. The following example shows splitting a simulation into 4 separate jobs (which can be run independently):
 
 ```
-python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 1 4
-python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 2 4
-python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 3 4
-python genReads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 4 4
+python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 1 4
+python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 2 4
+python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 3 4
+python gen_reads.py  -r hg19.fa -R 126 -o /home/me/simulated_reads --bam --vcf --job 4 4
 
 python mergeJobs.py -i /home/me/simulated_reads -o /home/me/simulated_reads_merged -s /path/to/samtools
 ```
@@ -198,7 +204,7 @@ In future revisions the dependence on SAMtools will be removed.
 To simulate human WGS 50X, try 50 chunks or less.
 
 # Utilities	
-Several scripts are distributed with genReads that are used to generate the models used for simulation.
+Several scripts are distributed with gen_reads that are used to generate the models used for simulation.
 
 ## compute_gc.py
 
@@ -255,7 +261,7 @@ Option           |  Description
 
 ## genSeqErrorModel.py
 
-Generates sequence error model for genReads.py -e option.
+Generates sequence error model for gen_reads.py -e option.
 This script needs revision, to improve the quality-score model eventually, and to include code to learn sequencing errors from pileup data.
 
 ```

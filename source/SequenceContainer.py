@@ -11,6 +11,8 @@ from Bio.Seq import Seq
 from source.neat_cigar import CigarString
 from source.probability import DiscreteDistribution, poisson_list
 
+# TODO This whole file is in desperate need of refactoring
+
 """
 Constants needed for analysis
 """
@@ -265,10 +267,15 @@ class SequenceContainer:
             avg_out = []
             self.coverage_distribution = []
             for i in range(len(self.sequences)):
-                max_coord = min([len(self.sequences[i]) - self.read_len, len(self.all_cigar[i]) - self.read_len])
+                # Zach implemented a change here but I can't remember if I changed it back for some reason.
+                # If second line below doesn't work, reactivate the first line.
+                # max_coord = min([len(self.sequences[i]) - self.read_len, len(self.all_cigar[i]) - self.read_len])
+                max_coord = min([len(self.sequences[i]) - self.read_len, len(self.all_cigar[i]) - 1])
+
                 # Trying to fix a problem wherein the above line gives a negative answer
                 if max_coord <= 0:
                     max_coord = min([len(self.sequences[i]), len(self.all_cigar[i])])
+
                 # compute gc-bias
                 j = 0
                 while j + self.window_size < len(self.sequences[i]):
@@ -279,7 +286,8 @@ class SequenceContainer:
                 gc_c = self.sequences[i][-self.window_size:].count('G') + \
                        self.sequences[i][-self.window_size:].count('C')
                 gc_cov_vals[i].extend([gc_scalars[gc_c]] * (len(self.sequences[i]) - len(gc_cov_vals[i])))
-                #
+
+                # Targeted values
                 tr_cov_vals[i].append(target_cov_vals[0])
                 prev_val = self.fm_pos[i][0]
                 for j in range(1, max_coord):
@@ -291,6 +299,8 @@ class SequenceContainer:
                         tr_cov_vals[i].append(sum(target_cov_vals[self.fm_pos[i][j]:self.fm_span[i][j]]) / float(
                             self.fm_span[i][j] - self.fm_pos[i][j]))
                         prev_val = self.fm_pos[i][j]
+                    # Debug statement
+                    # print(f'({i, j}), {self.all_cigar[i][j]}, {self.fm_pos[i][j]}, {self.fm_span[i][j]}')
 
                 # shift by half of read length
                 if len(tr_cov_vals[i]) > int(self.read_len / 2.):
@@ -305,9 +315,16 @@ class SequenceContainer:
                 # TODO if max_coord is <=0, this is a problem
                 for j in range(0, max_coord):
                     coverage_vals.append(coverage_vector[j + self.read_len] - coverage_vector[j])
-                avg_out.append(np.mean(coverage_vals) / float(self.read_len))
+                # Below is Zach's attempt to fix this. The commented out line is the original
+                # avg_out.append(np.mean(coverage_vals) / float(self.read_len))
+                avg_out.append(np.mean(coverage_vals)/float(min([self.read_len, max_coord])))
+                # Debug statement
+                # print(f'{avg_out}, {np.mean(avg_out)}')
 
                 if frag_dist is None:
+                    # Debug statement
+                    # print(f'++++, {max_coord}, {len(self.sequences[i])}, '
+                    #       f'{len(self.all_cigar[i])}, {len(coverage_vals)}')
                     self.coverage_distribution.append(DiscreteDistribution(coverage_vals, range(len(coverage_vals))))
 
                 # fragment length nightmare
@@ -350,16 +367,18 @@ class SequenceContainer:
                                     j + flv - self.read_len])
 
                         # EXPERIMENTAL
-                        # quantized_covVals = quantize_list(coverage_vals)
-                        # self.coverage_distribution[i][flv] = DiscreteDistribution([n[2] for n in quantized_covVals],[(n[0],n[1]) for n in quantized_covVals])
+                        # quantized_cov_vals = quantize_list(coverage_vals)
+                        # self.coverage_distribution[i][flv] = \
+                        #     DiscreteDistribution([n[2] for n in quantized_cov_vals],
+                        #                          [(n[0], n[1]) for n in quantized_cov_vals])
 
                         # TESTING
                         # import matplotlib.pyplot as mpl
-                        # print len(coverage_vals),'-->',len(quantized_covVals)
+                        # print len(coverage_vals),'-->',len(quantized_cov_vals)
                         # mpl.figure(0)
                         # mpl.plot(range(len(coverage_vals)), coverage_vals)
-                        # for qcv in quantized_covVals:
-                        #	mpl.plot([qcv[0], qcv[1]+1], [qcv[2],qcv[2]], 'r')
+                        # for qcv in quantized_cov_vals:
+                        # mpl.plot([qcv[0], qcv[1]+1], [qcv[2],qcv[2]], 'r')
                         # mpl.show()
                         # sys.exit(1)
 
@@ -432,7 +451,9 @@ class SequenceContainer:
                 p = which_ploid[i]
                 my_alt = input_variable[2][which_alt[i]]
                 my_var = (input_variable[0] - self.x, input_variable[1], my_alt)
-                in_len = max([len(input_variable[1]), len(my_alt)])
+                # This is a potential fix implemented by Zach in a previous commit. He left the next line in.
+                # in_len = max([len(input_variable[1]), len(my_alt)])
+                in_len = len(input_variable[1])
 
                 if my_var[0] < 0 or my_var[0] >= len(self.black_list[p]):
                     print('\nError: Attempting to insert variant out of window bounds:')
@@ -445,7 +466,7 @@ class SequenceContainer:
                     self.black_list[p][my_var[0]] = 2
                 else:
                     indel_failed = False
-                    for k in range(my_var[0], my_var[0] + in_len + 1):
+                    for k in range(my_var[0], my_var[0] + in_len):
                         if k >= len(self.black_list[p]):
                             indel_failed = True
                             continue
@@ -454,7 +475,7 @@ class SequenceContainer:
                             continue
                     if indel_failed:
                         continue
-                    for k in range(my_var[0], my_var[0] + in_len + 1):
+                    for k in range(my_var[0], my_var[0] + in_len):
                         self.black_list[p][k] = 1
                     self.indel_list[p].append(my_var)
 
@@ -827,14 +848,15 @@ class SequenceContainer:
         return read_out
 
 
-class SequencingError:
+class ReadContainer:
     """
-    Container to model sequencing errors: computes quality scores and positions to insert errors
+    Container for read data: computes quality scores and positions to insert errors
     """
 
-    def __init__(self, read_len, error_model, rescaled_error):
+    def __init__(self, read_len, error_model, rescaled_error, rescale_qual=False):
 
         self.read_len = read_len
+        self.rescale_qual = rescale_qual
 
         model_path = pathlib.Path(error_model)
         try:
@@ -849,8 +871,8 @@ class SequencingError:
         if len(error_dat) == 4:
             self.uniform = True
             [q_scores, off_q, avg_error, error_params] = error_dat
-            self.uniform_q_score = int(-10. * np.log10(avg_error) + 0.5)
-            print('Using uniform sequencing error model. (q=' + str(self.uniform_q_score) + '+' + str(
+            self.uniform_q_score = min([max(q_scores), int(-10. * np.log10(avg_error) + 0.5)])
+            print('Reading in uniform sequencing error model... (q=' + str(self.uniform_q_score) + '+' + str(
                 off_q) + ', p(err)={0:0.2f}%)'.format(100. * avg_error))
 
         # only 1 q-score model present, use same model for both strands
@@ -888,8 +910,16 @@ class SequencingError:
             self.error_scale = 1.0
         else:
             self.error_scale = rescaled_error / avg_error
-            print('Warning: Quality scores no longer exactly representative of error probability. '
-                  'Error model scaled by {0:.3f} to match desired rate...'.format(self.error_scale))
+            if not self.rescale_qual:
+                print('Warning: Quality scores no longer exactly representative of error probability. '
+                      'Error model scaled by {0:.3f} to match desired rate...'.format(self.error_scale))
+            if self.uniform:
+                if rescaled_error <= 0.:
+                    self.uniform_q_score = max(q_scores)
+                else:
+                    self.uniform_q_score = min([max(q_scores), int(-10. * np.log10(rescaled_error) + 0.5)])
+                print(' - Uniform quality score scaled to match specified error rate (q=' + str(
+                    self.uniform_qscore) + '+' + str(self.off_q) + ', p(err)={0:0.2f}%)'.format(100. * rescaled_error))
 
         if not self.uniform:
             # adjust length to match desired read length
@@ -970,7 +1000,12 @@ class SequencingError:
                 if random.random() < self.error_scale * self.q_err_rate[q_out[i]]:
                     s_err.append(i)
 
-            q_out = ''.join([chr(n + self.off_q) for n in q_out])
+            if self.rescale_qual:  # do we want to rescale qual scores to match rescaled error?
+                q_out = [max([0, int(-10. * np.log10(self.error_scale * self.q_err_rate[n]) + 0.5)]) for n in q_out]
+                q_out = [min([int(self.q_err_rate[-1]), n]) for n in q_out]
+                q_out = ''.join([chr(n + self.off_q) for n in q_out])
+            else:
+                q_out = ''.join([chr(n + self.off_q) for n in q_out])
 
         if self.error_scale == 0.0:
             return q_out, []
@@ -1046,21 +1081,21 @@ def parse_input_mutation_model(model=None, which_default=1):
             ins_count = sum([ins_list[k] for k in ins_list.keys() if k >= 1])
             del_count = sum([ins_list[k] for k in ins_list.keys() if k <= -1])
             ins_vals = [k for k in sorted(ins_list.keys()) if k >= 1]
-            ins_wght = [ins_list[k] / float(ins_count) for k in ins_vals]
+            ins_weight = [ins_list[k] / float(ins_count) for k in ins_vals]
             del_vals = [k for k in sorted([abs(k) for k in ins_list.keys() if k <= -1])]
-            del_wght = [ins_list[-k] / float(del_count) for k in del_vals]
+            del_weight = [ins_list[-k] / float(del_count) for k in del_vals]
         else:  # degenerate case where no indel stats are provided
             ins_count = 1
             del_count = 1
             ins_vals = [1]
-            ins_wght = [1.0]
+            ins_weight = [1.0]
             del_vals = [1]
-            del_wght = [1.0]
+            del_weight = [1.0]
         out_model[3] = ins_count / float(ins_count + del_count)
         out_model[4] = ins_vals
-        out_model[5] = ins_wght
+        out_model[5] = ins_weight
         out_model[6] = del_vals
-        out_model[7] = del_wght
+        out_model[7] = del_weight
 
         trinuc_trans_prob = pickle_dict['TRINUC_TRANS_PROBS']
         for k in sorted(trinuc_trans_prob.keys()):

@@ -1,6 +1,5 @@
 from struct import pack
-import gzip
-from Bio.bgzf import *
+import Bio.bgzf as bgzf
 import pathlib
 import re
 
@@ -92,11 +91,11 @@ BUFFER_BATCH_SIZE = 8000  # write out to file after this many reads
 
 # TODO find a better way to write output files
 class OutputFileWriter:
-    def __init__(self, out_prefix, paired=False, bam_header=None, vcf_header=None, gzipped=False,
+    def __init__(self, out_prefix, paired=False, bam_header=None, vcf_header=None,
                  no_fastq=False, fasta_instead=False):
 
         self.fasta_instead = fasta_instead
-        # TODO Eliminate paired end as an option for fastas
+        # TODO Eliminate paired end as an option for fastas. Plan is to create a write fasta method.
         if self.fasta_instead:
             fq1 = pathlib.Path(out_prefix + '.fasta.gz')
             fq2 = None
@@ -109,25 +108,16 @@ class OutputFileWriter:
         # TODO Make a fasta-specific method
         self.no_fastq = no_fastq
         if not self.no_fastq:
-            if gzipped:
-                self.fq1_file = gzip.open(fq1.with_suffix(fq1.suffix + '.gz'), 'wb')
-            else:
-                self.fq1_file = open(fq1, 'w')
+            self.fq1_file = bgzf.open(fq1, 'w')
 
             self.fq2_file = None
             if paired:
-                if gzipped:
-                    self.fq2_file = gzip.open(fq2.with_suffix(fq2.suffix + '.gz'), 'wb')
-                else:
-                    self.fq2_file = open(fq2, 'w')
+                self.fq2_file = bgzf.open(fq2, 'w')
 
         # VCF OUTPUT
         self.vcf_file = None
         if vcf_header is not None:
-            if gzipped:
-                self.vcf_file = gzip.open(vcf.with_suffix(vcf.suffix + '.gz'), 'wb')
-            else:
-                self.vcf_file = open(vcf, 'wb')
+            self.vcf_file = bgzf.open(vcf, 'wb')
 
             # WRITE VCF HEADER
             self.vcf_file.write('##fileformat=VCFv4.1\n'.encode('utf-8'))
@@ -160,7 +150,7 @@ class OutputFileWriter:
         # BAM OUTPUT
         self.bam_file = None
         if bam_header is not None:
-            self.bam_file = BgzfWriter(bam, 'w', compresslevel=BAM_COMPRESSION_LEVEL)
+            self.bam_file = bgzf.BgzfWriter(bam, 'w', compresslevel=BAM_COMPRESSION_LEVEL)
 
             # WRITE BAM HEADER
             self.bam_file.write("BAM\1")
@@ -188,6 +178,7 @@ class OutputFileWriter:
     # TODO add write_fasta_record
 
     def write_fastq_record(self, read_name, read1, qual1, read2=None, qual2=None, orientation=None):
+        # Since read1 and read2 are Seq objects from Biopython, they have reverse_complement methods built-in
         (read1, quality1) = (read1, qual1)
         if read2 is not None and orientation is True:
             (read2, quality2) = (read2.reverse_complement(), qual2[::-1])
@@ -209,7 +200,8 @@ class OutputFileWriter:
             str(chrom) + '\t' + str(pos) + '\t' + str(id_str) + '\t' + str(ref) + '\t' + str(alt) + '\t' + str(
                 qual) + '\t' + str(filt) + '\t' + str(info) + '\n')
 
-    def write_bam_record(self, ref_id, read_name, pos_0, cigar, seq, qual, sam_flag, mate_pos=None, aln_map_quality=70):
+    def write_bam_record(self, ref_id, read_name, pos_0, cigar, seq, qual, output_sam_flag,
+                         mate_pos=None, aln_map_quality=70):
 
         my_bin = reg2bin(pos_0, pos_0 + len(seq))
         # my_bin     = 0	# or just use a dummy value, does this actually matter?
@@ -225,10 +217,10 @@ class OutputFileWriter:
             my_t_len = 0
         else:
             next_pos = mate_pos
-            if pos_0 < next_pos:
-                my_t_len = next_pos + len(seq) - pos_0
+            if next_pos > pos_0:
+                my_t_len = next_pos - pos_0 + len(seq)
             else:
-                my_t_len = -pos_0 - len(seq) + next_pos
+                my_t_len = next_pos - pos_0 - len(seq)
 
         encoded_cig = bytearray()
         for i in range(cig_ops):
@@ -246,41 +238,45 @@ class OutputFileWriter:
         # apparently samtools automatically adds 33 to the quality score string...
         encoded_qual = ''.join([chr(ord(n) - 33) for n in qual])
 
-        # block_size = 4 +		# refID 		int32
-        #            4 +		# pos			int32
-        #            4 +		# bin_mq_nl		uint32
-        #            4 +		# flag_nc		uint32
-        #            4 +		# l_seq			int32
-        #            4 +		# next_ref_id	int32
-        #            4 +		# next_pos		int32
-        #            4 +		# tlen			int32
-        #            len(readName)+1 +
-        #            4*cig_ops +
-        #            encoded_len +
-        #            len(seq)
-
+        """
+        block_size = 4 +		# refID 		int32
+                     4 +		# pos			int32
+                     4 +		# bin_mq_nl		uint32
+                     4 +		# flag_nc		uint32
+                     4 +		# l_seq			int32
+                     4 +		# next_ref_id	int32
+                     4 +		# next_pos		int32
+                     4 +		# tlen			int32
+                     len(readName)+1 +
+                     4*cig_ops +
+                     encoded_len +
+                     len(seq)
+        """
         # block_size = 32 + len(readName)+1 + 4*cig_ops + encoded_len + len(seq)
         block_size = 32 + len(read_name) + 1 + len(encoded_cig) + len(encoded_seq) + len(encoded_qual)
 
-        ####self.bam_file.write(pack('<i',block_size))
-        ####self.bam_file.write(pack('<i',refID))
-        ####self.bam_file.write(pack('<i',pos_0))
-        ####self.bam_file.write(pack('<I',(my_bin<<16) + (my_map_quality<<8) + len(readName)+1))
-        ####self.bam_file.write(pack('<I',(samFlag<<16) + cig_ops))
-        ####self.bam_file.write(pack('<i',seq_len))
-        ####self.bam_file.write(pack('<i',next_ref_id))
-        ####self.bam_file.write(pack('<i',next_pos))
-        ####self.bam_file.write(pack('<i',my_tlen))
-        ####self.bam_file.write(readName+'\0')
-        ####self.bam_file.write(encoded_cig)
-        ####self.bam_file.write(encoded_seq)
-        ####self.bam_file.write(encoded_qual)
+        """
+        Not sure what the point of the following lines are
+        # self.bam_file.write(pack('<i',block_size))
+        # self.bam_file.write(pack('<i',refID))
+        # self.bam_file.write(pack('<i',pos_0))
+        # self.bam_file.write(pack('<I',(my_bin<<16) + (my_map_quality<<8) + len(readName)+1))
+        # self.bam_file.write(pack('<I',(samFlag<<16) + cig_ops))
+        # self.bam_file.write(pack('<i',seq_len))
+        # self.bam_file.write(pack('<i',next_ref_id))
+        # self.bam_file.write(pack('<i',next_pos))
+        # self.bam_file.write(pack('<i',my_tlen))
+        # self.bam_file.write(readName+'\0')
+        # self.bam_file.write(encoded_cig)
+        # self.bam_file.write(encoded_seq)
+        # self.bam_file.write(encoded_qual)
+        """
 
         # a horribly compressed line, I'm sorry.
         # (ref_index, position, data)
         self.bam_buffer.append((ref_id, pos_0, pack('<i', block_size) + pack('<i', ref_id) + pack('<i', pos_0) +
                                 pack('<I', (my_bin << 16) + (my_map_quality << 8) + len(read_name) + 1) +
-                                pack('<I', (sam_flag << 16) + cig_ops) + pack('<i', seq_len) + pack('<i', next_ref_id) +
+                                pack('<I', (output_sam_flag << 16) + cig_ops) + pack('<i', seq_len) + pack('<i', next_ref_id) +
                                 pack('<i', next_pos) + pack('<i', my_t_len) + read_name.encode('utf-8') +
                                 b'\0' + encoded_cig + encoded_seq + encoded_qual.encode('utf-8')))
 
@@ -308,7 +304,8 @@ class OutputFileWriter:
                         else:
                             break
                     self.bam_file.write(b''.join([n[2] for n in bam_data[:ind_to_stop_at]]))
-                    ####print 'BAM WRITING:',ind_to_stop_at,'/',len(bam_data)
+                    # Debug statement
+                    # print(f'BAM WRITING: {ind_to_stop_at}/{len(bam_data)}')
                     if ind_to_stop_at >= len(bam_data):
                         self.bam_buffer = []
                     else:
