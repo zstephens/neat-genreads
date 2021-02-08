@@ -2,8 +2,8 @@
 # encoding: utf-8
 """ ////////////////////////////////////////////////////////////////////////////////
    ///                                                                          ///
-  ///       gen_reads.source                                                        ///
- ///        VERSION 2.0: HARDER, BETTER, FASTER, STRONGER!                    ///
+  ///       gen_reads.py                                                       ///
+ ///        VERSION 3.0: HARDER, BETTER, FASTER, STRONGER!                    ///
 ///////                                                                      //////
    ///      Variant and read simulator for benchmarking NGS workflows          ///
   ///                                                                         ///
