@@ -230,7 +230,8 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
 
 def main():
     parser = argparse.ArgumentParser(description='genSeqErrorModel.py')
-    parser.add_argument('-i', type=str, required=True, metavar='<str>', help="* input_read1.fq (.gz) / input_read1.sam")
+    parser.add_argument('-i', type=str, required=True, metavar='<str>',
+                        help="* input_read1.fq[.gz] / input_read1.b/sam")
     parser.add_argument('-o', type=str, required=True, metavar='<str>', help="* output.p")
     parser.add_argument('-i2', type=str, required=False, metavar='<str>', default=None,
                         help="input_read2.fq (.gz) / input_read2.sam")
