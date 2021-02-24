@@ -11,7 +11,7 @@ To submit issues and enhancement requests, please use the [GitHub issues tracker
 Contributing
 ------------
 
-Currently, the major effort NEAT is focused on updating the code to Python 3. This is happening in the [python3_conversion branch](https://github.com/zstephens/neat-genreads/tree/python3_conversion). We are working on bringing the code up to [PEP 8 standards](https://www.python.org/dev/peps/pep-0008/), as well as leveraging Biopython and Pandas to speed up analysis. Some work is still ongoing in Master branch, based on issues and bugs that have been raised in the Issues section. 
+Future development of the NEAT project will take place in the NCSA project space, here: https://github.com/ncsa/neat-genreads. We are working on bringing the code up to [PEP 8 standards](https://www.python.org/dev/peps/pep-0008/), as well as leveraging Biopython and Pandas to speed up analysis. We would like to transition the code to C++ to increase the speed and efficiency. Please direct inquiries to that repo.
 
 In general, we follow the "fork-and-pull" Git workflow.
 
