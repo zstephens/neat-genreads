@@ -11,6 +11,8 @@ from Bio.Seq import Seq
 from source.neat_cigar import CigarString
 from source.probability import DiscreteDistribution, poisson_list
 
+# TODO This whole file is in desperate need of refactoring
+
 """
 Constants needed for analysis
 """
@@ -100,12 +102,11 @@ class SequenceContainer:
         self.x = x_offset
         self.ploidy = ploidy
         self.read_len = read_len
-        self.sequences = [Seq(str(sequence)).tomutable() for _ in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence)) for _ in range(self.ploidy)]
         self.seq_len = len(sequence)
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
-        self.all_cigar2 = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
 
@@ -193,12 +194,11 @@ class SequenceContainer:
         self.x = x_offset
         self.ploidy = ploidy
         self.read_len = read_len
-        self.sequences = [Seq(str(sequence)).tomutable() for _ in range(self.ploidy)]
+        self.sequences = [Seq(str(sequence)) for _ in range(self.ploidy)]
         self.seq_len = len(sequence)
         self.indel_list = [[] for _ in range(self.ploidy)]
         self.snp_list = [[] for _ in range(self.ploidy)]
         self.all_cigar = [[] for _ in range(self.ploidy)]
-        self.all_cigar2 = [[] for _ in range(self.ploidy)]
         self.fm_pos = [[] for _ in range(self.ploidy)]
         self.fm_span = [[] for _ in range(self.ploidy)]
         self.black_list = [np.zeros(self.seq_len, dtype='<i4') for _ in range(self.ploidy)]
@@ -258,6 +258,7 @@ class SequenceContainer:
         :return: Mean coverage value
         """
 
+        # TODO this section is also quite slow and will need further investigation
         # If we're only creating a vcf, skip some expensive initialization related to coverage depth
         if not self.only_vcf:
             (self.window_size, gc_scalars, target_cov_vals) = coverage_data
@@ -266,10 +267,15 @@ class SequenceContainer:
             avg_out = []
             self.coverage_distribution = []
             for i in range(len(self.sequences)):
-                max_coord = min([len(self.sequences[i]) - self.read_len, len(self.all_cigar[i]) - self.read_len])
+                # Zach implemented a change here but I can't remember if I changed it back for some reason.
+                # If second line below doesn't work, reactivate the first line.
+                # max_coord = min([len(self.sequences[i]) - self.read_len, len(self.all_cigar[i]) - self.read_len])
+                max_coord = min([len(self.sequences[i]) - self.read_len, len(self.all_cigar[i]) - 1])
+
                 # Trying to fix a problem wherein the above line gives a negative answer
                 if max_coord <= 0:
                     max_coord = min([len(self.sequences[i]), len(self.all_cigar[i])])
+
                 # compute gc-bias
                 j = 0
                 while j + self.window_size < len(self.sequences[i]):
@@ -280,7 +286,8 @@ class SequenceContainer:
                 gc_c = self.sequences[i][-self.window_size:].count('G') + \
                        self.sequences[i][-self.window_size:].count('C')
                 gc_cov_vals[i].extend([gc_scalars[gc_c]] * (len(self.sequences[i]) - len(gc_cov_vals[i])))
-                #
+
+                # Targeted values
                 tr_cov_vals[i].append(target_cov_vals[0])
                 prev_val = self.fm_pos[i][0]
                 for j in range(1, max_coord):
@@ -292,6 +299,8 @@ class SequenceContainer:
                         tr_cov_vals[i].append(sum(target_cov_vals[self.fm_pos[i][j]:self.fm_span[i][j]]) / float(
                             self.fm_span[i][j] - self.fm_pos[i][j]))
                         prev_val = self.fm_pos[i][j]
+                    # Debug statement
+                    # print(f'({i, j}), {self.all_cigar[i][j]}, {self.fm_pos[i][j]}, {self.fm_span[i][j]}')
 
                 # shift by half of read length
                 if len(tr_cov_vals[i]) > int(self.read_len / 2.):
@@ -306,9 +315,16 @@ class SequenceContainer:
                 # TODO if max_coord is <=0, this is a problem
                 for j in range(0, max_coord):
                     coverage_vals.append(coverage_vector[j + self.read_len] - coverage_vector[j])
-                avg_out.append(np.mean(coverage_vals) / float(self.read_len))
+                # Below is Zach's attempt to fix this. The commented out line is the original
+                # avg_out.append(np.mean(coverage_vals) / float(self.read_len))
+                avg_out.append(np.mean(coverage_vals)/float(min([self.read_len, max_coord])))
+                # Debug statement
+                # print(f'{avg_out}, {np.mean(avg_out)}')
 
                 if frag_dist is None:
+                    # Debug statement
+                    # print(f'++++, {max_coord}, {len(self.sequences[i])}, '
+                    #       f'{len(self.all_cigar[i])}, {len(coverage_vals)}')
                     self.coverage_distribution.append(DiscreteDistribution(coverage_vals, range(len(coverage_vals))))
 
                 # fragment length nightmare
@@ -351,16 +367,18 @@ class SequenceContainer:
                                     j + flv - self.read_len])
 
                         # EXPERIMENTAL
-                        # quantized_covVals = quantize_list(coverage_vals)
-                        # self.coverage_distribution[i][flv] = DiscreteDistribution([n[2] for n in quantized_covVals],[(n[0],n[1]) for n in quantized_covVals])
+                        # quantized_cov_vals = quantize_list(coverage_vals)
+                        # self.coverage_distribution[i][flv] = \
+                        #     DiscreteDistribution([n[2] for n in quantized_cov_vals],
+                        #                          [(n[0], n[1]) for n in quantized_cov_vals])
 
                         # TESTING
                         # import matplotlib.pyplot as mpl
-                        # print len(coverage_vals),'-->',len(quantized_covVals)
+                        # print len(coverage_vals),'-->',len(quantized_cov_vals)
                         # mpl.figure(0)
                         # mpl.plot(range(len(coverage_vals)), coverage_vals)
-                        # for qcv in quantized_covVals:
-                        #	mpl.plot([qcv[0], qcv[1]+1], [qcv[2],qcv[2]], 'r')
+                        # for qcv in quantized_cov_vals:
+                        # mpl.plot([qcv[0], qcv[1]+1], [qcv[2],qcv[2]], 'r')
                         # mpl.show()
                         # sys.exit(1)
 
@@ -376,6 +394,7 @@ class SequenceContainer:
                       range(len(self.models))]
         k_range = range(int(self.seq_len * MAX_MUTFRAC))
         # return (indel_poisson, snp_poisson)
+        # TODO These next two lines are really slow. Maybe there's a better way
         return [poisson_list(k_range, ind_l_list[n]) for n in range(len(self.models))], \
                [poisson_list(k_range, snp_l_list[n]) for n in range(len(self.models))]
 
@@ -432,7 +451,9 @@ class SequenceContainer:
                 p = which_ploid[i]
                 my_alt = input_variable[2][which_alt[i]]
                 my_var = (input_variable[0] - self.x, input_variable[1], my_alt)
-                in_len = max([len(input_variable[1]), len(my_alt)])
+                # This is a potential fix implemented by Zach in a previous commit. He left the next line in.
+                # in_len = max([len(input_variable[1]), len(my_alt)])
+                in_len = len(input_variable[1])
 
                 if my_var[0] < 0 or my_var[0] >= len(self.black_list[p]):
                     print('\nError: Attempting to insert variant out of window bounds:')
@@ -445,7 +466,7 @@ class SequenceContainer:
                     self.black_list[p][my_var[0]] = 2
                 else:
                     indel_failed = False
-                    for k in range(my_var[0], my_var[0] + in_len + 1):
+                    for k in range(my_var[0], my_var[0] + in_len):
                         if k >= len(self.black_list[p]):
                             indel_failed = True
                             continue
@@ -454,7 +475,7 @@ class SequenceContainer:
                             continue
                     if indel_failed:
                         continue
-                    for k in range(my_var[0], my_var[0] + in_len + 1):
+                    for k in range(my_var[0], my_var[0] + in_len):
                         self.black_list[p][k] = 1
                     self.indel_list[p].append(my_var)
 
@@ -567,16 +588,18 @@ class SequenceContainer:
 
         # MODIFY REFERENCE STRING: SNPS
         for i in range(len(all_snps)):
+            temp = self.sequences[i].tomutable()
             for j in range(len(all_snps[i])):
                 v_pos = all_snps[i][j][0]
 
-                if all_snps[i][j][1] != self.sequences[i][v_pos]:
-                    print('\nError: Something went wrong!\n', all_snps[i][j], self.sequences[i][v_pos], '\n')
+                if all_snps[i][j][1] != temp[v_pos]:
+                    print('\nError: Something went wrong!\n', all_snps[i][j], temp[v_pos], '\n')
                     print(all_snps[i][j])
                     print(self.sequences[i][v_pos])
                     sys.exit(1)
                 else:
-                    self.sequences[i][v_pos] = all_snps[i][j][2]
+                    temp[v_pos] = all_snps[i][j][2]
+            self.sequences[i] = temp.toseq()
 
         # organize the indels we want to insert
         for i in range(len(all_indels)):
@@ -586,7 +609,7 @@ class SequenceContainer:
         # MODIFY REFERENCE STRING: INDELS
         for i in range(len(all_indels_ins)):
             rolling_adj = 0
-            temp_symbol_string = CigarString(str(len(self.sequences[i])) + "M")
+            temp_symbol_list = CigarString.string_to_list(str(len(self.sequences[i])) + "M")
 
             for j in range(len(all_indels_ins[i])):
                 v_pos = all_indels_ins[i][j][0] + rolling_adj
@@ -600,37 +623,35 @@ class SequenceContainer:
                     sys.exit(1)
                 else:
                     # alter reference sequence
-                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2]).tomutable() + \
+                    self.sequences[i] = self.sequences[i][:v_pos] + Seq(all_indels_ins[i][j][2]) + \
                                         self.sequences[i][v_pos2:]
                     # notate indel positions for cigar computation
                     if indel_length > 0:
-                        cigar_to_insert = CigarString(str(indel_length) + 'I')
-                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert,
-                                                                v_pos2 + 1)
+                        temp_symbol_list = temp_symbol_list[:v_pos + 1] + ['I'] * indel_length \
+                                              + temp_symbol_list[v_pos2 + 1:]
                     elif indel_length < 0:
-                        cigar_to_insert = CigarString(str(abs(indel_length)) + 'D')
-                        temp_symbol_string.insert_cigar_element(v_pos + 1, cigar_to_insert)
+                        temp_symbol_list[v_pos + 1] = "D" * abs(indel_length) + "M"
 
             # pre-compute cigar strings
-            for j in range(len(temp_symbol_string) - self.read_len):
-                self.all_cigar[i].append(temp_symbol_string.get_cigar_fragment(j, j + self.read_len))
+            for j in range(len(temp_symbol_list) - self.read_len):
+                self.all_cigar[i].append(temp_symbol_list[j:j + self.read_len])
 
             # create some data structures we will need later:
-            # --- self.FM_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
+            # --- self.fm_pos[ploid][pos]: position of the left-most matching base (IN REFERENCE COORDINATES, i.e.
             #       corresponding to the unmodified reference genome)
-            # --- self.FM_span[ploid][pos]: number of reference positions spanned by a read originating from
+            # --- self.fm_span[ploid][pos]: number of reference positions spanned by a read originating from
             #       this coordinate
             md_so_far = 0
-            temp_symbol_string_list = temp_symbol_string.string_to_list()
-            for j in range(len(temp_symbol_string_list)):
+            for j in range(len(temp_symbol_list)):
                 self.fm_pos[i].append(md_so_far)
                 # fix an edge case with deletions
-                if temp_symbol_string_list[j] == 'D':
-                    self.fm_pos[i][-1] += temp_symbol_string_list[j].count('D')
+                if 'D' in temp_symbol_list[j]:
+                    self.fm_pos[i][-1] += temp_symbol_list[j].count('D')
                 # compute number of ref matches for each read
-                span_dif = len([n for n in temp_symbol_string_list[j:j + self.read_len] if 'M' in n])
+                # This line gets hit a lot and is relatively slow. Might look for an improvement
+                span_dif = len([n for n in temp_symbol_list[j: j + self.read_len] if 'M' in n])
                 self.fm_span[i].append(self.fm_pos[i][-1] + span_dif)
-                md_so_far += temp_symbol_string_list[j].count('M') + temp_symbol_string_list[j].count('D')
+                md_so_far += temp_symbol_list[j].count('M') + temp_symbol_list[j].count('D')
 
         # tally up all the variants we handled...
         count_dict = {}
@@ -713,7 +734,9 @@ class SequenceContainer:
 
             # add buffer sequence to fill in positions that get deleted
             read[3] += self.sequences[my_ploid][read[0] + self.read_len:read[0] + self.read_len + total_d]
-            expanded_cigar = []
+            # this is leftover code and a patch for a method that isn't used. There is probably a better
+            # way to structure this than with a boolean
+            first_time = True
             adj = 0
             sse_adj = [0 for _ in range(self.read_len + max(sequencing_model.err_p[3]))]
             any_indel_err = False
@@ -749,14 +772,14 @@ class SequenceContainer:
 
                     if total_d > avail_b:  # if not enough bases to fill-in deletions, skip all indel erors
                         continue
-                    if not expanded_cigar:
-                        expanded_cigar = my_cigar.string_to_list()
+                    if first_time:
+                        # Again, this whole first time thing is a workaround for the previous
+                        # code, which is simplified. May need to fix this all at some point
+                        first_time = False
                         fill_to_go = total_d - total_i + 1
                         if fill_to_go > 0:
                             try:
-                                extra_cigar_val = self.all_cigar[my_ploid][read[0]
-                                                                           + fill_to_go].string_to_list()[-fill_to_go:]
-
+                                extra_cigar_val = self.all_cigar[my_ploid][read[0] + fill_to_go][-fill_to_go:]
                             except IndexError:
                                 # Applying the deletions we want requires going beyond region boundaries.
                                 # Skip all indel errors
@@ -772,12 +795,13 @@ class SequenceContainer:
                         pf = e_pos + my_adj + e_len + 1
                         if str(read[3][pi:pf]) == str(error[3]):
                             read[3] = read[3][:pi + 1] + read[3][pf:]
-                            expanded_cigar = expanded_cigar[:pi + 1] + expanded_cigar[pf:]
+                            my_cigar = my_cigar[:pi + 1] + my_cigar[pf:]
                             # weird edge case with del at very end of region. Make a guess and add a "M"
-                            if pi + 1 == len(expanded_cigar):
-                                expanded_cigar.append('M')
+                            if pi + 1 == len(my_cigar):
+                                my_cigar.append('M')
+
                             try:
-                                expanded_cigar[pi + 1] = 'D' * e_len + expanded_cigar[pi + 1]
+                                my_cigar[pi + 1] = 'D' * e_len + my_cigar[pi + 1]
                             except IndexError:
                                 print("Bug!! Index error on expanded cigar")
                                 sys.exit(1)
@@ -794,8 +818,7 @@ class SequenceContainer:
                         my_adj = sse_adj[e_pos]
                         if str(read[3][e_pos + my_adj]) == error[3]:
                             read[3] = read[3][:e_pos + my_adj] + error[4] + read[3][e_pos + my_adj + 1:]
-                            expanded_cigar = expanded_cigar[:e_pos + my_adj] + ['I'] * e_len + expanded_cigar[
-                                                                                               e_pos + my_adj:]
+                            my_cigar = my_cigar[:e_pos + my_adj] + ['I'] * e_len + my_cigar[e_pos + my_adj:]
                         else:
                             print('\nError, ref does not match alt while attempting to insert insertion error!\n')
                             print('---', chr(read[3][e_pos + my_adj]), '!=', error[3])
@@ -806,15 +829,17 @@ class SequenceContainer:
 
                 else:  # substitution errors, much easier by comparison...
                     if str(read[3][e_pos + sse_adj[e_pos]]) == error[3]:
-                        read[3][e_pos + sse_adj[e_pos]] = error[4]
+                        temp = read[3].tomutable()
+                        temp[e_pos + sse_adj[e_pos]] = error[4]
+                        read[3] = temp.toseq()
                     else:
                         print('\nError, ref does not match alt while attempting to insert substitution error!\n')
                         sys.exit(1)
 
             if any_indel_err:
-                if len(expanded_cigar):
-                    relevant_cigar = (expanded_cigar + extra_cigar_val)[:self.read_len]
-                    my_cigar = CigarString(CigarString.list_to_string(relevant_cigar))
+                if len(my_cigar):
+                    my_cigar = (my_cigar + extra_cigar_val)[:self.read_len]
+
                 read[3] = read[3][:self.read_len]
 
             read_out.append([self.fm_pos[my_ploid][read[0]], my_cigar, read[3], str(read[1])])
@@ -823,14 +848,15 @@ class SequenceContainer:
         return read_out
 
 
-class SequencingError:
+class ReadContainer:
     """
-    Container to model sequencing errors: computes quality scores and positions to insert errors
+    Container for read data: computes quality scores and positions to insert errors
     """
 
-    def __init__(self, read_len, error_model, rescaled_error):
+    def __init__(self, read_len, error_model, rescaled_error, rescale_qual=False):
 
         self.read_len = read_len
+        self.rescale_qual = rescale_qual
 
         model_path = pathlib.Path(error_model)
         try:
@@ -845,8 +871,8 @@ class SequencingError:
         if len(error_dat) == 4:
             self.uniform = True
             [q_scores, off_q, avg_error, error_params] = error_dat
-            self.uniform_q_score = int(-10. * np.log10(avg_error) + 0.5)
-            print('Using uniform sequencing error model. (q=' + str(self.uniform_q_score) + '+' + str(
+            self.uniform_q_score = min([max(q_scores), int(-10. * np.log10(avg_error) + 0.5)])
+            print('Reading in uniform sequencing error model... (q=' + str(self.uniform_q_score) + '+' + str(
                 off_q) + ', p(err)={0:0.2f}%)'.format(100. * avg_error))
 
         # only 1 q-score model present, use same model for both strands
@@ -884,8 +910,16 @@ class SequencingError:
             self.error_scale = 1.0
         else:
             self.error_scale = rescaled_error / avg_error
-            print('Warning: Quality scores no longer exactly representative of error probability. '
-                  'Error model scaled by {0:.3f} to match desired rate...'.format(self.error_scale))
+            if not self.rescale_qual:
+                print('Warning: Quality scores no longer exactly representative of error probability. '
+                      'Error model scaled by {0:.3f} to match desired rate...'.format(self.error_scale))
+            if self.uniform:
+                if rescaled_error <= 0.:
+                    self.uniform_q_score = max(q_scores)
+                else:
+                    self.uniform_q_score = min([max(q_scores), int(-10. * np.log10(rescaled_error) + 0.5)])
+                print(' - Uniform quality score scaled to match specified error rate (q=' + str(
+                    self.uniform_qscore) + '+' + str(self.off_q) + ', p(err)={0:0.2f}%)'.format(100. * rescaled_error))
 
         if not self.uniform:
             # adjust length to match desired read length
@@ -933,6 +967,7 @@ class SequencingError:
         :return: modified sequence and associate quality scores
         """
 
+        # TODO this is one of the slowest methods in the code. Need to investigate how to speed this up.
         q_out = [0] * self.read_len
         s_err = []
 
@@ -949,6 +984,8 @@ class SequencingError:
                 my_q = self.init_dist_by_pos_1[0].sample()
             q_out[0] = my_q
 
+            # Every time this is hit, we loop the entire read length twice. I feel like these two loops
+            # Could be combined into one fairly easily. The culprit seems to bee too many hits to the sample() method.
             for i in range(1, self.read_len):
                 if self.pe_models and is_reverse_strand:
                     my_q = self.prob_dist_by_pos_by_prev_q2[self.q_ind_remap[i]][my_q].sample()
@@ -963,7 +1000,12 @@ class SequencingError:
                 if random.random() < self.error_scale * self.q_err_rate[q_out[i]]:
                     s_err.append(i)
 
-            q_out = ''.join([chr(n + self.off_q) for n in q_out])
+            if self.rescale_qual:  # do we want to rescale qual scores to match rescaled error?
+                q_out = [max([0, int(-10. * np.log10(self.error_scale * self.q_err_rate[n]) + 0.5)]) for n in q_out]
+                q_out = [min([int(self.q_err_rate[-1]), n]) for n in q_out]
+                q_out = ''.join([chr(n + self.off_q) for n in q_out])
+            else:
+                q_out = ''.join([chr(n + self.off_q) for n in q_out])
 
         if self.error_scale == 0.0:
             return q_out, []
@@ -975,6 +1017,8 @@ class SequencingError:
         # don't allow other sequencing errors to occur on bases removed by deletion errors
         del_blacklist = []
 
+        # Need to check into this loop, to make sure it isn't slowing us down.
+        # The culprit seems to bee too many hits to the sample() method. This has a few of those calls.
         for ind in s_err[::-1]:  # for each error that we're going to insert...
 
             # determine error type
@@ -1037,21 +1081,21 @@ def parse_input_mutation_model(model=None, which_default=1):
             ins_count = sum([ins_list[k] for k in ins_list.keys() if k >= 1])
             del_count = sum([ins_list[k] for k in ins_list.keys() if k <= -1])
             ins_vals = [k for k in sorted(ins_list.keys()) if k >= 1]
-            ins_wght = [ins_list[k] / float(ins_count) for k in ins_vals]
+            ins_weight = [ins_list[k] / float(ins_count) for k in ins_vals]
             del_vals = [k for k in sorted([abs(k) for k in ins_list.keys() if k <= -1])]
-            del_wght = [ins_list[-k] / float(del_count) for k in del_vals]
+            del_weight = [ins_list[-k] / float(del_count) for k in del_vals]
         else:  # degenerate case where no indel stats are provided
             ins_count = 1
             del_count = 1
             ins_vals = [1]
-            ins_wght = [1.0]
+            ins_weight = [1.0]
             del_vals = [1]
-            del_wght = [1.0]
+            del_weight = [1.0]
         out_model[3] = ins_count / float(ins_count + del_count)
         out_model[4] = ins_vals
-        out_model[5] = ins_wght
+        out_model[5] = ins_weight
         out_model[6] = del_vals
-        out_model[7] = del_wght
+        out_model[7] = del_weight
 
         trinuc_trans_prob = pickle_dict['TRINUC_TRANS_PROBS']
         for k in sorted(trinuc_trans_prob.keys()):

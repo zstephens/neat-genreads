@@ -10,7 +10,7 @@ bedtools genomecov
 ```
 
 ```
-python computeGC.py			\
+python compute_gc.py			\
         -r reference.fasta         	\
         -i genomecov            	\
         -w [sliding window length]  	\
@@ -26,7 +26,7 @@ The main function in this file processes the inputs (reference.fasta, genome.cov
 Takes SAM or BAM files and uses console commands for processing:
 
 ```
-python computeGC.py			\
+python compute_fralgen.py			\
 	-i path to sam file		\
 	-o path/to/output
 ```
@@ -49,7 +49,7 @@ samtools view nameof.bam > nameof.sam
 Takes references genome and TSV file to generate mutation models:
 
 ```
-python genMutModel.py               \
+python gen_mut_model.py               \
         -r hg19.fa                  \
         -m inputVariants.tsv        \
         -o /home/me/models.p
