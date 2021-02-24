@@ -1,3 +1,6 @@
+# NEAT moved
+- The active development of NEAT will proceed on the NCSA project space. You can find the active repository here: https://github.com/ncsa/neat-genreads. We appreciate all the help Zach has provided in understanding the code and maintaining it.
+
 # NEAT v3.0
 - NEAT gen_reads now runs in Python 3 exclusively. The previous, Python 2 version is stored in the repo as v2.0, but will not be undergoing active development.
 - Converted sequence objects to Biopython Sequence objects to take advantage of the Biopython library
