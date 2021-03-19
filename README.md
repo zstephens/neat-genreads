@@ -1,7 +1,7 @@
 # The NEAT Project v3.0
 Welcome to the NEAT project, the NExt-generation sequencing Analysis Toolkit, version 3.0. NEAT has now been updated to Python 3, and is moving toward compliance with PEP8 standards. There is still lots of work to be done. See the [ChangeLog](ChangeLog.md) for notes.
 
-NOTE: Future development on this project will take place in the NCSA project space. The new repo can be found here: https://github.com/ncsa/neat-genreads. Please direct future issues and feature requests to that repository.
+NOTE: Future development on this project will take place in the NCSA project space. The new repo can be found here: https://github.com/ncsa/NEAT. Please direct future issues and feature requests to that repository.
 
 Stay tuned over the coming weeks for exciting updates to NEAT, and learn how to [contribute](CONTRIBUTING.md) yourself. If you'd like to use some of our code, no problem! Just review the [license](LICENSE.md), first.
 
