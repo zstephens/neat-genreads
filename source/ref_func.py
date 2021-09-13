@@ -132,10 +132,10 @@ def read_ref(ref_path, ref_inds_i, n_handling, n_unknowns=True, quiet=False):
         for region in n_atlas:
             n_info['all'].extend(region)
             if region[1] - region[0] <= n_handling[1]:
+                temp = my_dat.tomutable()
                 for i in range(region[0], region[1]):
-                    temp = my_dat.tomutable()
                     temp[i] = random.choice(ALLOWED_NUCL)
-                    my_dat = temp.toseq()
+                my_dat = temp.toseq()
             else:
                 n_info['big'].extend(region)
     elif n_handling[0] == 'allChr' and n_handling[2] in OK_CHR_ORD:
