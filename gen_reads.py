@@ -1,4 +1,4 @@
-#!/usr/bin/env source
+#!/usr/bin/env python3
 # encoding: utf-8
 """ ////////////////////////////////////////////////////////////////////////////////
    ///                                                                          ///
@@ -405,8 +405,13 @@ def main(raw_args=None):
     # keep track of the number of reads we've sampled, for read-names
     read_name_count = 1
     unmapped_records = []
+    skip_chromosomes = off_target_scalar == 0.0 or off_target_discard
 
     for chrom in range(len(ref_index)):
+        chrom_name = ref_index[chrom][0]
+        if input_regions and chrom_name not in input_regions and skip_chromosomes:
+            # print('Skipping {}'.format(chrom_name))
+            continue
 
         # read in reference sequence and notate blocks of Ns
         (ref_sequence, n_regions) = read_ref(reference, ref_index[chrom], n_handling)
