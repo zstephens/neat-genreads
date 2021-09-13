@@ -183,8 +183,9 @@ class OutputFileWriter:
         if read2 is not None and orientation is True:
             (read2, quality2) = (read2.reverse_complement(), qual2[::-1])
         elif read2 is not None and orientation is False:
+            prev_read1 = read1
             (read1, quality1) = (read2.reverse_complement(), qual2[::-1])
-            (read2, quality2) = (read1, qual1)
+            (read2, quality2) = (prev_read1, qual1)
 
         if self.fasta_instead:
             self.fq1_buffer.append('>' + read_name + '/1\n' + str(read1) + '\n')
