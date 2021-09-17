@@ -1,17 +1,3 @@
-#!/usr/bin/env source
-
-#
-#
-#          genSeqErrorModel.source
-#          Computes sequencing error model for gen_reads.source
-#
-#         
-#          Usage: source genSeqErrorModel.source -i input_reads.fq -o path/to/output_name.p
-#
-#
-# Python 3 ready
-
-
 import numpy as np
 import argparse
 import sys
@@ -21,6 +7,7 @@ import pathlib
 import pysam
 from functools import reduce
 
+print("genSeqErrorModel starts running....", file=sys.stderr)
 # enables import from neighboring package
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -32,24 +19,24 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
     prob_smooth = 0.
 
     # Takes a gzip or sam file and returns the simulation's average error rate,
-    print('reading ' + input_file + '...')
+    print('reading ' + input_file + '...', file=sys.stderr)
     is_aligned = False
     lines_to_read = 0
     try:
         if input_file[-4:] == '.bam' or input_file[-4:] == '.sam':
-            print('detected aligned file....')
+            print('detected aligned file....', file=sys.stderr)
             stats = pysam.idxstats(input_file).strip().split('\n')
             lines_to_read = reduce(lambda x, y: x + y, [eval('+'.join(l.rstrip('\n').split('\t')[2:])) for l in stats])
             f = pysam.AlignmentFile(input_file)
             is_aligned = True
         else:
-            print('detected fastq file....')
+            print('detected fastq file....', file=sys.stderr)
             with pysam.FastxFile(input_file) as f:
                 for _ in f:
                     lines_to_read += 1
             f = pysam.FastxFile(input_file)
     except FileNotFoundError:
-        print("Check input file. Must be fastq, gzipped fastq, or bam/sam file.")
+        print("Check input file. Must be fastq, gzipped fastq, or bam/sam file.", file=sys.stderr)
         sys.exit(1)
 
     actual_readlen = 0
@@ -69,14 +56,14 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
             qualities_to_check = read.get_quality_array()
         if actual_readlen == 0:
             actual_readlen = len(qualities_to_check) - 1
-            print('assuming read length is uniform...')
-            print('detected read length (from first read found):', actual_readlen)
+            print('assuming read length is uniform...', file=sys.stderr)
+            print('detected read length (from first read found):', actual_readlen, file=sys.stderr)
             prior_q = np.zeros([actual_readlen, real_q])
             total_q = [None] + [np.zeros([real_q, real_q]) for n in range(actual_readlen - 1)]
 
         # sanity-check readlengths
         if len(qualities_to_check) - 1 != actual_readlen:
-            print('skipping read with unexpected length...')
+            print('skipping read with unexpected length...', file=sys.stderr)
             continue
 
         for i in range(actual_readlen):
@@ -100,13 +87,13 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
     # some sanity checking again...
     q_range = [min(q_dict.keys()), max(q_dict.keys())]
     if q_range[0] < 0:
-        print('\nError: Read in Q-scores below 0\n')
+        print('\nError: Read in Q-scores below 0\n', file=sys.stderr)
         exit(1)
     if q_range[1] > real_q:
-        print('\nError: Read in Q-scores above specified maximum:', q_range[1], '>', real_q, '\n')
+        print('\nError: Read in Q-scores above specified maximum:', q_range[1], '>', real_q, '\n', file=sys.stderr)
         exit(1)
 
-    print('computing probabilities...')
+    print('computing probabilities...', file=sys.stderr)
     prob_q = [None] + [[[0. for m in range(real_q)] for n in range(real_q)] for p in range(actual_readlen - 1)]
     for p in range(1, actual_readlen):
         for i in range(real_q):
@@ -188,7 +175,7 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
         # mpl.tight_layout()
         mpl.show()
 
-    print('estimating average error rate via simulation...')
+    print('estimating average error rate via simulation...', file=sys.stderr)
     q_scores = range(real_q)
     # print (len(init_q), len(init_q[0]))
     # print (len(prob_q), len(prob_q[1]), len(prob_q[1][0]))
@@ -223,7 +210,7 @@ def parse_file(input_file, real_q, off_q, max_reads, n_samp, plot_stuff):
         eVal = 10. ** (-k / 10.)
         # print k, eVal, count_dict[k]
         avg_err += eVal * (count_dict[k] / tot_bases)
-    print('AVG ERROR RATE:', avg_err)
+    print('AVG ERROR RATE:', avg_err, file=sys.stderr)
 
     return init_q, prob_q, avg_err
 
@@ -248,6 +235,7 @@ def main():
 
     (infile, outfile, off_q, max_q, max_reads, n_samp) = (args.i, args.o, args.q, args.Q, args.n, args.s)
     (infile2, pile_up) = (args.i2, args.p)
+    print("Read1 is {}, Read2 is {}, output model is {}".format(infile, infile2, outfile), file=sys.stderr)
 
     real_q = max_q + 1
 
@@ -255,8 +243,10 @@ def main():
 
     q_scores = range(real_q)
     if infile2 is None:
+        print('Read2 is not input. Generate Seq Error Model on single end reads', file=sys.stderr)
         (init_q, prob_q, avg_err) = parse_file(infile, real_q, off_q, max_reads, n_samp, plot_stuff)
     else:
+        print('Read2 is inputted. Generate Seq Error Model on pair-end reads', file=sys.stderr)
         (init_q, prob_q, avg_err1) = parse_file(infile, real_q, off_q, max_reads, n_samp, plot_stuff)
         (init_q2, prob_q2, avg_err2) = parse_file(infile2, real_q, off_q, max_reads, n_samp, plot_stuff)
         avg_err = (avg_err1 + avg_err2) / 2.
@@ -266,7 +256,7 @@ def main():
     #
     if pile_up == None:
 
-        print('Using default sequencing error parameters...')
+        print('Using default sequencing error parameters...', file=sys.stderr)
 
         # sequencing substitution transition probabilities
         sse_prob = [[0., 0.4918, 0.3377, 0.1705],
@@ -287,7 +277,7 @@ def main():
     #	otherwise we need to parse a pileup and compute statistics!
     #
     else:
-        print('\nPileup parsing coming soon!\n')
+        print('\nPileup parsing coming soon!\n', file=sys.stderr)
         exit(1)
 
     err_params = [sse_prob, sie_rate, sie_prob, sie_val, sie_ins_freq, sie_ins_nucl]
@@ -296,7 +286,7 @@ def main():
     #	finally, let's save our output model
     #
     outfile = pathlib.Path(outfile).with_suffix(".p")
-    print('saving model...')
+    print('saving model...', file=sys.stderr)
     if infile2 is None:
         pickle.dump([init_q, prob_q, q_scores, off_q, avg_err, err_params], open(outfile, 'wb'))
     else:
@@ -304,4 +294,5 @@ def main():
 
 
 if __name__ == '__main__':
+    print("genSeqErrorModel starts executing the main function....", file=sys.stderr)
     main()
