@@ -1,4 +1,4 @@
-numpy==1.19.5
+numpy==1.22.0
 biopython==1.78
 matplotlib==3.3.4
 matplotlib_venn==0.11.6
